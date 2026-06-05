@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Annotated, Any, Optional
 
 import aiofiles
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,6 +44,11 @@ from app.services.validation_service import validate_mapped_fields
 from app.services.validation_engine import run_validation
 from app.services.confidence_engine import score_fields, build_field_response
 from app.services.final_field_normalizer import build_final_ocr_decision
+from app.services.correction_memory import (
+    apply_user_corrections,
+    build_correction_memory_records,
+    recompute_final_decision_after_corrections,
+)
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 settings = get_settings()
@@ -1540,6 +1545,129 @@ async def download_batch_zip(
         media_type="application/zip",
         filename=zip_path.name,
     )
+
+
+def _get_memory_job_or_404(job_id: str, current_user: dict[str, Any]) -> dict[str, Any]:
+    try:
+        uuid.UUID(job_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Invalid job_id format")
+
+    job = OCR_DEMO_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Upload job not found")
+    if not is_superadmin(current_user) and job.get("owner_user_id") != current_user["user_id"]:
+        raise HTTPException(status_code=404, detail="Upload job not found")
+    return job
+
+
+def _require_canonical_fields(job: dict[str, Any]) -> dict[str, Any]:
+    canonical_fields = job.get("canonical_fields")
+    if not isinstance(canonical_fields, dict) or not canonical_fields:
+        raise HTTPException(status_code=409, detail="No canonical_fields available for review")
+    return canonical_fields
+
+
+def _review_payload(job_id: str, job: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "job_id": job_id,
+        "canonical_fields": job.get("canonical_fields", {}),
+        "review_fields": job.get("review_fields", []),
+        "blocked_fields": job.get("blocked_fields", []),
+        "export_allowed": bool(job.get("export_allowed", False)),
+        "export_block_reasons": job.get("export_block_reasons", []),
+    }
+
+
+def _apply_final_decision_to_job(job: dict[str, Any], decision: dict[str, Any]) -> None:
+    job.update(decision)
+
+
+@router.get("/jobs/{job_id}/review", summary="Get OCR review fields")
+async def get_upload_job_review(
+    job_id: str,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+) -> dict:
+    job = _get_memory_job_or_404(job_id, current_user)
+    _require_canonical_fields(job)
+    return _review_payload(job_id, job)
+
+
+@router.post("/jobs/{job_id}/corrections", summary="Apply OCR field corrections")
+async def apply_upload_job_corrections(
+    job_id: str,
+    body: dict[str, Any] = Body(...),
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    job = _get_memory_job_or_404(job_id, current_user)
+    canonical_fields_before = _require_canonical_fields(job)
+
+    corrections = body.get("corrections") if isinstance(body, dict) else None
+    if not isinstance(corrections, dict) or not corrections:
+        raise HTTPException(status_code=400, detail="corrections must be a non-empty object")
+
+    applied = apply_user_corrections(canonical_fields_before, corrections)
+    if applied["unknown_fields"]:
+        raise HTTPException(
+            status_code=400,
+            detail={"unknown_fields": applied["unknown_fields"]},
+        )
+
+    decision = recompute_final_decision_after_corrections(applied["canonical_fields"])
+    _apply_final_decision_to_job(job, decision)
+    job["correction_applied_fields"] = applied["applied_fields"]
+    job["correction_invalid_fields"] = applied["invalid_fields"]
+    job["correction_updated_at"] = datetime.now(timezone.utc).isoformat()
+
+    warnings: list[str] = []
+    memory_saved_count = 0
+    if bool(body.get("save_to_memory", False)):
+        try:
+            db_job = await get_owned_ocr_job(db, uuid.UUID(job_id), current_user)
+            detected_company = job.get("detected_company") if isinstance(job.get("detected_company"), dict) else {}
+            company_id = detected_company.get("company_id")
+            if not company_id:
+                warnings.append("Correction memory was not saved: company_id unavailable")
+            else:
+                records = build_correction_memory_records(
+                    company_id=company_id,
+                    template_id=db_job.template_id,
+                    document_type=job.get("document_type"),
+                    canonical_fields_before=canonical_fields_before,
+                    corrections=corrections,
+                    evidence_text=job.get("raw_text_preview") or job.get("raw_text", "")[:300],
+                )
+                if records:
+                    db.add_all(records)
+                    await db.commit()
+                    memory_saved_count = len(records)
+                else:
+                    warnings.append("Correction memory was not saved: no valid records built")
+        except Exception as exc:
+            await db.rollback()
+            warnings.append(f"Correction memory save failed: {exc}")
+
+    response = _review_payload(job_id, job)
+    response.update({
+        "corrected_fields": applied["applied_fields"],
+        "invalid_fields": applied["invalid_fields"],
+        "memory_saved_count": memory_saved_count,
+        "warnings": warnings,
+    })
+    return response
+
+
+@router.post("/jobs/{job_id}/revalidate", summary="Revalidate OCR review fields")
+async def revalidate_upload_job(
+    job_id: str,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+) -> dict:
+    job = _get_memory_job_or_404(job_id, current_user)
+    canonical_fields = _require_canonical_fields(job)
+    decision = recompute_final_decision_after_corrections(canonical_fields)
+    _apply_final_decision_to_job(job, decision)
+    return _review_payload(job_id, job)
 
 
 @router.get("/jobs/{job_id}", summary="Get demo OCR job status/result")
