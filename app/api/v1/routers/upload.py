@@ -43,6 +43,7 @@ from app.services.tenant_limits import (
 from app.services.validation_service import validate_mapped_fields
 from app.services.validation_engine import run_validation
 from app.services.confidence_engine import score_fields, build_field_response
+from app.services.final_field_normalizer import build_final_ocr_decision
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 settings = get_settings()
@@ -727,6 +728,7 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
         detected_company_info: dict[str, Any] = {}
         p2_field_response: list[dict] = []
         p2_summary_counts: dict[str, Any] = {}
+        final_ocr_decision: dict[str, Any] = {}
         try:
             from app.services.company_detector import detect_company
             async with AsyncSessionLocal() as _det_db:
@@ -767,6 +769,7 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
                 "export_allowed":         conf_summary.export_allowed,
                 "overall_confidence":     conf_summary.overall_confidence,
             }
+            final_ocr_decision = build_final_ocr_decision(p2_field_response)
         except Exception as _p2_exc:
             logger.warning("Phase 2 enrichment failed (non-fatal): job_id={} err={}", job_id, _p2_exc)
         # ── End Phase 2 ───────────────────────────────────────────────────────
@@ -940,6 +943,7 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             "validation_error_count":p2_summary_counts.get("validation_error_count", 0),
             "export_allowed":        p2_summary_counts.get("export_allowed", True),
             "overall_confidence":    p2_summary_counts.get("overall_confidence", 0.0),
+            **final_ocr_decision,
         })
         if len(text.strip()) < 20:
             OCR_DEMO_JOBS[job_id].update({
