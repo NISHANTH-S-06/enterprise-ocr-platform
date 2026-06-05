@@ -51,6 +51,10 @@ from app.services.correction_memory import (
     resolve_company_for_correction_memory,
 )
 from app.services.company_resolver import resolve_company_id
+from app.services.memory_apply_engine import (
+    apply_memory_to_canonical_fields,
+    load_company_correction_memory,
+)
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 settings = get_settings()
@@ -737,6 +741,15 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
         p2_field_response: list[dict] = []
         p2_summary_counts: dict[str, Any] = {}
         final_ocr_decision: dict[str, Any] = {}
+        memory_apply_result: dict[str, Any] = {
+            "memory_suggestions": {},
+            "memory_applied_fields": [],
+            "memory_suggestion_fields": [],
+            "memory_applied_count": 0,
+            "memory_suggestion_count": 0,
+            "warnings": [],
+        }
+        memory_warnings: list[str] = []
         try:
             from app.services.company_detector import detect_company
             async with AsyncSessionLocal() as _det_db:
@@ -803,10 +816,39 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             except Exception as _resolver_exc:
                 company_resolution_warnings.append(f"Company resolution failed: {_resolver_exc}")
                 logger.warning("Company resolver failed (non-fatal): job_id={} err={}", job_id, _resolver_exc)
+            try:
+                company_id = (
+                    detected_company_info.get("company_id")
+                    if isinstance(detected_company_info, dict)
+                    else None
+                )
+                if company_id:
+                    async with AsyncSessionLocal() as _memory_db:
+                        memories = await load_company_correction_memory(
+                            _memory_db,
+                            company_id,
+                            mapped_result.get("document_type") or document_type,
+                        )
+                    memory_apply_result = apply_memory_to_canonical_fields(
+                        final_ocr_decision["canonical_fields"],
+                        memories,
+                    )
+                    memory_warnings = [
+                        str(w) for w in memory_apply_result.get("warnings", []) if w
+                    ]
+                    final_ocr_decision = recompute_final_decision_after_corrections(
+                        memory_apply_result.get("canonical_fields", {})
+                    )
+                else:
+                    memory_warnings.append("Correction memory skipped: company_id unavailable")
+            except Exception as _memory_exc:
+                memory_warnings.append(f"Correction memory apply failed: {_memory_exc}")
+                logger.warning("Correction memory apply failed (non-fatal): job_id={} err={}", job_id, _memory_exc)
         ai_audit_metadata = _ai_fallback_audit_metadata(mapped_result, validation["warnings"])
         ocr_warnings = list(ocr_response.get("warnings", []))
         ocr_warnings.extend(validation["warnings"])
         ocr_warnings.extend(company_resolution_warnings)
+        ocr_warnings.extend(memory_warnings)
         # Task 5: Mock OCR regression — mark as needs_review, add hard warning
         needs_ai_review = bool(ai_audit_metadata and ai_audit_metadata.get("needs_review"))
         is_mock = bool(result.get("is_mock_ocr") or "Mock OCR" in text or not validation["valid"] or needs_ai_review)
@@ -975,6 +1017,12 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             "validation_error_count":p2_summary_counts.get("validation_error_count", 0),
             "export_allowed":        p2_summary_counts.get("export_allowed", True),
             "overall_confidence":    p2_summary_counts.get("overall_confidence", 0.0),
+            "memory_applied_count":   memory_apply_result.get("memory_applied_count", 0),
+            "memory_suggestion_count":memory_apply_result.get("memory_suggestion_count", 0),
+            "memory_applied_fields":  memory_apply_result.get("memory_applied_fields", []),
+            "memory_suggestion_fields": memory_apply_result.get("memory_suggestion_fields", []),
+            "memory_suggestions":     memory_apply_result.get("memory_suggestions", {}),
+            "memory_warnings":        memory_warnings,
             **final_ocr_decision,
         })
         if len(text.strip()) < 20:
@@ -1604,6 +1652,11 @@ def _review_payload(job_id: str, job: dict[str, Any]) -> dict[str, Any]:
         "export_allowed": bool(job.get("export_allowed", False)),
         "export_block_reasons": job.get("export_block_reasons", []),
         "detected_company": job.get("detected_company", {}),
+        "memory_suggestions": job.get("memory_suggestions", {}),
+        "memory_applied_fields": job.get("memory_applied_fields", []),
+        "memory_suggestion_fields": job.get("memory_suggestion_fields", []),
+        "memory_applied_count": int(job.get("memory_applied_count", 0) or 0),
+        "memory_suggestion_count": int(job.get("memory_suggestion_count", 0) or 0),
     }
 
 
@@ -1766,6 +1819,12 @@ async def get_upload_job(
                                 if "warning" in e] if extracted else [],
         "document_type": "general",
         "ocr_response": {"text": text, "fields": {}, "confidence": {}, "warnings": []},
+        "memory_applied_count": 0,
+        "memory_suggestion_count": 0,
+        "memory_applied_fields": [],
+        "memory_suggestion_fields": [],
+        "memory_suggestions": {},
+        "memory_warnings": [],
         "_source": "db_fallback",
     }
 
