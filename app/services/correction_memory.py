@@ -139,3 +139,26 @@ def recompute_final_decision_after_corrections(canonical_fields: dict[str, Any])
         if isinstance(field, dict)
     ]
     return build_final_ocr_decision(rows)
+
+
+async def resolve_company_for_correction_memory(db: Any, job: dict[str, Any], canonical_fields: dict[str, Any]) -> dict[str, Any]:
+    """Find company identity for memory save without requiring newer in-memory jobs."""
+    detected_company = job.get("detected_company") if isinstance(job.get("detected_company"), dict) else {}
+    if detected_company.get("company_id"):
+        return detected_company
+
+    from app.services.company_resolver import resolve_company_id
+
+    resolved = await resolve_company_id(
+        db,
+        job.get("raw_text") or job.get("text") or job.get("extracted_text") or "",
+        canonical_fields,
+        detected_company,
+    )
+    if isinstance(resolved, dict):
+        merged = {**detected_company, **resolved}
+        job["detected_company"] = merged
+        if merged.get("company_id"):
+            job["company_id"] = merged.get("company_id")
+        return merged
+    return detected_company

@@ -48,7 +48,9 @@ from app.services.correction_memory import (
     apply_user_corrections,
     build_correction_memory_records,
     recompute_final_decision_after_corrections,
+    resolve_company_for_correction_memory,
 )
+from app.services.company_resolver import resolve_company_id
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 settings = get_settings()
@@ -731,6 +733,7 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
 
         # ── Phase 2: Company detection + extended validation + confidence ────
         detected_company_info: dict[str, Any] = {}
+        company_resolution_warnings: list[str] = []
         p2_field_response: list[dict] = []
         p2_summary_counts: dict[str, Any] = {}
         final_ocr_decision: dict[str, Any] = {}
@@ -778,9 +781,32 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
         except Exception as _p2_exc:
             logger.warning("Phase 2 enrichment failed (non-fatal): job_id={} err={}", job_id, _p2_exc)
         # ── End Phase 2 ───────────────────────────────────────────────────────
+        if isinstance(final_ocr_decision.get("canonical_fields"), dict):
+            try:
+                async with AsyncSessionLocal() as _resolve_db:
+                    resolved_company = await resolve_company_id(
+                        _resolve_db,
+                        text,
+                        final_ocr_decision["canonical_fields"],
+                        detected_company_info,
+                    )
+                if isinstance(resolved_company, dict):
+                    existing_company = detected_company_info if isinstance(detected_company_info, dict) else {}
+                    company_resolution_warnings = list(resolved_company.get("warnings") or [])
+                    detected_company_info = {
+                        **existing_company,
+                        **resolved_company,
+                        "warnings": list(dict.fromkeys(
+                            list(existing_company.get("warnings") or []) + company_resolution_warnings
+                        )),
+                    }
+            except Exception as _resolver_exc:
+                company_resolution_warnings.append(f"Company resolution failed: {_resolver_exc}")
+                logger.warning("Company resolver failed (non-fatal): job_id={} err={}", job_id, _resolver_exc)
         ai_audit_metadata = _ai_fallback_audit_metadata(mapped_result, validation["warnings"])
         ocr_warnings = list(ocr_response.get("warnings", []))
         ocr_warnings.extend(validation["warnings"])
+        ocr_warnings.extend(company_resolution_warnings)
         # Task 5: Mock OCR regression — mark as needs_review, add hard warning
         needs_ai_review = bool(ai_audit_metadata and ai_audit_metadata.get("needs_review"))
         is_mock = bool(result.get("is_mock_ocr") or "Mock OCR" in text or not validation["valid"] or needs_ai_review)
@@ -936,6 +962,7 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
                            "rule": cls_result["matched_rule"]},
             # ── Phase 2: enriched response fields (backward-compatible additions) ──
             "detected_company":      detected_company_info,
+            "company_id":            detected_company_info.get("company_id"),
             "quality":               {
                 "page_count":  int(result.get("page_count", 0) or 0),
                 "avg_confidence": float(result.get("avg_confidence", 0.0) or 0.0),
@@ -1576,6 +1603,7 @@ def _review_payload(job_id: str, job: dict[str, Any]) -> dict[str, Any]:
         "blocked_fields": job.get("blocked_fields", []),
         "export_allowed": bool(job.get("export_allowed", False)),
         "export_block_reasons": job.get("export_block_reasons", []),
+        "detected_company": job.get("detected_company", {}),
     }
 
 
@@ -1625,7 +1653,9 @@ async def apply_upload_job_corrections(
     if bool(body.get("save_to_memory", False)):
         try:
             db_job = await get_owned_ocr_job(db, uuid.UUID(job_id), current_user)
-            detected_company = job.get("detected_company") if isinstance(job.get("detected_company"), dict) else {}
+            detected_company = await resolve_company_for_correction_memory(db, job, canonical_fields_before)
+            if isinstance(detected_company, dict):
+                warnings.extend(str(w) for w in detected_company.get("warnings", []) if w)
             company_id = detected_company.get("company_id")
             if not company_id:
                 warnings.append("Correction memory was not saved: company_id unavailable")
@@ -1653,7 +1683,8 @@ async def apply_upload_job_corrections(
         "corrected_fields": applied["applied_fields"],
         "invalid_fields": applied["invalid_fields"],
         "memory_saved_count": memory_saved_count,
-        "warnings": warnings,
+        "warnings": list(dict.fromkeys(warnings)),
+        "detected_company": job.get("detected_company", {}),
     })
     return response
 
