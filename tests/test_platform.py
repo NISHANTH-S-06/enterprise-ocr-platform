@@ -2402,7 +2402,7 @@ class TestWorkbenchProductionEndpoints:
         )
         result = asyncio.run(best_match_training_dataset(body, db=self._DatasetDB([dataset]), current_user={"org_id": "org-1"}))
 
-        assert result["match_score"] == 60
+        assert result["match_score"] == 70
         assert result["match_reason"] == "module_document_type"
 
     def test_deactivate_training_dataset(self):
@@ -2892,6 +2892,112 @@ class TestTask8DatasetEndToEnd:
         assert "function collectMainWorkbenchPayload" in source
 
 
+class TestTask1MainWorkbenchAutoFillMapping:
+    @staticmethod
+    def _request(module="sales_order", **overrides):
+        from app.api.v1.routers.forms import WorkbenchAutoFillRequest
+        values = {"module": module, "ocr_result": {}, "overwrite": True}
+        values.update(overrides)
+        return WorkbenchAutoFillRequest(**values)
+
+    def test_workbench_auto_fill_endpoint_returns_form_data_and_item_rows(self):
+        import asyncio
+        from app.api.v1.routers.forms import auto_fill_workbench
+
+        request = self._request(ocr_result={
+            "document_type": "sales_invoice",
+            "mapped_fields": {"buyer_name": {"value": "Buyer One"}, "grand_total": {"value": "100.00"}},
+            "items": [{"description": "Shoe", "quantity": "2", "rate": "50", "amount": "100"}],
+        })
+        result = asyncio.run(auto_fill_workbench(request, current_user={"user_id": "u1", "org_id": "o1"}, db=None))
+        assert result["form_data"]["customer_name"] == "Buyer One"
+        assert result["form_data"]["order_total"] == "100.00"
+        assert result["item_rows"][0]["product"] == "Shoe"
+        assert result["row_count"] == 1
+
+    def test_old_dataset_mapping_shapes_normalize(self):
+        from app.api.v1.routers.forms import normalize_dataset_mappings
+        shapes = [
+            {"source_key": "buyer", "target_erp_name": "customer_name"},
+            {"ocr_key": "buyer", "target_field": "customer_name"},
+            {"label": "buyer", "target": "customer_name"},
+            {"source_label": "buyer", "erp_field_name": "customer_name"},
+            {"field": "buyer", "value": "customer_name"},
+        ]
+        assert all(normalize_dataset_mappings([shape])[0]["target_erp_name"] == "customer_name" for shape in shapes)
+        assert normalize_dataset_mappings({"buyer_name": "customer_name"})[0]["normalized_source_key"] == "buyer_name"
+
+    def test_sales_alias_mapping_and_unicode_apostrophe(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        result = build_workbench_auto_fill(self._request(), {
+            "document_type": "sales_invoice",
+            "fields": {"Buyer Name": "Acme Buyer", "Buyer’s Order No.": "PO-77", "Amount Chargeable:": "₹ 1,250.00"},
+        })
+        assert result["form_data"]["customer_name"] == "Acme Buyer"
+        assert result["form_data"]["customer_po_number"] == "PO-77"
+        assert result["form_data"]["order_total"] == "1,250.00"
+        assert result["fallback_mapped_count"] >= 3
+
+    def test_purchase_alias_mapping(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        result = build_workbench_auto_fill(self._request("purchase_order"), {
+            "document_type": "purchase_order",
+            "fields": {"Vendor Name": "Supplier One", "PO No": "PO-9", "Tax Total": "18"},
+        })
+        assert result["form_data"]["supplier_name"] == "Supplier One"
+        assert result["form_data"]["po_number"] == "PO-9"
+        assert result["form_data"]["po_tax_total"] == "18"
+
+    def test_skipped_key_reason_generation(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        result = build_workbench_auto_fill(self._request(), {"fields": {"Unmapped Label": "value"}})
+        assert result["skipped_keys"][0]["reason"] == "no_alias_match"
+
+    def test_selected_dataset_mapping_count_is_positive(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        dataset = {"mappings_json": {"Special Buyer Label": "customer_name"}}
+        result = build_workbench_auto_fill(self._request(), {"fields": {"Special Buyer Label": "Dataset Buyer"}}, dataset)
+        assert result["form_data"]["customer_name"] == "Dataset Buyer"
+        assert result["dataset_mapped_count"] == 1
+
+    def test_fallback_mapping_count_is_positive(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        result = build_workbench_auto_fill(self._request(), {"fields": {"Buyer": "Fallback Buyer"}})
+        assert result["fallback_mapped_count"] == 1
+
+    def test_nested_object_value_unwrap_never_stringifies_object(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        result = build_workbench_auto_fill(self._request(), {
+            "fields": {"Invoice Number": {"value": {"normalized_value": {"text": "INV-22"}}}}
+        })
+        assert result["form_data"]["reference_number"] == "INV-22"
+        assert "[object Object]" not in str(result)
+
+    def test_item_rows_are_preserved_and_mapped(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        rows = [{"article": f"Item {index}", "qty": index + 1, "price": "10", "amount": "20"} for index in range(14)]
+        result = build_workbench_auto_fill(self._request(), {"items": rows})
+        assert result["row_count"] == 14
+        assert len(result["item_rows"]) == 14
+        assert result["item_rows"][13]["product"] == "Item 13"
+
+    def test_wrong_module_guard(self):
+        import pytest
+        from fastapi import HTTPException
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        with pytest.raises(HTTPException) as exc:
+            build_workbench_auto_fill(self._request("purchase_order"), {"document_type": "commercial_invoice", "fields": {"buyer": "X"}})
+        assert exc.value.status_code == 422
+        assert "Purchase form cannot accept" in exc.value.detail["message"]
+
+    def test_frontend_uses_backend_auto_fill_and_debug_download(self):
+        from pathlib import Path
+        source = Path("frontend/index.html").read_text(encoding="utf-8")
+        assert 'req("/api/v1/forms/workbench/auto-fill"' in source
+        assert "function applyBackendMainAiFill" in source
+        assert "function downloadMainAiFillDebug" in source
+
+
 class TestTask9ERPMasterMapping:
     class _Result:
         def __init__(self, rows): self.rows = rows
@@ -2997,3 +3103,496 @@ class TestTask10ProductionQA:
 
         assert isinstance(TrainingDataset.__table__.c.id.type, String)
         assert TrainingDataset.__table__.c.id.type.length == 36
+
+
+class TestCorrectionLearning:
+    """Correction learning (Task 3) — unit tests for services, endpoints, and edge cases."""
+
+    def test_normalize_correction_value_whitespace_collapse(self):
+        from app.services.workbench_correction_apply import normalize_correction_value
+        assert normalize_correction_value("  Hello   World  ") == "Hello World"
+        assert normalize_correction_value("") == ""
+        assert normalize_correction_value(None) == ""
+        assert normalize_correction_value(123) == "123"
+        assert normalize_correction_value("  ") == ""
+
+    def test_build_workbench_correction_memory_sales(self):
+        from app.services.workbench_correction_apply import build_workbench_correction_memory
+        record = build_workbench_correction_memory(
+            module="sales_order",
+            source_ocr_key="INV NO",
+            source_ocr_label="Invoice Number",
+            source_value_sample="INV-001",
+            target_erp_name="sales_order_no",
+            corrected_value="SO-100",
+            document_type="Sales Invoice",
+            company_name="Acme Ltd",
+        )
+        assert record["module"] == "sales_order"
+        assert record["normalized_source_key"] == "inv_no"
+        assert record["source_ocr_key"] == "INV NO"
+        assert record["target_erp_name"] == "sales_order_no"
+        assert record["target_dom_id"] == "sales_form_sales_order_no"
+        assert record["corrected_value_sample"] == "SO-100"
+        assert record["source"] == "manual_correction"
+
+    def test_build_workbench_correction_memory_purchase(self):
+        from app.services.workbench_correction_apply import build_workbench_correction_memory
+        record = build_workbench_correction_memory(
+            module="purchase_order",
+            source_ocr_key="PO NO",
+            source_ocr_label=None,
+            source_value_sample=None,
+            target_erp_name="po_number",
+            corrected_value="PO-200",
+        )
+        assert record["module"] == "purchase_order"
+        assert record["normalized_source_key"] == "po_no"
+        assert record["target_dom_id"] == "purchase_form_po_number"
+        assert record["source_value_sample"] == ""
+
+    def test_build_workbench_correction_memory_unknown_target(self):
+        from app.services.workbench_correction_apply import build_workbench_correction_memory
+        record = build_workbench_correction_memory(
+            module="sales_order",
+            source_ocr_key="X_FIELD",
+            source_ocr_label=None,
+            source_value_sample=None,
+            target_erp_name="nonexistent_field",
+            corrected_value="VAL",
+        )
+        assert record["target_dom_id"] == ""
+
+    def test_skip_reason_inactive(self):
+        from app.services.workbench_correction_apply import _skip_reason as skip
+        reason = skip(
+            {"is_active": False},
+            "sales", None, None, None, None, {}, {},
+        )
+        assert reason == "inactive"
+
+    def test_skip_reason_wrong_module(self):
+        from app.services.workbench_correction_apply import _skip_reason as skip
+        reason = skip(
+            {"is_active": True, "module": "purchase_order"},
+            "sales", None, None, None, None, {}, {},
+        )
+        assert reason == "wrong_module"
+
+    def test_skip_reason_source_key_not_found(self):
+        from app.services.workbench_correction_apply import _skip_reason as skip
+        reason = skip(
+            {"is_active": True, "module": "sales_order", "normalized_source_key": "inv_no", "source_value_sample": "INV-1"},
+            "sales", None, None, None, None, {}, {},
+        )
+        assert reason == "source_key_not_found"
+
+    def test_skip_reason_empty_value_no_source_key(self):
+        from app.services.workbench_correction_apply import _skip_reason as skip
+        reason = skip(
+            {"is_active": True, "module": "sales_order", "normalized_source_key": "", "source_value_sample": ""},
+            "sales", None, None, None, None, {}, {},
+        )
+        assert reason == "empty_value"
+
+    def test_skip_reason_identity_mismatch(self):
+        from app.services.workbench_correction_apply import _skip_reason as skip
+        reason = skip(
+            {"is_active": True, "module": "sales_order", "normalized_source_key": "inv_no",
+             "source_value_sample": "INV-1", "company_name": "Acme Ltd", "vendor_name": "", "customer_name": ""},
+            "sales", None, "Other Ltd", None, None, {"inv_no": "INV-1"}, {"inv_no": "INV-1"},
+        )
+        assert reason == "identity_mismatch"
+
+    def test_skip_reason_identity_match_success(self):
+        from app.services.workbench_correction_apply import _skip_reason as skip
+        reason = skip(
+            {"is_active": True, "module": "sales_order", "normalized_source_key": "inv_no",
+             "source_value_sample": "INV-1", "company_name": "Acme Ltd", "vendor_name": "", "customer_name": ""},
+            "sales", None, "Acme Ltd", None, None, {"inv_no": "INV-1"}, {"inv_no": "INV-1"},
+        )
+        assert reason == ""
+
+    def test_skip_reason_document_type_mismatch(self):
+        from app.services.workbench_correction_apply import _skip_reason as skip
+        reason = skip(
+            {"is_active": True, "module": "sales_order", "normalized_source_key": "inv_no",
+             "source_value_sample": "INV-1", "document_type": "Purchase Invoice"},
+            "sales", "Sales Invoice", None, None, None, {"inv_no": "INV-1"}, {"inv_no": "INV-1"},
+        )
+        assert reason == "document_type_mismatch"
+
+    def test_skip_reason_document_type_match(self):
+        from app.services.workbench_correction_apply import _skip_reason as skip
+        reason = skip(
+            {"is_active": True, "module": "sales_order", "normalized_source_key": "inv_no",
+             "source_value_sample": "INV-1", "document_type": "Sales Invoice"},
+            "sales", "Sales Invoice", None, None, None, {"inv_no": "INV-1"}, {"inv_no": "INV-1"},
+        )
+        assert reason == ""
+
+    def test_skip_reason_no_document_type_on_correction(self):
+        """If correction has no document_type, do not skip based on doc type."""
+        from app.services.workbench_correction_apply import _skip_reason as skip
+        reason = skip(
+            {"is_active": True, "module": "sales_order", "normalized_source_key": "inv_no",
+             "source_value_sample": "INV-1", "document_type": ""},
+            "sales", "Sales Invoice", None, None, None, {"inv_no": "INV-1"}, {"inv_no": "INV-1"},
+        )
+        assert reason == ""
+
+    def test_apply_workbench_corrections_strong_match(self):
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="sales_order", document_type=None,
+            company_name=None, vendor_name=None, customer_name=None,
+            ocr_fields={"Invoice Number": "INV-1"},
+            form_data={"sales_order_no": ""},
+            item_rows=[],
+            corrections=[{
+                "is_active": True, "module": "sales_order",
+                "normalized_source_key": "invoice_number",
+                "source_ocr_key": "Invoice Number",
+                "source_value_sample": "INV-1",
+                "target_erp_name": "sales_order_no",
+                "target_dom_id": "sales_order_no",
+                "corrected_value_sample": "SO-100",
+                "document_type": "",
+                "company_name": "", "vendor_name": "", "customer_name": "",
+                "confidence": 1.0,
+            }],
+        )
+        assert result["applied_count"] == 1
+        assert result["form_data"]["sales_order_no"] == "SO-100"
+        assert result["applied_corrections"][0]["match_type"] == "strong"
+
+    def test_apply_workbench_corrections_already_filled(self):
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="sales_order", document_type=None,
+            company_name=None, vendor_name=None, customer_name=None,
+            ocr_fields={"Invoice Number": "INV-1"},
+            form_data={"sales_order_no": "EXISTING-VALUE"},
+            item_rows=[],
+            corrections=[{
+                "is_active": True, "module": "sales_order",
+                "normalized_source_key": "invoice_number",
+                "source_ocr_key": "Invoice Number",
+                "source_value_sample": "INV-1",
+                "target_erp_name": "sales_order_no",
+                "corrected_value_sample": "SO-100",
+                "document_type": "",
+                "company_name": "", "vendor_name": "", "customer_name": "",
+                "confidence": 1.0,
+            }],
+        )
+        assert result["applied_count"] == 0
+        assert result["form_data"]["sales_order_no"] == "EXISTING-VALUE"
+
+    def test_apply_workbench_corrections_identity_specificity(self):
+        """Correction with company_name='Other Ltd' should not apply when current company is 'Acme Ltd'."""
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="sales_order", document_type=None,
+            company_name="Acme Ltd", vendor_name=None, customer_name=None,
+            ocr_fields={"Invoice Number": "INV-1"},
+            form_data={"sales_order_no": ""},
+            item_rows=[],
+            corrections=[{
+                "is_active": True, "module": "sales_order",
+                "normalized_source_key": "invoice_number",
+                "source_ocr_key": "Invoice Number",
+                "source_value_sample": "INV-1",
+                "target_erp_name": "sales_order_no",
+                "corrected_value_sample": "SO-100",
+                "document_type": "",
+                "company_name": "Other Ltd", "vendor_name": "", "customer_name": "",
+                "confidence": 1.0,
+            }],
+        )
+        assert result["applied_count"] == 0
+        assert result["form_data"]["sales_order_no"] == ""
+
+    def test_apply_workbench_corrections_inactive_skip(self):
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="sales_order", document_type=None,
+            company_name=None, vendor_name=None, customer_name=None,
+            ocr_fields={"Invoice Number": "INV-1"},
+            form_data={"sales_order_no": ""},
+            item_rows=[],
+            corrections=[{
+                "is_active": False, "module": "sales_order",
+                "normalized_source_key": "invoice_number",
+                "source_ocr_key": "Invoice Number",
+                "source_value_sample": "INV-1",
+                "target_erp_name": "sales_order_no",
+                "corrected_value_sample": "SO-100",
+                "document_type": "",
+                "company_name": "", "vendor_name": "", "customer_name": "",
+                "confidence": 1.0,
+            }],
+        )
+        assert result["applied_count"] == 0
+        assert result["skipped_corrections"][0]["reason"] == "inactive"
+
+    def test_apply_workbench_corrections_empty_value(self):
+        """Correction with empty corrected_value_sample should be skipped."""
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="sales_order", document_type=None,
+            company_name=None, vendor_name=None, customer_name=None,
+            ocr_fields={"Invoice Number": "INV-1"},
+            form_data={"sales_order_no": ""},
+            item_rows=[],
+            corrections=[{
+                "is_active": True, "module": "sales_order",
+                "normalized_source_key": "invoice_number",
+                "source_ocr_key": "Invoice Number",
+                "source_value_sample": "INV-1",
+                "target_erp_name": "sales_order_no",
+                "corrected_value_sample": "",
+                "document_type": "",
+                "company_name": "", "vendor_name": "", "customer_name": "",
+                "confidence": 1.0,
+            }],
+        )
+        assert result["applied_count"] == 0
+        assert result["skipped_corrections"][0]["reason"] == "empty_value"
+
+    def test_apply_workbench_corrections_target_field_not_found(self):
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="sales_order", document_type=None,
+            company_name=None, vendor_name=None, customer_name=None,
+            ocr_fields={"Inv": "data"},
+            form_data={"sales_order_no": ""},
+            item_rows=[],
+            corrections=[{
+                "is_active": True, "module": "sales_order",
+                "normalized_source_key": "inv",
+                "source_ocr_key": "Inv",
+                "source_value_sample": "data",
+                "target_erp_name": "unknown_target",
+                "corrected_value_sample": "VAL",
+                "document_type": "",
+                "company_name": "", "vendor_name": "", "customer_name": "",
+                "confidence": 1.0,
+            }],
+        )
+        assert result["applied_count"] == 0
+        assert result["skipped_corrections"][0]["reason"] == "target_field_not_found"
+
+    def test_apply_workbench_corrections_purchase_alias_resolution(self):
+        """Target erp name matching an alias should resolve to canonical field."""
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="purchase_order", document_type=None,
+            company_name=None, vendor_name=None, customer_name=None,
+            ocr_fields={"PO": "PO-1"},
+            form_data={"po_number": ""},
+            item_rows=[],
+            corrections=[{
+                "is_active": True, "module": "purchase_order",
+                "normalized_source_key": "po",
+                "source_ocr_key": "PO",
+                "source_value_sample": "PO-1",
+                "target_erp_name": "po_no",
+                "corrected_value_sample": "PO-999",
+                "document_type": "",
+                "company_name": "", "vendor_name": "", "customer_name": "",
+                "confidence": 1.0,
+            }],
+        )
+        assert result["applied_count"] == 1
+        assert result["form_data"]["po_number"] == "PO-999"
+
+    def test_apply_workbench_corrections_no_object_object_value(self):
+        """Ensure correction values do not contain '[object Object]'."""
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="sales_order", document_type=None,
+            company_name=None, vendor_name=None, customer_name=None,
+            ocr_fields={"Inv": "data"},
+            form_data={"sales_order_no": ""},
+            item_rows=[],
+            corrections=[{
+                "is_active": True, "module": "sales_order",
+                "normalized_source_key": "inv",
+                "source_ocr_key": "Inv",
+                "source_value_sample": "data",
+                "target_erp_name": "sales_order_no",
+                "corrected_value_sample": "[object Object]",
+                "document_type": "",
+                "company_name": "", "vendor_name": "", "customer_name": "",
+                "confidence": 1.0,
+            }],
+        )
+        assert result["applied_count"] == 0
+        assert result["form_data"].get("sales_order_no", "") != "[object Object]"
+
+    def test_apply_workbench_corrections_vendor_identity(self):
+        """Correction with vendor_name should only apply when vendor matches."""
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="purchase_order", document_type=None,
+            company_name=None, vendor_name="Supplier A", customer_name=None,
+            ocr_fields={"PO": "PO-1"},
+            form_data={"po_number": ""},
+            item_rows=[],
+            corrections=[{
+                "is_active": True, "module": "purchase_order",
+                "normalized_source_key": "po",
+                "source_ocr_key": "PO",
+                "source_value_sample": "PO-1",
+                "target_erp_name": "po_number",
+                "corrected_value_sample": "PO-999",
+                "document_type": "",
+                "company_name": "", "vendor_name": "Supplier B", "customer_name": "",
+                "confidence": 1.0,
+            }],
+        )
+        assert result["applied_count"] == 0
+
+    def test_apply_workbench_corrections_customer_identity(self):
+        """Correction with customer_name should only apply when customer matches."""
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="sales_order", document_type=None,
+            company_name=None, vendor_name=None, customer_name="Buyer X",
+            ocr_fields={"Inv": "data"},
+            form_data={"sales_order_no": ""},
+            item_rows=[],
+            corrections=[{
+                "is_active": True, "module": "sales_order",
+                "normalized_source_key": "inv",
+                "source_ocr_key": "Inv",
+                "source_value_sample": "data",
+                "target_erp_name": "sales_order_no",
+                "corrected_value_sample": "SO-555",
+                "document_type": "",
+                "company_name": "", "vendor_name": "", "customer_name": "Buyer Y",
+                "confidence": 1.0,
+            }],
+        )
+        assert result["applied_count"] == 0
+
+    def test_apply_workbench_corrections_return_shape(self):
+        """Verify return dict has all expected keys."""
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module="sales_order", document_type=None,
+            company_name=None, vendor_name=None, customer_name=None,
+            ocr_fields={}, form_data={}, item_rows=[], corrections=[],
+        )
+        assert set(result) == {"form_data", "item_rows", "applied_count", "applied_corrections", "skipped_corrections"}
+
+    def test_apply_row_corrections_basic(self):
+        """Row corrections stub — verify function exists and returns list."""
+        from app.services.workbench_correction_apply import apply_row_corrections
+        result = apply_row_corrections(
+            module="sales_order",
+            item_rows=[{"product": "Widget", "qty": ""}],
+            ocr_rows=[{"quantity": "5"}],
+            row_corrections=[{
+                "source_column_key": "quantity",
+                "target_row_erp_name": "bulk_qty",
+                "sample_value": "5",
+            }],
+        )
+        assert len(result) == 1
+        assert result[0]["bulk_qty"] == "5"
+
+    def test_correction_memory_model_has_new_columns(self):
+        """Verify CorrectionMemory model has all expected new columns."""
+        from app.models.company import CorrectionMemory
+        cols = {c.name: c for c in CorrectionMemory.__table__.c}
+        for expected in ("module", "company_name", "vendor_name", "customer_name",
+                         "source_ocr_key", "source_ocr_label", "normalized_source_key",
+                         "source_value_sample", "target_erp_name", "target_dom_id",
+                         "target_label", "corrected_value_sample", "confidence",
+                         "apply_count", "reject_count", "is_active", "source", "metadata_json"):
+            assert expected in cols, f"Missing column: {expected}"
+        assert cols["is_active"].default is not None
+
+    def test_correction_migration_exists(self):
+        """Ensure migration 0007 exists and references the correct down revision."""
+        from pathlib import Path
+        migration = Path("alembic/versions/0007_add_correction_memory_columns.py")
+        assert migration.exists()
+        content = migration.read_text(encoding="utf-8")
+        assert 'down_revision = "0006"' in content
+        assert "add_column" in content
+        assert "correction_memory" in content
+
+    def test_save_workbench_correction_endpoint_shape(self):
+        """Test save_workbench_correction via direct call with minimal mocking."""
+        import asyncio
+        from types import SimpleNamespace
+        from app.schemas.correction import WorkbenchCorrectionCreate
+
+        body = WorkbenchCorrectionCreate(
+            module="sales_order",
+            source_ocr_key="INV NO",
+            source_ocr_label="Invoice Number",
+            source_value_sample="INV-001",
+            target_erp_name="sales_order_no",
+            corrected_value_sample="SO-100",
+            company_name="Acme Ltd",
+            metadata={},
+        )
+        fake_db = SimpleNamespace(added=None)
+        async def fake_add(obj):
+            obj.id = "00000000-0000-0000-0000-000000000001"
+            fake_db.added = obj
+        async def fake_commit():
+            if fake_db.added:
+                fake_db.added.id = "00000000-0000-0000-0000-000000000001"
+                fake_db.added.created_at = None
+        async def fake_refresh(_obj):
+            pass
+        fake_db.add = fake_add
+        fake_db.commit = fake_commit
+        fake_db.refresh = fake_refresh
+
+        from app.api.v1.routers.forms import save_workbench_correction
+        result = asyncio.run(save_workbench_correction(body, current_user={"role": "operator"}, db=fake_db))
+        assert result["saved"] is True
+        assert result["correction_id"] is not None
+
+    def test_list_workbench_corrections_endpoint_shape(self):
+        """Test list endpoint returns expected shape with empty results."""
+        import asyncio
+        from app.api.v1.routers.forms import list_workbench_corrections
+        from sqlalchemy import select
+
+        class FakeResult:
+            def scalars(self):
+                return self
+            def all(self):
+                return []
+
+        class FakeDB:
+            async def execute(self, _stmt):
+                return FakeResult()
+
+        result = asyncio.run(list_workbench_corrections(
+            module=None, document_type=None, company_name=None,
+            vendor_name=None, customer_name=None, active=None,
+            current_user={"role": "operator"}, db=FakeDB(),
+        ))
+        assert "corrections" in result
+        assert "total" in result
+        assert result["total"] == 0
+        assert result["corrections"] == []
+
+    def test_correction_migration_column_details(self):
+        """Verify migration adds expected columns with correct types."""
+        from pathlib import Path
+        content = Path("alembic/versions/0007_add_correction_memory_columns.py").read_text(encoding="utf-8")
+        assert 'op.add_column("correction_memory", sa.Column("module"' in content
+        assert 'op.add_column("correction_memory", sa.Column("normalized_source_key"' in content
+        assert 'op.add_column("correction_memory", sa.Column("confidence"' in content
+        assert 'op.add_column("correction_memory", sa.Column("metadata_json"' in content
+        assert 'op.alter_column("correction_memory", "company_id"' in content or "nullable=True" in content
+        assert 'op.create_index("ix_correction_memory_module"' in content

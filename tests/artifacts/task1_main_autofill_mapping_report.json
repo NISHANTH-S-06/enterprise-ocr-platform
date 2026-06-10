@@ -1,0 +1,2074 @@
+{
+  "document_used": "D:\\OCR_MASTER\\datasets\\POPRINT.pdf",
+  "k21_available": false,
+  "before_counts": {
+    "detected": 228,
+    "filled": 19,
+    "skipped": 209,
+    "rows": 14,
+    "missing": 43,
+    "master": 6,
+    "dataset_mapped": 0,
+    "fallback_mapped": 0
+  },
+  "after_counts": {
+    "detected_count": 230,
+    "filled_count": 94,
+    "skipped_count": 108,
+    "row_count": 22,
+    "dataset_mapped_count": 0,
+    "fallback_mapped_count": 91,
+    "direct_mapped_count": 3
+  },
+  "all_detected_ocr_keys_sample": [
+    {
+      "ocr_key": "gst",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gst"
+    },
+    {
+      "ocr_key": "qty",
+      "ocr_value": "1605",
+      "normalized_key": "qty"
+    },
+    {
+      "ocr_key": "date",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "date"
+    },
+    {
+      "ocr_key": "buyer",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "buyer"
+    },
+    {
+      "ocr_key": "dated",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "dated"
+    },
+    {
+      "ocr_key": "gstin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gstin"
+    },
+    {
+      "ocr_key": "phone",
+      "ocr_value": "9944476864",
+      "normalized_key": "phone"
+    },
+    {
+      "ocr_key": "po_no",
+      "ocr_value": "U2/2026-27/MRP-D_021",
+      "normalized_key": "po_no"
+    },
+    {
+      "ocr_key": "gst_no",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gst_no"
+    },
+    {
+      "ocr_key": "season",
+      "ocr_value": "AW26",
+      "normalized_key": "season"
+    },
+    {
+      "ocr_key": "seller",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "seller"
+    },
+    {
+      "ocr_key": "vendor",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "vendor"
+    },
+    {
+      "ocr_key": "bill_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "bill_to"
+    },
+    {
+      "ocr_key": "remarks",
+      "ocr_value": "or Special Instructions",
+      "normalized_key": "remarks"
+    },
+    {
+      "ocr_key": "ship_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "ship_to"
+    },
+    {
+      "ocr_key": "sold_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "sold_to"
+    },
+    {
+      "ocr_key": "doc_type",
+      "ocr_value": "purchase_order",
+      "normalized_key": "doc_type"
+    },
+    {
+      "ocr_key": "exporter",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "exporter"
+    },
+    {
+      "ocr_key": "importer",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "importer"
+    },
+    {
+      "ocr_key": "order_no",
+      "ocr_value": "U2/2026-27/MRP-D_021",
+      "normalized_key": "order_no"
+    },
+    {
+      "ocr_key": "quantity",
+      "ocr_value": "1605",
+      "normalized_key": "quantity"
+    },
+    {
+      "ocr_key": "receiver",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "receiver"
+    },
+    {
+      "ocr_key": "supplier",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "supplier"
+    },
+    {
+      "ocr_key": "bill_date",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "bill_date"
+    },
+    {
+      "ocr_key": "consignee",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "consignee"
+    },
+    {
+      "ocr_key": "gstin_uin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gstin_uin"
+    },
+    {
+      "ocr_key": "inr_total",
+      "ocr_value": "203,546.00",
+      "normalized_key": "inr_total"
+    },
+    {
+      "ocr_key": "item_name",
+      "ocr_value": "Code",
+      "normalized_key": "item_name"
+    },
+    {
+      "ocr_key": "po_number",
+      "ocr_value": "U2/2026-27/MRP-D_021",
+      "normalized_key": "po_number"
+    },
+    {
+      "ocr_key": "telephone",
+      "ocr_value": "044 23746667",
+      "normalized_key": "telephone"
+    },
+    {
+      "ocr_key": "total_inr",
+      "ocr_value": "203,546.00",
+      "normalized_key": "total_inr"
+    },
+    {
+      "ocr_key": "total_qty",
+      "ocr_value": "1605",
+      "normalized_key": "total_qty"
+    },
+    {
+      "ocr_key": "amount_inr",
+      "ocr_value": "203,546.00",
+      "normalized_key": "amount_inr"
+    },
+    {
+      "ocr_key": "buyer_name",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "buyer_name"
+    },
+    {
+      "ocr_key": "gst_number",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gst_number"
+    },
+    {
+      "ocr_key": "invoice_dt",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "invoice_dt"
+    },
+    {
+      "ocr_key": "net_amount",
+      "ocr_value": "203,546.00",
+      "normalized_key": "net_amount"
+    },
+    {
+      "ocr_key": "party_name",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "party_name"
+    },
+    {
+      "ocr_key": "buyer_gstin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "buyer_gstin"
+    },
+    {
+      "ocr_key": "delivery_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "delivery_to"
+    },
+    {
+      "ocr_key": "description",
+      "ocr_value": "Code",
+      "normalized_key": "description"
+    },
+    {
+      "ocr_key": "final_total",
+      "ocr_value": "203,546.00",
+      "normalized_key": "final_total"
+    },
+    {
+      "ocr_key": "grand_total",
+      "ocr_value": "203,546.00",
+      "normalized_key": "grand_total"
+    },
+    {
+      "ocr_key": "total_pairs",
+      "ocr_value": "1605",
+      "normalized_key": "total_pairs"
+    },
+    {
+      "ocr_key": "total_value",
+      "ocr_value": "203,546.00",
+      "normalized_key": "total_value"
+    },
+    {
+      "ocr_key": "vendor_name",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "vendor_name"
+    },
+    {
+      "ocr_key": "company_name",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "company_name"
+    },
+    {
+      "ocr_key": "gst_supplier",
+      "ocr_value": "33AACCC7325B1Z9",
+      "normalized_key": "gst_supplier"
+    },
+    {
+      "ocr_key": "invoice_date",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "invoice_date"
+    },
+    {
+      "ocr_key": "order_number",
+      "ocr_value": "U2/2026-27/MRP-D",
+      "normalized_key": "order_number"
+    },
+    {
+      "ocr_key": "total_amount",
+      "ocr_value": "203,546.00",
+      "normalized_key": "total_amount"
+    },
+    {
+      "ocr_key": "vendor_gstin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "vendor_gstin"
+    },
+    {
+      "ocr_key": "buyer_company",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "buyer_company"
+    },
+    {
+      "ocr_key": "customer_name",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "customer_name"
+    },
+    {
+      "ocr_key": "delivery_name",
+      "ocr_value": "GOOD LEATHER SHOES PRIVATE LIMITED",
+      "normalized_key": "delivery_name"
+    },
+    {
+      "ocr_key": "document_date",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "document_date"
+    },
+    {
+      "ocr_key": "document_type",
+      "ocr_value": "purchase_order",
+      "normalized_key": "document_type"
+    },
+    {
+      "ocr_key": "invoice_total",
+      "ocr_value": "203,546.00",
+      "normalized_key": "invoice_total"
+    },
+    {
+      "ocr_key": "invoice_value",
+      "ocr_value": "203,546.00",
+      "normalized_key": "invoice_value"
+    },
+    {
+      "ocr_key": "payment_terms",
+      "ocr_value": "as per validity & agreed, and above price is excluding GST a",
+      "normalized_key": "payment_terms"
+    },
+    {
+      "ocr_key": "supplier_name",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "supplier_name"
+    },
+    {
+      "ocr_key": "amount_payable",
+      "ocr_value": "203,546.00",
+      "normalized_key": "amount_payable"
+    },
+    {
+      "ocr_key": "buyer_order_no",
+      "ocr_value": "U2/2026-27/MRP-D_021",
+      "normalized_key": "buyer_order_no"
+    },
+    {
+      "ocr_key": "consignee_name",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "consignee_name"
+    },
+    {
+      "ocr_key": "contact_number",
+      "ocr_value": "9944476864",
+      "normalized_key": "contact_number"
+    },
+    {
+      "ocr_key": "document_title",
+      "ocr_value": "PURCHASE ORDER",
+      "normalized_key": "document_title"
+    },
+    {
+      "ocr_key": "payment_status",
+      "ocr_value": "paid",
+      "normalized_key": "payment_status"
+    },
+    {
+      "ocr_key": "supplier_gstin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "supplier_gstin"
+    },
+    {
+      "ocr_key": "total_quantity",
+      "ocr_value": "1605",
+      "normalized_key": "total_quantity"
+    },
+    {
+      "ocr_key": "transport_name",
+      "ocr_value": "- ROAD/TRAIN/SEA/AIR/OTHERS as applicable",
+      "normalized_key": "transport_name"
+    },
+    {
+      "ocr_key": "amount_in_words",
+      "ocr_value": "- ( Two Lakh Three Thousand Five Hundred Forty Six Rupees only)",
+      "normalized_key": "amount_in_words"
+    },
+    {
+      "ocr_key": "consignee_buyer",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "consignee_buyer"
+    },
+    {
+      "ocr_key": "grn_item_01_sno",
+      "ocr_value": "2",
+      "normalized_key": "grn_item_01_sno"
+    },
+    {
+      "ocr_key": "grn_item_02_sno",
+      "ocr_value": "4",
+      "normalized_key": "grn_item_02_sno"
+    },
+    {
+      "ocr_key": "grn_item_03_sno",
+      "ocr_value": "6",
+      "normalized_key": "grn_item_03_sno"
+    },
+    {
+      "ocr_key": "grn_item_04_sno",
+      "ocr_value": "8",
+      "normalized_key": "grn_item_04_sno"
+    },
+    {
+      "ocr_key": "grn_item_05_sno",
+      "ocr_value": "9",
+      "normalized_key": "grn_item_05_sno"
+    },
+    {
+      "ocr_key": "line_item_count",
+      "ocr_value": "12",
+      "normalized_key": "line_item_count"
+    },
+    {
+      "ocr_key": "delivery_address",
+      "ocr_value": "49, GOPARASANALLUR, PULIYAMPEDU, NOOMBAL PO, CHENNAI, TAMILNADU, INDIA - 600077 GSTIN/UIN : 33AAACG8998G1Z8 Remarks or Special Instructions",
+      "normalized_key": "delivery_address"
+    },
+    {
+      "ocr_key": "grn_item_01_code",
+      "ocr_value": "OUT723",
+      "normalized_key": "grn_item_01_code"
+    },
+    {
+      "ocr_key": "grn_item_01_unit",
+      "ocr_value": "PAIRS",
+      "normalized_key": "grn_item_01_unit"
+    },
+    {
+      "ocr_key": "grn_item_02_code",
+      "ocr_value": "OUT725",
+      "normalized_key": "grn_item_02_code"
+    },
+    {
+      "ocr_key": "grn_item_02_unit",
+      "ocr_value": "PAIRS",
+      "normalized_key": "grn_item_02_unit"
+    },
+    {
+      "ocr_key": "grn_item_03_code",
+      "ocr_value": "OUT727",
+      "normalized_key": "grn_item_03_code"
+    },
+    {
+      "ocr_key": "grn_item_03_unit",
+      "ocr_value": "PAIRS",
+      "normalized_key": "grn_item_03_unit"
+    },
+    {
+      "ocr_key": "grn_item_04_code",
+      "ocr_value": "OUT729",
+      "normalized_key": "grn_item_04_code"
+    },
+    {
+      "ocr_key": "grn_item_04_unit",
+      "ocr_value": "PAIRS",
+      "normalized_key": "grn_item_04_unit"
+    },
+    {
+      "ocr_key": "grn_item_05_code",
+      "ocr_value": "OUT730",
+      "normalized_key": "grn_item_05_code"
+    },
+    {
+      "ocr_key": "grn_item_05_unit",
+      "ocr_value": "PAIRS",
+      "normalized_key": "grn_item_05_unit"
+    },
+    {
+      "ocr_key": "item_description",
+      "ocr_value": "GOOD LEATHER SHOES PVT LTD",
+      "normalized_key": "item_description"
+    },
+    {
+      "ocr_key": "total_amount_inr",
+      "ocr_value": "203,546.00",
+      "normalized_key": "total_amount_inr"
+    },
+    {
+      "ocr_key": "invoice_value_inr",
+      "ocr_value": "203,546.00",
+      "normalized_key": "invoice_value_inr"
+    },
+    {
+      "ocr_key": "mode_of_transport",
+      "ocr_value": "- ROAD/TRAIN/SEA/AIR/OTHERS as applicable",
+      "normalized_key": "mode_of_transport"
+    },
+    {
+      "ocr_key": "description_of_goods",
+      "ocr_value": "Code",
+      "normalized_key": "description_of_goods"
+    },
+    {
+      "ocr_key": "grn_item_01_reference",
+      "ocr_value": "2,240.00",
+      "normalized_key": "grn_item_01_reference"
+    },
+    {
+      "ocr_key": "grn_item_02_reference",
+      "ocr_value": "8,064.00",
+      "normalized_key": "grn_item_02_reference"
+    },
+    {
+      "ocr_key": "grn_item_03_reference",
+      "ocr_value": "10,192.00",
+      "normalized_key": "grn_item_03_reference"
+    },
+    {
+      "ocr_key": "grn_item_04_reference",
+      "ocr_value": "9,744.00",
+      "normalized_key": "grn_item_04_reference"
+    },
+    {
+      "ocr_key": "grn_item_05_reference",
+      "ocr_value": "6,384.00",
+      "normalized_key": "grn_item_05_reference"
+    },
+    {
+      "ocr_key": "purchase_order_number",
+      "ocr_value": "U2/2026-27/MRP-D_021",
+      "normalized_key": "purchase_order_number"
+    }
+  ],
+  "matched_targets": [
+    {
+      "ocr_key": "remarks",
+      "ocr_value": "or Special Instructions",
+      "normalized_key": "remarks",
+      "target_erp_name": "remarks",
+      "target_dom_id": "purchase_form_remarks",
+      "source": "direct"
+    },
+    {
+      "ocr_key": "po_number",
+      "ocr_value": "U2/2026-27/MRP-D_021",
+      "normalized_key": "po_number",
+      "target_erp_name": "po_number",
+      "target_dom_id": "purchase_form_po_number",
+      "source": "direct"
+    },
+    {
+      "ocr_key": "supplier_name",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "supplier_name",
+      "target_erp_name": "supplier_name",
+      "target_dom_id": "purchase_form_supplier_name",
+      "source": "direct"
+    },
+    {
+      "ocr_key": "date",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "date",
+      "target_erp_name": "po_date",
+      "target_dom_id": "purchase_form_po_date",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "grand_total",
+      "ocr_value": "203,546.00",
+      "normalized_key": "grand_total",
+      "target_erp_name": "po_grand_total",
+      "target_dom_id": "purchase_form_po_grand_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "payment_terms",
+      "ocr_value": "as per validity & agreed, and above price is excluding GST a",
+      "normalized_key": "payment_terms",
+      "target_erp_name": "payment_term_id",
+      "target_dom_id": "purchase_form_payment_term",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 1.qty",
+      "ocr_value": "19",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_0_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 1.price",
+      "ocr_value": "11",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_0_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 1.amount",
+      "ocr_value": "11",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_0_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 1.article",
+      "ocr_value": "OUTSOLE P UNIT TPR",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_0_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 2.qty",
+      "ocr_value": "19",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_1_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 2.price",
+      "ocr_value": "12",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_1_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 2.amount",
+      "ocr_value": "12",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_1_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 2.article",
+      "ocr_value": "OUTSOLE P UNIT TPR",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_1_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 3.qty",
+      "ocr_value": "19",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_2_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 3.price",
+      "ocr_value": "13",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_2_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 3.amount",
+      "ocr_value": "13",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_2_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 3.article",
+      "ocr_value": "OUTSOLE P UNIT TPR",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_2_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 4.qty",
+      "ocr_value": "19",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_3_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 4.price",
+      "ocr_value": "1",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_3_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 4.amount",
+      "ocr_value": "1",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_3_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 4.article",
+      "ocr_value": "OUTSOLE P UNIT TPR",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_3_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 5.qty",
+      "ocr_value": "19",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_4_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 5.price",
+      "ocr_value": "1.5",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_4_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 5.amount",
+      "ocr_value": "1.5",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_4_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 5.article",
+      "ocr_value": "OUTSOLE P UNIT TPR",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_4_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 6.qty",
+      "ocr_value": "19",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_5_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 6.price",
+      "ocr_value": "2",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_5_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 6.amount",
+      "ocr_value": "2",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_5_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 6.article",
+      "ocr_value": "OUTSOLE P UNIT TPR",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_5_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 7.qty",
+      "ocr_value": "19",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_6_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 7.price",
+      "ocr_value": "2.5",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_6_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 7.amount",
+      "ocr_value": "2.5",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_6_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 7.article",
+      "ocr_value": "OUTSOLE P UNIT TPR",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_6_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 8.qty",
+      "ocr_value": "19",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_7_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 8.price",
+      "ocr_value": "3",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_7_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 8.amount",
+      "ocr_value": "3",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_7_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 8.article",
+      "ocr_value": "OUTSOLE P UNIT TPR",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_7_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 9.qty",
+      "ocr_value": "19",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_8_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 9.price",
+      "ocr_value": "3.5",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_8_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 9.amount",
+      "ocr_value": "3.5",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_8_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 9.article",
+      "ocr_value": "OUTSOLE P UNIT TPR",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_8_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 10.qty",
+      "ocr_value": "1",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_9_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 10.price",
+      "ocr_value": "6",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_9_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 10.amount",
+      "ocr_value": "6",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_9_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 10.article",
+      "ocr_value": "Page No of",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_9_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 11.qty",
+      "ocr_value": "600",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_10_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 11.price",
+      "ocr_value": "029",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_10_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 11.amount",
+      "ocr_value": "23746667",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_10_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 11.article",
+      "ocr_value": "AMINJIKARAI CHENNAI TAMILNADU INDIA",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_10_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 12.qty",
+      "ocr_value": "2026",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_11_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 12.price",
+      "ocr_value": "27",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_11_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 12.amount",
+      "ocr_value": "27",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_11_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 12.article",
+      "ocr_value": "PO No : U2/2026-27/MRP-D_021",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_11_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 13.qty",
+      "ocr_value": "2",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_12_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 13.price",
+      "ocr_value": "6",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_12_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 13.amount",
+      "ocr_value": "6",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_12_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 13.article",
+      "ocr_value": "Page No of",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_12_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 14.qty",
+      "ocr_value": "3",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_13_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 14.price",
+      "ocr_value": "6",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_13_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 14.amount",
+      "ocr_value": "6",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_13_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 14.article",
+      "ocr_value": "Page No of",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_13_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 15.qty",
+      "ocr_value": "4",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_14_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 15.price",
+      "ocr_value": "6",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_14_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 15.amount",
+      "ocr_value": "6",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_14_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 15.article",
+      "ocr_value": "Page No of",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_14_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 16.qty",
+      "ocr_value": "21",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_15_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 16.price",
+      "ocr_value": "05",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_15_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 16.amount",
+      "ocr_value": "2026",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_15_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 16.article",
+      "ocr_value": "Delivery Date required on",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_15_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 17.qty",
+      "ocr_value": "21",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_16_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 17.price",
+      "ocr_value": "05",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_16_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 17.amount",
+      "ocr_value": "2026",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_16_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 17.article",
+      "ocr_value": "Authorised & Date :",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_16_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 18.qty",
+      "ocr_value": "5",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_17_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 18.price",
+      "ocr_value": "6",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_17_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 18.amount",
+      "ocr_value": "6",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_17_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 18.article",
+      "ocr_value": "Page No of",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_17_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 19.qty",
+      "ocr_value": "1",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_18_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 19.price",
+      "ocr_value": "2",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_18_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 19.amount",
+      "ocr_value": "2",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_18_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 19.article",
+      "ocr_value": "All PO must be",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_18_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 20.qty",
+      "ocr_value": "12",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_19_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 20.price",
+      "ocr_value": "3",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_19_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 20.amount",
+      "ocr_value": "3",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_19_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 20.article",
+      "ocr_value": "The materials are to",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_19_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 21.qty",
+      "ocr_value": "14",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_20_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 21.price",
+      "ocr_value": "3",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_20_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 21.amount",
+      "ocr_value": "3",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_20_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 21.article",
+      "ocr_value": "For either side better",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_20_product",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 22.qty",
+      "ocr_value": "6",
+      "normalized_key": "qty",
+      "target_erp_name": "bulk_qty",
+      "target_dom_id": "purchase_form_item_21_bulk_qty",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 22.price",
+      "ocr_value": "6",
+      "normalized_key": "price",
+      "target_erp_name": "bulk_unit_price",
+      "target_dom_id": "purchase_form_item_21_bulk_unit_price",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 22.amount",
+      "ocr_value": "6",
+      "normalized_key": "amount",
+      "target_erp_name": "bulk_line_total",
+      "target_dom_id": "purchase_form_item_21_bulk_line_total",
+      "source": "fallback"
+    },
+    {
+      "ocr_key": "row 22.article",
+      "ocr_value": "Page No of",
+      "normalized_key": "article",
+      "target_erp_name": "product",
+      "target_dom_id": "purchase_form_item_21_product",
+      "source": "fallback"
+    }
+  ],
+  "skipped_keys": [
+    {
+      "ocr_key": "gst",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gst",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "qty",
+      "ocr_value": "1605",
+      "normalized_key": "qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "buyer",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "buyer",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "dated",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "dated",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "gstin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gstin",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "phone",
+      "ocr_value": "9944476864",
+      "normalized_key": "phone",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "gst_no",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gst_no",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "season",
+      "ocr_value": "AW26",
+      "normalized_key": "season",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "seller",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "seller",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "bill_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "bill_to",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "ship_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "ship_to",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "sold_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "sold_to",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "doc_type",
+      "ocr_value": "purchase_order",
+      "normalized_key": "doc_type",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "exporter",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "exporter",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "importer",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "importer",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "order_no",
+      "ocr_value": "U2/2026-27/MRP-D_021",
+      "normalized_key": "order_no",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "quantity",
+      "ocr_value": "1605",
+      "normalized_key": "quantity",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "receiver",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "receiver",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "bill_date",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "bill_date",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "consignee",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "consignee",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "gstin_uin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gstin_uin",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "inr_total",
+      "ocr_value": "203,546.00",
+      "normalized_key": "inr_total",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "item_name",
+      "ocr_value": "Code",
+      "normalized_key": "item_name",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "telephone",
+      "ocr_value": "044 23746667",
+      "normalized_key": "telephone",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "total_inr",
+      "ocr_value": "203,546.00",
+      "normalized_key": "total_inr",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "total_qty",
+      "ocr_value": "1605",
+      "normalized_key": "total_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "amount_inr",
+      "ocr_value": "203,546.00",
+      "normalized_key": "amount_inr",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "buyer_name",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "buyer_name",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "gst_number",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gst_number",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "invoice_dt",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "invoice_dt",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "net_amount",
+      "ocr_value": "203,546.00",
+      "normalized_key": "net_amount",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "party_name",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "party_name",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "buyer_gstin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "buyer_gstin",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "delivery_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "delivery_to",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "description",
+      "ocr_value": "Code",
+      "normalized_key": "description",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "final_total",
+      "ocr_value": "203,546.00",
+      "normalized_key": "final_total",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "total_pairs",
+      "ocr_value": "1605",
+      "normalized_key": "total_pairs",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "total_value",
+      "ocr_value": "203,546.00",
+      "normalized_key": "total_value",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "company_name",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "company_name",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "gst_supplier",
+      "ocr_value": "33AACCC7325B1Z9",
+      "normalized_key": "gst_supplier",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "invoice_date",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "invoice_date",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "order_number",
+      "ocr_value": "U2/2026-27/MRP-D",
+      "normalized_key": "order_number",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "vendor_gstin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "vendor_gstin",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "buyer_company",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "buyer_company",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "customer_name",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "customer_name",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "delivery_name",
+      "ocr_value": "GOOD LEATHER SHOES PRIVATE LIMITED",
+      "normalized_key": "delivery_name",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "document_date",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "document_date",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "document_type",
+      "ocr_value": "purchase_order",
+      "normalized_key": "document_type",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "invoice_total",
+      "ocr_value": "203,546.00",
+      "normalized_key": "invoice_total",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "invoice_value",
+      "ocr_value": "203,546.00",
+      "normalized_key": "invoice_value",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "amount_payable",
+      "ocr_value": "203,546.00",
+      "normalized_key": "amount_payable",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "buyer_order_no",
+      "ocr_value": "U2/2026-27/MRP-D_021",
+      "normalized_key": "buyer_order_no",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "consignee_name",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "consignee_name",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "contact_number",
+      "ocr_value": "9944476864",
+      "normalized_key": "contact_number",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "document_title",
+      "ocr_value": "PURCHASE ORDER",
+      "normalized_key": "document_title",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "payment_status",
+      "ocr_value": "paid",
+      "normalized_key": "payment_status",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "supplier_gstin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "supplier_gstin",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "total_quantity",
+      "ocr_value": "1605",
+      "normalized_key": "total_quantity",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "transport_name",
+      "ocr_value": "- ROAD/TRAIN/SEA/AIR/OTHERS as applicable",
+      "normalized_key": "transport_name",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "amount_in_words",
+      "ocr_value": "- ( Two Lakh Three Thousand Five Hundred Forty Six Rupees only)",
+      "normalized_key": "amount_in_words",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "consignee_buyer",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "consignee_buyer",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_01_sno",
+      "ocr_value": "2",
+      "normalized_key": "grn_item_01_sno",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_02_sno",
+      "ocr_value": "4",
+      "normalized_key": "grn_item_02_sno",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_03_sno",
+      "ocr_value": "6",
+      "normalized_key": "grn_item_03_sno",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_04_sno",
+      "ocr_value": "8",
+      "normalized_key": "grn_item_04_sno",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_05_sno",
+      "ocr_value": "9",
+      "normalized_key": "grn_item_05_sno",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "line_item_count",
+      "ocr_value": "12",
+      "normalized_key": "line_item_count",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "delivery_address",
+      "ocr_value": "49, GOPARASANALLUR, PULIYAMPEDU, NOOMBAL PO, CHENNAI, TAMILNADU, INDIA - 600077 GSTIN/UIN : 33AAACG8998G1Z8 Remarks or Special Instructions",
+      "normalized_key": "delivery_address",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_01_code",
+      "ocr_value": "OUT723",
+      "normalized_key": "grn_item_01_code",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_01_unit",
+      "ocr_value": "PAIRS",
+      "normalized_key": "grn_item_01_unit",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_02_code",
+      "ocr_value": "OUT725",
+      "normalized_key": "grn_item_02_code",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_02_unit",
+      "ocr_value": "PAIRS",
+      "normalized_key": "grn_item_02_unit",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_03_code",
+      "ocr_value": "OUT727",
+      "normalized_key": "grn_item_03_code",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_03_unit",
+      "ocr_value": "PAIRS",
+      "normalized_key": "grn_item_03_unit",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_04_code",
+      "ocr_value": "OUT729",
+      "normalized_key": "grn_item_04_code",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_04_unit",
+      "ocr_value": "PAIRS",
+      "normalized_key": "grn_item_04_unit",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_05_code",
+      "ocr_value": "OUT730",
+      "normalized_key": "grn_item_05_code",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_05_unit",
+      "ocr_value": "PAIRS",
+      "normalized_key": "grn_item_05_unit",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "item_description",
+      "ocr_value": "GOOD LEATHER SHOES PVT LTD",
+      "normalized_key": "item_description",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "total_amount_inr",
+      "ocr_value": "203,546.00",
+      "normalized_key": "total_amount_inr",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "invoice_value_inr",
+      "ocr_value": "203,546.00",
+      "normalized_key": "invoice_value_inr",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "mode_of_transport",
+      "ocr_value": "- ROAD/TRAIN/SEA/AIR/OTHERS as applicable",
+      "normalized_key": "mode_of_transport",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "description_of_goods",
+      "ocr_value": "Code",
+      "normalized_key": "description_of_goods",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_01_reference",
+      "ocr_value": "2,240.00",
+      "normalized_key": "grn_item_01_reference",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_02_reference",
+      "ocr_value": "8,064.00",
+      "normalized_key": "grn_item_02_reference",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_03_reference",
+      "ocr_value": "10,192.00",
+      "normalized_key": "grn_item_03_reference",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_04_reference",
+      "ocr_value": "9,744.00",
+      "normalized_key": "grn_item_04_reference",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_05_reference",
+      "ocr_value": "6,384.00",
+      "normalized_key": "grn_item_05_reference",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_01_description",
+      "ocr_value": "OUTSOLE P 19 UNIT TPR EF BLACK SIZE 11",
+      "normalized_key": "grn_item_01_description",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_02_description",
+      "ocr_value": "OUTSOLE P 19 UNIT TPR EF BLACK SIZE 12",
+      "normalized_key": "grn_item_02_description",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_03_description",
+      "ocr_value": "OUTSOLE P 19 UNIT TPR EF BLACK SIZE 13",
+      "normalized_key": "grn_item_03_description",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_04_description",
+      "ocr_value": "OUTSOLE P 19 UNIT TPR EF BLACK SIZE 1",
+      "normalized_key": "grn_item_04_description",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_05_description",
+      "ocr_value": "OUTSOLE P 19 UNIT TPR EF BLACK SIZE 1.5",
+      "normalized_key": "grn_item_05_description",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_01_accepted_qty",
+      "ocr_value": "20",
+      "normalized_key": "grn_item_01_accepted_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_01_received_qty",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "grn_item_01_received_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_01_rejected_qty",
+      "ocr_value": "112",
+      "normalized_key": "grn_item_01_rejected_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_02_accepted_qty",
+      "ocr_value": "72",
+      "normalized_key": "grn_item_02_accepted_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_02_received_qty",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "grn_item_02_received_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_02_rejected_qty",
+      "ocr_value": "112",
+      "normalized_key": "grn_item_02_rejected_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_03_accepted_qty",
+      "ocr_value": "91",
+      "normalized_key": "grn_item_03_accepted_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_03_received_qty",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "grn_item_03_received_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_03_rejected_qty",
+      "ocr_value": "112",
+      "normalized_key": "grn_item_03_rejected_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_04_accepted_qty",
+      "ocr_value": "87",
+      "normalized_key": "grn_item_04_accepted_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_04_received_qty",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "grn_item_04_received_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_04_rejected_qty",
+      "ocr_value": "112",
+      "normalized_key": "grn_item_04_rejected_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_05_accepted_qty",
+      "ocr_value": "57",
+      "normalized_key": "grn_item_05_accepted_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_05_received_qty",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "grn_item_05_received_qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "grn_item_05_rejected_qty",
+      "ocr_value": "112",
+      "normalized_key": "grn_item_05_rejected_qty",
+      "reason": "no_alias_match"
+    }
+  ],
+  "top_20_skipped_keys_with_reasons": [
+    {
+      "ocr_key": "gst",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gst",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "qty",
+      "ocr_value": "1605",
+      "normalized_key": "qty",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "buyer",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "buyer",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "dated",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "dated",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "gstin",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gstin",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "phone",
+      "ocr_value": "9944476864",
+      "normalized_key": "phone",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "gst_no",
+      "ocr_value": "33AAACG8998G1Z8",
+      "normalized_key": "gst_no",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "season",
+      "ocr_value": "AW26",
+      "normalized_key": "season",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "seller",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "seller",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "bill_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "bill_to",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "ship_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "ship_to",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "sold_to",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "sold_to",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "doc_type",
+      "ocr_value": "purchase_order",
+      "normalized_key": "doc_type",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "exporter",
+      "ocr_value": "CDS SOLES PVT LTD",
+      "normalized_key": "exporter",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "importer",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "importer",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "order_no",
+      "ocr_value": "U2/2026-27/MRP-D_021",
+      "normalized_key": "order_no",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "quantity",
+      "ocr_value": "1605",
+      "normalized_key": "quantity",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "receiver",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "receiver",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "bill_date",
+      "ocr_value": "21-05-2026",
+      "normalized_key": "bill_date",
+      "reason": "no_alias_match"
+    },
+    {
+      "ocr_key": "consignee",
+      "ocr_value": "standard/GLS standard for every batch of production",
+      "normalized_key": "consignee",
+      "reason": "no_alias_match"
+    }
+  ],
+  "dataset_mapping_result": {
+    "dataset": {},
+    "match_score": 0,
+    "match_reason": "no_dataset_found",
+    "mapped_count": 0
+  },
+  "fallback_mapping_result": {
+    "mapped_count": 91,
+    "aliases_used": [
+      "amount",
+      "article",
+      "date",
+      "grand_total",
+      "payment_terms",
+      "price",
+      "qty"
+    ]
+  },
+  "item_row_count": 22,
+  "remaining_issues": [
+    "k21.pdf was not available; POPRINT.pdf used for live 14+ row verification."
+  ],
+  "no_object_object": true
+}

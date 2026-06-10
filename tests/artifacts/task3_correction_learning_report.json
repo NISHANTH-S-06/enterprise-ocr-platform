@@ -1,0 +1,239 @@
+[
+  {
+    "scenario": "build_workbench_correction_memory_sales",
+    "module": "sales_order",
+    "source_ocr_key": "INV NO",
+    "target_erp_name": "sales_order_no",
+    "expected_normalized_key": "inv_no",
+    "expected_dom_id": "sales_form_sales_order_no",
+    "result": "pass",
+    "notes": "Correctly resolves sales target to sales_form_sales_order_no"
+  },
+  {
+    "scenario": "build_workbench_correction_memory_purchase",
+    "module": "purchase_order",
+    "source_ocr_key": "PO NO",
+    "target_erp_name": "po_number",
+    "expected_normalized_key": "po_no",
+    "expected_dom_id": "purchase_form_po_number",
+    "result": "pass",
+    "notes": "Correctly resolves purchase target to purchase_form_po_number"
+  },
+  {
+    "scenario": "build_workbench_correction_memory_unknown_target",
+    "module": "sales_order",
+    "source_ocr_key": "X_FIELD",
+    "target_erp_name": "nonexistent_field",
+    "expected_dom_id": "",
+    "result": "pass",
+    "notes": "Unknown targets get empty dom_id"
+  },
+  {
+    "scenario": "skip_reason_inactive",
+    "is_active": false,
+    "expected_reason": "inactive",
+    "result": "pass",
+    "notes": "Inactive corrections are correctly skipped"
+  },
+  {
+    "scenario": "skip_reason_wrong_module",
+    "module": "purchase_order",
+    "current_module": "sales",
+    "expected_reason": "wrong_module",
+    "result": "pass",
+    "notes": "Wrong module corrections are correctly skipped"
+  },
+  {
+    "scenario": "skip_reason_source_key_not_found",
+    "normalized_source_key": "inv_no",
+    "current_key": "invoice_number",
+    "expected_reason": "source_key_not_found",
+    "result": "pass",
+    "notes": "When normalized key not in OCR lookup, correction is skipped"
+  },
+  {
+    "scenario": "skip_reason_empty_value",
+    "normalized_source_key": "",
+    "source_value_sample": "",
+    "expected_reason": "empty_value",
+    "result": "pass",
+    "notes": "Empty source value without key is skipped"
+  },
+  {
+    "scenario": "skip_reason_identity_mismatch_company",
+    "correction_company": "Acme Ltd",
+    "current_company": "Other Ltd",
+    "expected_reason": "identity_mismatch",
+    "result": "pass",
+    "notes": "Company name mismatch correctly skips correction"
+  },
+  {
+    "scenario": "skip_reason_identity_match_success",
+    "correction_company": "Acme Ltd",
+    "current_company": "Acme Ltd",
+    "expected_reason": "",
+    "result": "pass",
+    "notes": "Matching company name allows correction through"
+  },
+  {
+    "scenario": "skip_reason_document_type_mismatch",
+    "correction_doc_type": "Purchase Invoice",
+    "current_doc_type": "Sales Invoice",
+    "expected_reason": "document_type_mismatch",
+    "result": "pass",
+    "notes": "Document type mismatch correctly skips correction"
+  },
+  {
+    "scenario": "skip_reason_document_type_match",
+    "correction_doc_type": "Sales Invoice",
+    "current_doc_type": "Sales Invoice",
+    "expected_reason": "",
+    "result": "pass",
+    "notes": "Matching document type allows correction through"
+  },
+  {
+    "scenario": "skip_reason_no_document_type_on_correction",
+    "correction_doc_type": "",
+    "current_doc_type": "Sales Invoice",
+    "expected_reason": "",
+    "result": "pass",
+    "notes": "Correction without doc_type is not filtered by current doc_type"
+  },
+  {
+    "scenario": "apply_strong_match_sales",
+    "module": "sales_order",
+    "ocr_field": "Invoice Number=INV-1",
+    "target_field": "sales_order_no",
+    "expected_match_type": "strong",
+    "expected_value": "SO-100",
+    "result": "pass",
+    "notes": "Strong match applies correction value to form_data"
+  },
+  {
+    "scenario": "apply_already_filled",
+    "existing_value": "EXISTING-VALUE",
+    "expected_applied": 0,
+    "expected_unchanged": "EXISTING-VALUE",
+    "result": "pass",
+    "notes": "Already-filled fields are not overwritten by corrections"
+  },
+  {
+    "scenario": "apply_identity_specificity",
+    "correction_company": "Other Ltd",
+    "current_company": "Acme Ltd",
+    "expected_applied": 0,
+    "result": "pass",
+    "notes": "Identity-specific corrections don't apply to wrong identity"
+  },
+  {
+    "scenario": "apply_inactive_skip",
+    "is_active": false,
+    "expected_applied": 0,
+    "expected_skip_reason": "inactive",
+    "result": "pass",
+    "notes": "Inactive corrections are skipped during apply"
+  },
+  {
+    "scenario": "apply_empty_value",
+    "corrected_value_sample": "",
+    "expected_applied": 0,
+    "expected_skip_reason": "empty_value",
+    "result": "pass",
+    "notes": "Empty correction values are skipped"
+  },
+  {
+    "scenario": "apply_target_field_not_found",
+    "target_erp_name": "unknown_target",
+    "expected_applied": 0,
+    "expected_skip_reason": "target_field_not_found",
+    "result": "pass",
+    "notes": "Corrections with unknown target ERP names are skipped"
+  },
+  {
+    "scenario": "apply_purchase_alias_resolution",
+    "module": "purchase_order",
+    "target_erp_name": "po_no",
+    "canonical_field": "po_number",
+    "expected_applied": 1,
+    "result": "pass",
+    "notes": "Aliases resolve to canonical field names for purchase module"
+  },
+  {
+    "scenario": "apply_no_object_object_value",
+    "corrected_value_sample": "[object Object]",
+    "expected_applied": 0,
+    "result": "pass",
+    "notes": "[object Object] values are rejected by clean_workbench_value"
+  },
+  {
+    "scenario": "apply_vendor_identity_mismatch",
+    "correction_vendor": "Supplier B",
+    "current_vendor": "Supplier A",
+    "expected_applied": 0,
+    "result": "pass",
+    "notes": "Vendor identity mismatch correctly skips correction"
+  },
+  {
+    "scenario": "apply_customer_identity_mismatch",
+    "correction_customer": "Buyer Y",
+    "current_customer": "Buyer X",
+    "expected_applied": 0,
+    "result": "pass",
+    "notes": "Customer identity mismatch correctly skips correction"
+  },
+  {
+    "scenario": "apply_return_shape",
+    "expected_keys": ["form_data", "item_rows", "applied_count", "applied_corrections", "skipped_corrections"],
+    "result": "pass",
+    "notes": "Apply function returns correct shape"
+  },
+  {
+    "scenario": "row_corrections_basic",
+    "ocr_row_quantity": "5",
+    "expected_mapped_qty": "5",
+    "result": "pass",
+    "notes": "Row corrections apply to item rows when source column and sample match"
+  },
+  {
+    "scenario": "correction_memory_model_columns",
+    "result": "pass",
+    "notes": "CorrectionMemory model has all 19 expected columns including module, normalized_source_key, confidence, etc."
+  },
+  {
+    "scenario": "correction_migration_exists",
+    "migration_file": "0007_add_correction_memory_columns.py",
+    "down_revision": "0006",
+    "result": "pass",
+    "notes": "Migration 0007 exists with correct down_revision"
+  },
+  {
+    "scenario": "correction_migration_column_details",
+    "expected_columns": ["module", "normalized_source_key", "confidence", "metadata_json"],
+    "expected_index": "ix_correction_memory_module",
+    "alter_company_id": true,
+    "result": "pass",
+    "notes": "Migration correctly adds 18 columns, creates indexes, and alters company_id to nullable"
+  },
+  {
+    "scenario": "endpoint_save_single",
+    "endpoint": "POST /workbench/corrections",
+    "test_method": "direct_call",
+    "result": "pass",
+    "notes": "Single correction save endpoint returns saved=True and correction_id"
+  },
+  {
+    "scenario": "endpoint_list_empty",
+    "endpoint": "GET /workbench/corrections",
+    "test_method": "direct_call",
+    "result": "pass",
+    "notes": "List endpoint returns corrections=[] and total=0 when no corrections exist"
+  },
+  {
+    "scenario": "all_tests_pass",
+    "total_tests": 30,
+    "tests_passed": 30,
+    "tests_failed": 0,
+    "result": "pass",
+    "notes": "All 30 correction learning tests pass in the full test suite"
+  }
+]

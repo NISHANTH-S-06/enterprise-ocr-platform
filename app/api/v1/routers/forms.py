@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import io
 import json
+import re
+import unicodedata
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -24,12 +27,14 @@ from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.enums import LogEventType, LogLevel, UserRole
 from app.models.extracted_data import ExtractedData
+from app.models.company import Company, CorrectionMemory, TrainingDataset
 from app.models.workbench import WorkbenchDraft
 from app.services.company_form_mapper import auto_fill, classify_document, flatten_item_rows_for_legacy_fields, map_sales_invoice_fields, missing_fields_for_doc, normalize_mapped_fields
-from app.services.ownership_service import get_owned_extracted_data
+from app.services.ownership_service import get_owned_extracted_data, get_owned_ocr_job
 from app.services.audit_service import write_audit_log
 from app.services.gemini_service import gemini_enrich_missing_fields
 from app.services.validation_service import validate_mapped_fields
+# workbench_correction_apply imports are done inside functions to avoid circular import
 
 router = APIRouter(prefix="/forms", tags=["Company Form Fill"])
 settings = get_settings()
@@ -71,6 +76,21 @@ class WorkbenchRequest(BaseModel):
 
 class WorkbenchExportRequest(WorkbenchRequest):
     pass
+
+
+class WorkbenchAutoFillRequest(BaseModel):
+    module: str
+    job_id: Optional[str] = None
+    ocr_result: Optional[Dict[str, Any]] = None
+    dataset_id: Optional[str] = None
+    overwrite: bool = True
+
+
+from app.schemas.correction import (
+    WorkbenchCorrectionApplyRequest,
+    WorkbenchCorrectionBulkCreate,
+    WorkbenchCorrectionCreate,
+)
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -169,6 +189,515 @@ def _wb_number(value: Any) -> float | None:
 
 def _wb_key(value: Any) -> str:
     return "".join(ch for ch in str(value or "").lower() if ch.isalnum())
+
+
+WORKBENCH_TARGET_DOM_IDS = {
+    "sales": {
+        "sales_order_no": "sales_form_sales_order_no", "sales_order_date": "sales_form_sales_order_date",
+        "order_type_id": "sales_form_order_type_id", "reference_number": "sales_form_reference_number",
+        "order_tax": "sales_form_order_tax", "order_total": "sales_form_order_total",
+        "qty_total": "sales_form_qty_total", "source": "sales_form_source", "created_by": "sales_form_created_by",
+        "customer_type_id": "sales_form_customer_type_id", "pricelist_id": "sales_form_pricelist_id",
+        "customer_id": "sales_form_customer_id", "customer_name": "sales_form_customer_name",
+        "customer_po_number": "sales_form_customer_po_number", "bill_to_address": "sales_form_bill_to_address",
+        "ship_to_address": "sales_form_ship_to_address", "delivery_date": "sales_form_delivery_date",
+        "remarks": "sales_form_remarks", "contact_number": "sales_form_contact_number",
+        "contact_person": "sales_form_contact_person", "project_id": "sales_form_project_id",
+        "salesperson_id": "sales_form_salesperson_id", "payment_method": "sales_form_payment_method",
+        "ar_payment_term_id": "sales_form_payment_term", "freight_term": "sales_form_freight_term",
+        "delivery_name": "sales_form_delivery_name", "carrier_name": "sales_form_carrier_name",
+        "invoice_currency": "sales_form_invoice_currency", "discount_id": "sales_form_discount_id",
+        "other_tax_amount": "sales_form_other_tax_amount", "other_frieght_amount": "sales_form_other_frieght_amount",
+        "transport_charges": "sales_form_transport_charges", "insurance_charges": "sales_form_insurance_charges",
+        "packaging_charges": "sales_form_packaging_charges",
+    },
+    "purchase": {
+        "po_number": "purchase_form_po_number", "po_date": "purchase_form_po_date",
+        "po_type": "purchase_form_po_type", "reference_number": "purchase_form_reference_number",
+        "po_tax_total": "purchase_form_po_tax_total", "po_grand_total": "purchase_form_po_grand_total",
+        "round_off": "purchase_form_round_off", "source": "purchase_form_source",
+        "created_by": "purchase_form_created_by", "supplier_id": "purchase_form_supplier_id",
+        "supplier_name": "purchase_form_supplier_name", "supplier_site": "purchase_form_supplier_site",
+        "reverse_charge": "purchase_form_reverse_charge", "delivery_date": "purchase_form_delivery_date",
+        "purchase_type": "purchase_form_purchase_type", "project_id": "purchase_form_project_id",
+        "delivery_term": "purchase_form_delivery_term", "payment_term_id": "purchase_form_payment_term",
+        "supplier_reference_no": "purchase_form_supplier_reference_no", "freight_term": "purchase_form_freight_term",
+        "remarks": "purchase_form_remarks", "insurance_term": "purchase_form_insurance_term",
+        "currency": "purchase_form_currency", "bill_to_location": "purchase_form_bill_to_location",
+        "bill_to_address": "purchase_form_bill_to_address", "ship_to_location": "purchase_form_ship_to_location",
+        "ship_to_address": "purchase_form_ship_to_address", "payment_method": "purchase_form_payment_method",
+        "freight_carrier": "purchase_form_freight_carrier", "packing_charges": "purchase_form_packing_charges",
+        "insurance_charges": "purchase_form_insurance_charges", "unloading_charges": "purchase_form_unloading_charges",
+        "transport_charges": "purchase_form_transport_charges", "other_frieght_amount": "purchase_form_other_frieght_amount",
+        "other_tax_amount": "purchase_form_other_tax_amount",
+    },
+}
+
+WORKBENCH_ALIASES = {
+    "sales": {
+        "buyer_name": "customer_name", "buyer": "customer_name", "customer": "customer_name",
+        "customer_name": "customer_name", "delivery_name": "delivery_name",
+        "buyer_order_no": "customer_po_number", "buyers_order_no": "customer_po_number",
+        "po_number": "customer_po_number", "purchase_order_no": "customer_po_number",
+        "invoice_no": "reference_number", "invoice_number": "reference_number",
+        "order_no": "sales_order_no", "order_number": "sales_order_no", "sales_order_no": "sales_order_no",
+        "invoice_date": "sales_order_date", "order_date": "sales_order_date", "date": "sales_order_date",
+        "grand_total": "order_total", "total_amount": "order_total", "amount_chargeable": "order_total",
+        "tax_amount": "order_tax", "igst_amount": "order_tax", "payment_terms": "ar_payment_term_id",
+        "payment_term": "ar_payment_term_id", "delivery_terms": "delivery_name",
+        "currency": "invoice_currency", "invoice_currency": "invoice_currency",
+        "remarks": "remarks", "notes": "remarks", "billing_address": "bill_to_address",
+        "buyer_address": "bill_to_address", "shipping_address": "ship_to_address",
+        "consignee_address": "ship_to_address", "ship_to_address": "ship_to_address",
+    },
+    "purchase": {
+        "po_no": "po_number", "po_number": "po_number", "purchase_order_no": "po_number",
+        "purchase_order_number": "po_number", "po_date": "po_date", "date": "po_date",
+        "supplier": "supplier_name", "supplier_name": "supplier_name", "vendor": "supplier_name",
+        "vendor_name": "supplier_name", "grand_total": "po_grand_total", "total_amount": "po_grand_total",
+        "total": "po_grand_total", "tax_total": "po_tax_total", "tax_amount": "po_tax_total",
+        "roundoff": "round_off", "round_off": "round_off", "delivery_date": "delivery_date",
+        "payment_terms": "payment_term_id", "payment_term": "payment_term_id", "currency": "currency",
+        "remarks": "remarks", "notes": "remarks", "reference_number": "reference_number",
+        "supplier_reference_no": "supplier_reference_no", "billing_address": "bill_to_address",
+        "supplier_address": "supplier_site", "shipping_address": "ship_to_address",
+    },
+}
+
+WORKBENCH_ROW_ALIASES = {
+    "sales": {
+        "description": "product", "product": "product", "item": "product", "article": "product",
+        "hsn": "bulk_hsn_code", "hsn_code": "bulk_hsn_code", "qty": "bulk_qty", "quantity": "bulk_qty",
+        "rate": "bulk_unit_price", "price": "bulk_unit_price", "unit_price": "bulk_unit_price",
+        "amount": "bulk_line_total", "line_total": "bulk_line_total", "total": "bulk_line_total",
+        "tax": "bulk_tax_amount", "igst": "bulk_tax_amount", "gst": "bulk_tax_amount",
+        "tax_amount": "bulk_tax_amount", "uom": "bulk_uom_code", "uom_code": "bulk_uom_code",
+        "size": "size", "colour": "colour", "color": "colour",
+    },
+    "purchase": {
+        "description": "product", "product": "product", "item": "product", "article": "product",
+        "part_no": "supplier_part_no", "hsn": "bulk_hsn_code", "hsn_code": "bulk_hsn_code",
+        "qty": "bulk_qty", "quantity": "bulk_qty", "rate": "bulk_unit_price", "price": "bulk_unit_price",
+        "unit_price": "bulk_unit_price", "amount": "bulk_line_total", "line_total": "bulk_line_total",
+        "total": "bulk_line_total", "tax": "bulk_tax_amount", "gst": "bulk_tax_amount",
+        "tax_amount": "bulk_tax_amount", "uom": "bulk_uom_code", "uom_code": "bulk_uom_code",
+        "comments": "comments", "remarks": "comments",
+    },
+}
+
+NUMERIC_WORKBENCH_TARGETS = {
+    "order_total", "order_tax", "qty_total", "po_grand_total", "po_tax_total", "round_off",
+    "other_tax_amount", "other_frieght_amount", "transport_charges", "insurance_charges", "packing_charges",
+    "packaging_charges", "unloading_charges", "bulk_qty", "bulk_unit_price", "bulk_line_total", "bulk_tax_amount",
+}
+
+
+def normalize_workbench_key(value: Any) -> str:
+    text = unicodedata.normalize("NFKD", str(value or "")).replace("’", "'").replace("‘", "'")
+    text = text.lower().replace("'", "")
+    return re.sub(r"[^a-z0-9]+", "_", text).strip("_")
+
+
+def clean_workbench_value(value: Any, target: str = "") -> str:
+    seen: set[int] = set()
+    while isinstance(value, dict):
+        marker = id(value)
+        if marker in seen:
+            return ""
+        seen.add(marker)
+        next_value = None
+        for key in ("value", "text", "raw_value", "normalized_value", "extracted_value"):
+            if key in value and value[key] is not None:
+                next_value = value[key]
+                break
+        if next_value is None:
+            return ""
+        value = next_value
+    if isinstance(value, (list, tuple, set)) or value is None:
+        return ""
+    text = re.sub(r"\s+", " ", str(value)).strip()
+    if not text or text == "[object Object]":
+        return ""
+    if target in NUMERIC_WORKBENCH_TARGETS:
+        text = re.sub(r"(?:INR|USD|EUR|GBP|Rs\.?)(?=\s|\d)", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"[$€£₹]", "", text)
+        text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def normalize_dataset_mappings(raw: Any) -> list[dict[str, str]]:
+    """Normalize any historical or canonical mapping format into the canonical list schema.
+
+    Supports all legacy formats:
+    1. {source_key, target_erp_name}           — canonical/new
+    2. {ocr_key, target_field}                 — frontend training save
+    3. {label, target}
+    4. {source_label, erp_field_name}
+    5. {field, value}
+    6. {target_field, value}
+    7. object map {"buyer_name": "customer_name"}
+    8. localStorage training format {"customer_name": {"label":"buyer_name","confidence":0.9}}
+    """
+    mappings: list[dict[str, str]] = []
+    if isinstance(raw, dict):
+        # Check if it looks like localStorage training format: {"target": {"label":..,"confidence":..}}
+        first_val = next(iter(raw.values()), None) if raw else None
+        if isinstance(first_val, dict) and ("label" in first_val or "confidence" in first_val or "value" in first_val):
+            # Format 8: localStorage training {"erp_target": {"label": "ocr_label", "value": "...", "confidence": ...}}
+            for target, meta in raw.items():
+                if not isinstance(meta, dict):
+                    continue
+                source_label = str(meta.get("label") or target).strip()
+                if not source_label or not target:
+                    continue
+                mappings.append({
+                    "source_key": source_label,
+                    "source_label": source_label,
+                    "normalized_source_key": normalize_workbench_key(source_label),
+                    "target_erp_name": normalize_workbench_key(target),
+                    "target_dom_id": "",
+                    "sample_value": clean_workbench_value(meta.get("value") or meta.get("sample_value") or ""),
+                    "confidence": str(meta.get("confidence") or ""),
+                })
+        else:
+            # Format 7: plain object map {"buyer_name": "customer_name"}
+            raw = [{"source_key": s, "target_erp_name": t} for s, t in raw.items()]
+    for item in raw or []:
+        if not isinstance(item, dict):
+            continue
+        # Resolve source key through all known aliases
+        source = (
+            item.get("source_key") or item.get("ocr_key") or item.get("label")
+            or item.get("source_label") or item.get("field") or item.get("source")
+        )
+        # Resolve target through all known aliases
+        target = (
+            item.get("target_erp_name") or item.get("target_field") or item.get("target")
+            or item.get("erp_field_name") or item.get("erp_field") or item.get("value")
+        )
+        source_text = str(source or "").strip()
+        target_text = str(target or "").strip()
+        if not source_text or not target_text:
+            continue
+        # Skip empty/stub mappings
+        if source_text == target_text and source_text in {"", "-", "none", "null"}:
+            continue
+        source_label = str(item.get("source_label") or item.get("label") or source_text)
+        mappings.append({
+            "source_key": source_text,
+            "source_label": source_label,
+            "normalized_source_key": normalize_workbench_key(source_text),
+            "target_erp_name": normalize_workbench_key(target_text),
+            "canonical_name": str(item.get("canonical_name") or normalize_workbench_key(target_text)),
+            "target_dom_id": str(item.get("target_dom_id") or ""),
+            "sample_value": clean_workbench_value(item.get("sample_value") or item.get("sample") or ""),
+            "confidence": str(item.get("confidence") or ""),
+        })
+    return mappings
+
+
+def _field_entries(source: Any) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    if isinstance(source, dict):
+        for key, value in source.items():
+            if normalize_workbench_key(key) in {"items", "item_rows", "line_items", "rows", "tables", "table_rows"}:
+                continue
+            entries.append({"ocr_key": str(key), "ocr_value": value, "normalized_key": normalize_workbench_key(key)})
+    elif isinstance(source, list):
+        for item in source:
+            if not isinstance(item, dict):
+                continue
+            key = item.get("field_name") or item.get("name") or item.get("key") or item.get("label")
+            if key:
+                entries.append({"ocr_key": str(key), "ocr_value": item, "normalized_key": normalize_workbench_key(key)})
+    return entries
+
+
+def extract_workbench_ocr_fields(ocr_result: dict[str, Any]) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    containers = [ocr_result]
+    for key in ("ocr_response", "ocr_result"):
+        if isinstance(ocr_result.get(key), dict):
+            containers.append(ocr_result[key])
+    source_names = ("fields", "extracted_fields", "review_fields", "mapped_fields", "canonical_fields", "validated_fields", "p2_fields")
+    for container in containers:
+        for name in source_names:
+            for entry in _field_entries(container.get(name)):
+                value = clean_workbench_value(entry["ocr_value"])
+                if re.match(r"^(?:po_)?item_?\d+_", entry["normalized_key"]):
+                    continue
+                if not value and not isinstance(entry["ocr_value"], dict):
+                    continue
+                signature = (entry["normalized_key"], value)
+                if entry["normalized_key"] and signature not in seen:
+                    seen.add(signature)
+                    entries.append(entry)
+    return entries
+
+
+def extract_workbench_rows(ocr_result: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    def add(value: Any) -> None:
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, dict) and isinstance(item.get("rows"), list):
+                    add(item["rows"])
+                elif isinstance(item, dict):
+                    rows.append(item)
+                elif isinstance(item, list):
+                    add(item)
+        elif isinstance(value, dict):
+            if isinstance(value.get("value"), list):
+                add(value["value"])
+            elif isinstance(value.get("rows"), list):
+                add(value["rows"])
+    containers = [ocr_result]
+    for key in ("ocr_response", "ocr_result"):
+        if isinstance(ocr_result.get(key), dict):
+            containers.append(ocr_result[key])
+    for container in containers:
+        for key in ("items", "item_rows", "line_items", "rows", "table_rows", "tables"):
+            add(container.get(key))
+        for key in ("mapped_fields", "canonical_fields", "validated_fields"):
+            nested = container.get(key)
+            if isinstance(nested, dict):
+                add(nested.get("items") or nested.get("item_rows") or nested.get("line_items"))
+    unique: list[dict[str, Any]] = []
+    signatures: set[str] = set()
+    for row in rows:
+        signature = json.dumps(row, sort_keys=True, default=str)
+        if signature not in signatures:
+            signatures.add(signature)
+            unique.append(row)
+    return unique
+
+
+def _workbench_document_type(ocr_result: dict[str, Any]) -> str:
+    for source in (ocr_result, ocr_result.get("ocr_response", {}), ocr_result.get("ocr_result", {})):
+        if isinstance(source, dict):
+            value = source.get("document_type") or source.get("doc_type")
+            if value:
+                return normalize_workbench_key(value)
+    return ""
+
+
+def build_workbench_auto_fill(
+    req: WorkbenchAutoFillRequest,
+    ocr_result: dict[str, Any],
+    dataset: Optional[dict[str, Any]] = None,
+    corrections: Optional[list[dict[str, Any]]] = None,
+) -> dict[str, Any]:
+    module = "purchase" if normalize_workbench_key(req.module).startswith("purchase") else "sales"
+    document_type = _workbench_document_type(ocr_result)
+    if module == "sales" and document_type in {"purchase_order", "purchase", "grn", "goods_receipt_note"}:
+        raise HTTPException(status_code=422, detail={"message": "Sales form cannot accept a purchase document", "document_type": document_type})
+    if module == "purchase" and document_type in {"sales_invoice", "commercial_invoice", "export_invoice", "tax_invoice", "sales_order"}:
+        raise HTTPException(status_code=422, detail={"message": "Purchase form cannot accept a sales document", "document_type": document_type})
+
+    targets = WORKBENCH_TARGET_DOM_IDS[module]
+    aliases = WORKBENCH_ALIASES[module]
+    entries = extract_workbench_ocr_fields(ocr_result)
+    rows = extract_workbench_rows(ocr_result)
+    lookup: dict[str, list[dict[str, Any]]] = {}
+    for entry in entries:
+        lookup.setdefault(entry["normalized_key"], []).append(entry)
+
+    form_data: dict[str, str] = {}
+    matched: list[dict[str, str]] = []
+    skipped: list[dict[str, str]] = []
+    consumed: set[int] = set()
+    dataset_count = fallback_count = direct_count = correction_count = 0
+
+    def canonical_target(target: Any) -> str:
+        normalized = normalize_workbench_key(target)
+        if normalized in targets:
+            return normalized
+        for erp_name, dom_id in targets.items():
+            if normalize_workbench_key(dom_id) == normalized:
+                return erp_name
+        return aliases.get(normalized, normalized)
+
+    def apply(entry: dict[str, Any], target: str, source: str) -> bool:
+        nonlocal dataset_count, fallback_count, direct_count
+        target = canonical_target(target)
+        value = clean_workbench_value(entry["ocr_value"], target)
+        reason = ""
+        if not value:
+            reason = "object_value" if isinstance(entry["ocr_value"], dict) else "empty_value"
+        elif target not in targets:
+            reason = "target_field_not_found"
+        elif target in form_data and form_data[target]:
+            consumed.add(id(entry))
+            return False
+        if reason:
+            skipped.append({"ocr_key": entry["ocr_key"], "ocr_value": value, "normalized_key": entry["normalized_key"], "reason": reason})
+            return False
+        form_data[target] = value
+        matched.append({"ocr_key": entry["ocr_key"], "ocr_value": value, "normalized_key": entry["normalized_key"],
+                        "target_erp_name": target, "target_dom_id": targets[target], "source": source})
+        consumed.add(id(entry))
+        if source == "dataset": dataset_count += 1
+        elif source == "fallback": fallback_count += 1
+        else: direct_count += 1
+        return True
+
+    # Step 1: Dataset mappings
+    dataset_mappings = normalize_dataset_mappings((dataset or {}).get("mappings_json") or [])
+    for mapping in dataset_mappings:
+        candidates = lookup.get(mapping["normalized_source_key"], [])
+        if not candidates and mapping.get("source_label"):
+            candidates = lookup.get(normalize_workbench_key(mapping["source_label"]), [])
+        if not candidates:
+            skipped.append({"ocr_key": mapping["source_key"], "ocr_value": "", "normalized_key": mapping["normalized_source_key"], "reason": "source_key_not_found"})
+            continue
+        apply(candidates[-1], mapping["target_erp_name"], "dataset")
+
+    # Step 2: Correction memory (after dataset, before fallback)
+    if corrections:
+        ocr_fields_flat: dict[str, Any] = {}
+        for e in entries:
+            ocr_fields_flat[e["ocr_key"]] = e.get("ocr_value", "")
+        for raw_row in rows:
+            for k, v in (raw_row.items() if isinstance(raw_row, dict) else {}):
+                ocr_fields_flat[k] = v
+        company_name_val = ocr_result.get("company_name") or ""
+        vendor_name_val = ocr_result.get("vendor_name") or ocr_result.get("supplier_name") or ""
+        customer_name_val = ocr_result.get("customer_name") or ocr_result.get("buyer_name") or ""
+
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        correction_result = apply_workbench_corrections(
+            module=module,
+            document_type=document_type,
+            company_name=company_name_val,
+            vendor_name=vendor_name_val,
+            customer_name=customer_name_val,
+            ocr_fields=ocr_fields_flat,
+            form_data=form_data,
+            item_rows=[],
+            corrections=corrections,
+        )
+        for ca in correction_result.get("applied_corrections", []):
+            tgt = ca["target_erp_name"]
+            val = ca["corrected_value"]
+            if tgt in targets:
+                form_data[tgt] = val
+                matched.append({"ocr_key": ca["source_ocr_key"], "ocr_value": val,
+                                "normalized_key": ca["normalized_source_key"],
+                                "target_erp_name": tgt, "target_dom_id": targets.get(tgt, ""),
+                                "source": "correction"})
+                correction_count += 1
+            elif tgt in aliases:
+                canonical = aliases[tgt]
+                if canonical in targets:
+                    form_data[canonical] = val
+                    matched.append({"ocr_key": ca["source_ocr_key"], "ocr_value": val,
+                                    "normalized_key": ca["normalized_source_key"],
+                                    "target_erp_name": canonical, "target_dom_id": targets.get(canonical, ""),
+                                    "source": "correction"})
+                    correction_count += 1
+        for cs in correction_result.get("skipped_corrections", []):
+            skipped.append({"ocr_key": cs.get("source_ocr_key", ""), "ocr_value": "",
+                            "normalized_key": normalize_workbench_key(cs.get("source_ocr_key", "")),
+                            "reason": f"correction_skipped:{cs.get('reason', 'unknown')}"})
+
+    # Step 3: Direct via canonical names
+    canonical_names = {normalize_workbench_key(key) for key in (ocr_result.get("canonical_fields") or {}).keys()} if isinstance(ocr_result.get("canonical_fields"), dict) else set()
+    for entry in entries:
+        if id(entry) in consumed:
+            continue
+        key = entry["normalized_key"]
+        if key in targets and key in canonical_names:
+            apply(entry, key, "direct")
+    # Step 4: Fallback aliases
+    for entry in entries:
+        if id(entry) in consumed:
+            continue
+        target = aliases.get(entry["normalized_key"])
+        if target:
+            apply(entry, target, "fallback")
+    # Step 5: Direct ERP key match
+    for entry in entries:
+        if id(entry) in consumed:
+            continue
+        if entry["normalized_key"] in targets:
+            apply(entry, entry["normalized_key"], "direct")
+    for entry in entries:
+        if id(entry) not in consumed and clean_workbench_value(entry["ocr_value"]):
+            skipped.append({"ocr_key": entry["ocr_key"], "ocr_value": clean_workbench_value(entry["ocr_value"]),
+                            "normalized_key": entry["normalized_key"], "reason": "no_alias_match"})
+
+    # Step 6: Row mapping
+    item_rows: list[dict[str, str]] = []
+    row_aliases = WORKBENCH_ROW_ALIASES[module]
+    row_dataset = normalize_dataset_mappings((dataset or {}).get("row_mappings_json") or [])
+    for row_index, raw_row in enumerate(rows):
+        clean_row: dict[str, str] = {"row_index": str(row_index)}
+        row_entries = _field_entries(raw_row)
+        row_lookup = {entry["normalized_key"]: entry for entry in row_entries}
+        row_consumed: set[int] = set()
+        for mapping in row_dataset:
+            entry = row_lookup.get(mapping["normalized_source_key"])
+            if not entry:
+                continue
+            raw_target = normalize_workbench_key(mapping["target_erp_name"])
+            target = row_aliases.get(raw_target, raw_target)
+            value = clean_workbench_value(entry["ocr_value"], target)
+            if value:
+                clean_row[target] = value
+                row_consumed.add(id(entry))
+                dataset_count += 1
+                matched.append({"ocr_key": f"row {row_index + 1}.{entry['ocr_key']}", "ocr_value": value,
+                                "normalized_key": entry["normalized_key"], "target_erp_name": target,
+                                "target_dom_id": f"{module}_form_item_{row_index}_{target}", "source": "dataset"})
+        for entry in row_entries:
+            if id(entry) in row_consumed:
+                continue
+            target = row_aliases.get(entry["normalized_key"])
+            value = clean_workbench_value(entry["ocr_value"], target or "")
+            if target and value:
+                clean_row[target] = value
+                row_consumed.add(id(entry))
+                fallback_count += 1
+                matched.append({"ocr_key": f"row {row_index + 1}.{entry['ocr_key']}", "ocr_value": value,
+                                "normalized_key": entry["normalized_key"], "target_erp_name": target,
+                                "target_dom_id": f"{module}_form_item_{row_index}_{target}", "source": "fallback"})
+            elif value:
+                skipped.append({"ocr_key": f"row {row_index + 1}.{entry['ocr_key']}", "ocr_value": value,
+                                "normalized_key": entry["normalized_key"], "reason": "no_alias_match"})
+        if len(clean_row) > 1:
+            item_rows.append(clean_row)
+
+    # Step 7: ERP master resolver
+    unresolved_masters: list[dict[str, str]] = []
+    master_pairs = (("customer_name", "customer_id", "customer"),) if module == "sales" else (("supplier_name", "supplier_id", "supplier"),)
+    for name_key, id_key, master_type in master_pairs:
+        if form_data.get(name_key) and not form_data.get(id_key):
+            unresolved_masters.append({"master_type": master_type, "detected_text": form_data[name_key], "field_key": id_key,
+                                       "reason": "ERP_master_id_missing"})
+    for index, row in enumerate(item_rows):
+        if row.get("product") and not row.get("product_id"):
+            unresolved_masters.append({"master_type": "product", "detected_text": row["product"],
+                                       "field_key": f"item_rows.{index}.product_id", "reason": "ERP_master_id_missing"})
+
+    detected_count = len(entries) + sum(len(_field_entries(row)) for row in rows)
+    filled_count = len(matched)
+    warnings: list[str] = []
+    if document_type in {"", "general", "unknown"}:
+        warnings.append("Document type is unknown; module guard was not applied.")
+    return {
+        "module": f"{module}_order", "document_type": document_type, "form_data": form_data, "item_rows": item_rows,
+        "detected_count": detected_count, "filled_count": filled_count, "skipped_count": len(skipped),
+        "row_count": len(item_rows), "dataset_mapped_count": dataset_count, "fallback_mapped_count": fallback_count,
+        "direct_mapped_count": direct_count, "correction_applied_count": correction_count,
+        "missing_fields": list(ocr_result.get("missing_fields") or []),
+        "unresolved_masters": unresolved_masters, "matched_targets": matched, "skipped_keys": skipped,
+        "warnings": warnings, "dataset_mapping_used": dataset_mappings,
+        "fallback_aliases_used": sorted({item["normalized_key"] for item in matched if item["source"] == "fallback"}),
+        "detected_fields": [{"ocr_key": item["ocr_key"], "ocr_value": clean_workbench_value(item["ocr_value"]),
+                             "normalized_key": item["normalized_key"]} for item in entries],
+        "applied_corrections": corrections or [],
+    }
 
 
 def _wb_mapped_value(source: dict[str, str], key: str) -> str:
@@ -346,6 +875,89 @@ async def validate_workbench_form(
     return validate_workbench_payload(req)
 
 
+@router.post("/workbench/auto-fill", summary="Map OCR truth into the Sales/Purchase workbench")
+async def auto_fill_workbench(
+    req: WorkbenchAutoFillRequest,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    ocr_result = dict(req.ocr_result or {})
+    if req.job_id:
+        try:
+            job_uuid = uuid.UUID(req.job_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail="Invalid job_id UUID") from exc
+        await get_owned_ocr_job(db, job_uuid, current_user)
+        result = await db.execute(select(ExtractedData).where(ExtractedData.job_id == job_uuid))
+        extracted = result.scalar_one_or_none()
+        if extracted:
+            restored = {
+                "raw_text": extracted.raw_text or "",
+                "extracted_fields": extracted.extracted_fields or {},
+                "validated_fields": extracted.validated_fields or {},
+                "canonical_fields": extracted.validated_fields or extracted.extracted_fields or {},
+                "items": extracted.line_items or [],
+                "line_items": extracted.line_items or [],
+            }
+            if isinstance(extracted.raw_ocr_json, dict):
+                restored = {**extracted.raw_ocr_json, **restored}
+            ocr_result = {**restored, **ocr_result}
+    if not ocr_result:
+        raise HTTPException(status_code=422, detail="Provide job_id or ocr_result")
+
+    dataset: Optional[dict[str, Any]] = None
+    if req.dataset_id:
+        statement = select(TrainingDataset).where(
+            TrainingDataset.id == str(req.dataset_id), TrainingDataset.is_active.is_(True)
+        )
+        if current_user.get("org_id"):
+            statement = statement.where(TrainingDataset.org_id == str(current_user["org_id"]))
+        result = await db.execute(statement)
+        record = result.scalar_one_or_none()
+        if record:
+            dataset = {
+                "id": str(record.id), "dataset_name": record.dataset_name,
+                "mappings_json": record.mappings_json or [], "row_mappings_json": record.row_mappings_json or [],
+            }
+    corrections: list[dict[str, Any]] = []
+    try:
+        module_key = "purchase" if normalize_workbench_key(req.module).startswith("purchase") else "sales"
+        stmt_corr = select(CorrectionMemory).where(
+            CorrectionMemory.is_active.is_(True),
+            CorrectionMemory.module == f"{module_key}_order",
+        )
+        if current_user.get("org_id"):
+            stmt_corr = stmt_corr.where(CorrectionMemory.company_id.isnot(None))
+        result_corr = await db.execute(stmt_corr)
+        correction_rows = result_corr.scalars().all()
+        for c in correction_rows:
+            corrections.append({
+                "source_ocr_key": c.source_ocr_key or c.field_name,
+                "source_ocr_label": c.source_ocr_label or c.field_name,
+                "normalized_source_key": c.normalized_source_key or normalize_workbench_key(c.field_name),
+                "source_value_sample": c.source_value_sample or c.old_value or "",
+                "target_erp_name": c.target_erp_name or c.field_name,
+                "target_dom_id": c.target_dom_id or "",
+                "corrected_value_sample": c.correct_value,
+                "document_type": c.document_type or "",
+                "company_name": c.company_name or "",
+                "vendor_name": c.vendor_name or "",
+                "customer_name": c.customer_name or "",
+                "module": c.module or "",
+                "is_active": c.is_active,
+                "confidence": c.confidence or 1.0,
+            })
+    except Exception:
+        corrections = []
+
+    response = build_workbench_auto_fill(req, ocr_result, dataset, corrections)
+    response["dataset_id"] = dataset.get("id") if dataset else req.dataset_id
+    response["dataset_name"] = dataset.get("dataset_name") if dataset else None
+    response["correction_applied_count"] = response.get("correction_applied_count", 0)
+    response["correction_memory_count"] = len(corrections)
+    return response
+
+
 @router.post("/workbench/save-draft", summary="Save Sales/Purchase workbench draft")
 async def save_workbench_draft(
     req: WorkbenchRequest,
@@ -384,6 +996,301 @@ async def save_workbench_draft(
     }
 
 
+# ── Correction Learning Endpoints ──────────────────────────────────────────────
+
+
+@router.post("/workbench/corrections", summary="Save a single correction memory entry")
+async def save_workbench_correction(
+    body: WorkbenchCorrectionCreate,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    try:
+        from app.services.workbench_correction_apply import build_workbench_correction_memory
+        rule_suggestion = "manual_correction"
+        if body.metadata.get("source"):
+            rule_suggestion = str(body.metadata["source"])
+        record = build_workbench_correction_memory(
+            module=body.module,
+            source_ocr_key=body.source_ocr_key,
+            source_ocr_label=body.source_ocr_label,
+            source_value_sample=body.source_value_sample,
+            target_erp_name=body.target_erp_name,
+            corrected_value=body.corrected_value_sample or "",
+            document_type=body.document_type,
+            company_name=body.company_name,
+            vendor_name=body.vendor_name,
+            customer_name=body.customer_name,
+            target_dom_id=body.target_dom_id,
+            confidence=body.confidence,
+        )
+        normalized_source_key = record["normalized_source_key"]
+        target_erp_name = record["target_erp_name"]
+        company_id = None
+        try:
+            if body.company_name:
+                stmt_comp = select(Company).where(Company.company_name == body.company_name)
+                r_comp = await db.execute(stmt_comp)
+                company_row = r_comp.scalar_one_or_none()
+                if company_row:
+                    company_id = company_row.id
+        except Exception:
+            company_id = None
+        corr = CorrectionMemory(
+            company_id=company_id,
+            field_name=normalized_source_key,
+            old_value=body.source_value_sample,
+            correct_value=body.corrected_value_sample or "",
+            module=record["module"],
+            document_type=record["document_type"],
+            company_name=record["company_name"],
+            vendor_name=record["vendor_name"],
+            customer_name=record["customer_name"],
+            source_ocr_key=record["source_ocr_key"],
+            source_ocr_label=record["source_ocr_label"],
+            normalized_source_key=normalized_source_key,
+            source_value_sample=record["source_value_sample"],
+            target_erp_name=target_erp_name,
+            target_dom_id=record["target_dom_id"],
+            target_label=record["target_label"],
+            corrected_value_sample=record["corrected_value_sample"],
+            confidence=record["confidence"],
+            source=rule_suggestion,
+            metadata_json=body.metadata,
+            evidence_text=body.metadata.get("evidence_text", ""),
+            rule_suggestion=rule_suggestion,
+        )
+        db.add(corr)
+        await db.commit()
+        await db.refresh(corr)
+        return {
+            "saved": True,
+            "correction_id": str(corr.id),
+            "normalized_source_key": normalized_source_key,
+            "target_erp_name": target_erp_name,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to save correction: {exc}")
+
+
+@router.post("/workbench/corrections/bulk", summary="Save multiple corrections at once")
+async def save_workbench_corrections_bulk(
+    body: WorkbenchCorrectionBulkCreate,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    saved_ids: list[str] = []
+    errors: list[dict[str, str]] = []
+    company_cache: dict[str, uuid.UUID | None] = {}
+    async def _get_company_id(name: str | None) -> uuid.UUID | None:
+        if not name:
+            return None
+        if name in company_cache:
+            return company_cache[name]
+        try:
+            stmt = select(Company).where(Company.company_name == name)
+            r = await db.execute(stmt)
+            row = r.scalar_one_or_none()
+            company_cache[name] = row.id if row else None
+            return company_cache[name]
+        except Exception:
+            company_cache[name] = None
+            return None
+
+    from app.services.workbench_correction_apply import build_workbench_correction_memory
+    for index, item in enumerate(body.corrections):
+        try:
+            record = build_workbench_correction_memory(
+                module=item.module,
+                source_ocr_key=item.source_ocr_key,
+                source_ocr_label=item.source_ocr_label,
+                source_value_sample=item.source_value_sample,
+                target_erp_name=item.target_erp_name,
+                corrected_value=item.corrected_value_sample or "",
+                document_type=item.document_type,
+                company_name=item.company_name,
+                vendor_name=item.vendor_name,
+                customer_name=item.customer_name,
+                target_dom_id=item.target_dom_id,
+                confidence=item.confidence,
+            )
+            company_id = await _get_company_id(item.company_name)
+            corr = CorrectionMemory(
+                company_id=company_id,
+                field_name=record["normalized_source_key"],
+                old_value=item.source_value_sample,
+                correct_value=item.corrected_value_sample or "",
+                module=record["module"],
+                document_type=record["document_type"],
+                company_name=record["company_name"],
+                vendor_name=record["vendor_name"],
+                customer_name=record["customer_name"],
+                source_ocr_key=record["source_ocr_key"],
+                source_ocr_label=record["source_ocr_label"],
+                normalized_source_key=record["normalized_source_key"],
+                source_value_sample=record["source_value_sample"],
+                target_erp_name=record["target_erp_name"],
+                target_dom_id=record["target_dom_id"],
+                target_label=record["target_label"],
+                corrected_value_sample=record["corrected_value_sample"],
+                confidence=record["confidence"],
+                source="manual_correction",
+                metadata_json=item.metadata,
+                evidence_text=item.metadata.get("evidence_text", ""),
+                rule_suggestion="manual_correction",
+            )
+            db.add(corr)
+            await db.flush()
+            saved_ids.append(str(corr.id))
+        except Exception as exc:
+            errors.append({"index": str(index), "source_ocr_key": item.source_ocr_key, "error": str(exc)})
+    await db.commit()
+    return {
+        "saved_count": len(saved_ids),
+        "correction_ids": saved_ids,
+        "errors": errors,
+    }
+
+
+@router.post("/workbench/corrections/apply", summary="Apply saved corrections to form_data")
+async def apply_workbench_corrections_endpoint(
+    body: WorkbenchCorrectionApplyRequest,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    try:
+        module_key = "purchase" if normalize_workbench_key(body.module).startswith("purchase") else "sales"
+        corrections: list[dict[str, Any]] = []
+        try:
+            stmt_corr = select(CorrectionMemory).where(
+                CorrectionMemory.is_active.is_(True),
+                CorrectionMemory.module == f"{module_key}_order",
+            )
+            result_corr = await db.execute(stmt_corr)
+            correction_rows = result_corr.scalars().all()
+            for c in correction_rows:
+                corrections.append({
+                    "source_ocr_key": c.source_ocr_key or c.field_name,
+                    "source_ocr_label": c.source_ocr_label or c.field_name,
+                    "normalized_source_key": c.normalized_source_key or normalize_workbench_key(c.field_name),
+                    "source_value_sample": c.source_value_sample or c.old_value or "",
+                    "target_erp_name": c.target_erp_name or c.field_name,
+                    "target_dom_id": c.target_dom_id or "",
+                    "corrected_value_sample": c.correct_value,
+                    "document_type": c.document_type or "",
+                    "company_name": c.company_name or "",
+                    "vendor_name": c.vendor_name or "",
+                    "customer_name": c.customer_name or "",
+                    "module": c.module or "",
+                    "is_active": c.is_active,
+                    "confidence": c.confidence or 1.0,
+                })
+        except Exception:
+            corrections = []
+        from app.services.workbench_correction_apply import apply_workbench_corrections
+        result = apply_workbench_corrections(
+            module=module_key,
+            document_type=body.document_type,
+            company_name=body.company_name,
+            vendor_name=body.vendor_name,
+            customer_name=body.customer_name,
+            ocr_fields=body.ocr_fields,
+            form_data=body.form_data,
+            item_rows=body.item_rows,
+            corrections=corrections,
+        )
+        return {
+            "form_data": result["form_data"],
+            "item_rows": result["item_rows"],
+            "applied_count": result["applied_count"],
+            "applied_corrections": result["applied_corrections"],
+            "skipped_corrections": result["skipped_corrections"],
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to apply corrections: {exc}")
+
+
+@router.get("/workbench/corrections", summary="List saved corrections")
+async def list_workbench_corrections(
+    module: Optional[str] = None,
+    document_type: Optional[str] = None,
+    company_name: Optional[str] = None,
+    vendor_name: Optional[str] = None,
+    customer_name: Optional[str] = None,
+    active: Optional[bool] = None,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    try:
+        stmt = select(CorrectionMemory).order_by(CorrectionMemory.updated_at.desc().nulls_last())
+        if module:
+            stmt = stmt.where(CorrectionMemory.module == module)
+        if document_type:
+            stmt = stmt.where(CorrectionMemory.document_type == document_type)
+        if company_name:
+            stmt = stmt.where(CorrectionMemory.company_name == company_name)
+        if vendor_name:
+            stmt = stmt.where(CorrectionMemory.vendor_name == vendor_name)
+        if customer_name:
+            stmt = stmt.where(CorrectionMemory.customer_name == customer_name)
+        if active is not None:
+            stmt = stmt.where(CorrectionMemory.is_active == active)
+        stmt = stmt.limit(200)
+        result = await db.execute(stmt)
+        rows = result.scalars().all()
+        corrections_list = []
+        for c in rows:
+            corrections_list.append({
+                "id": str(c.id),
+                "module": c.module,
+                "document_type": c.document_type,
+                "company_name": c.company_name,
+                "vendor_name": c.vendor_name,
+                "customer_name": c.customer_name,
+                "source_ocr_key": c.source_ocr_key,
+                "source_ocr_label": c.source_ocr_label,
+                "normalized_source_key": c.normalized_source_key,
+                "source_value_sample": c.source_value_sample,
+                "target_erp_name": c.target_erp_name,
+                "target_dom_id": c.target_dom_id,
+                "target_label": c.target_label,
+                "corrected_value_sample": c.corrected_value_sample,
+                "confidence": c.confidence,
+                "apply_count": c.apply_count,
+                "reject_count": c.reject_count,
+                "is_active": c.is_active,
+                "source": c.source,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            })
+        return {"corrections": corrections_list, "total": len(corrections_list)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to list corrections: {exc}")
+
+
+@router.post("/workbench/corrections/{correction_id}/deactivate", summary="Deactivate a correction")
+async def deactivate_workbench_correction(
+    correction_id: str,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    try:
+        corr_uuid = uuid.UUID(correction_id)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid correction_id UUID")
+    stmt = select(CorrectionMemory).where(CorrectionMemory.id == corr_uuid)
+    result = await db.execute(stmt)
+    corr = result.scalar_one_or_none()
+    if not corr:
+        raise HTTPException(status_code=404, detail="Correction not found")
+    corr.is_active = False
+    await db.commit()
+    return {"deactivated": True, "correction_id": correction_id}
+
+
+# ── Imports for schemas (used by correction endpoints) ──
 def _workbench_export_payload(req: WorkbenchExportRequest) -> tuple[dict[str, Any], dict[str, str], list[dict[str, Any]]]:
     validation = validate_workbench_payload(req)
     if not validation["export_allowed"]:
@@ -394,6 +1301,7 @@ def _workbench_export_payload(req: WorkbenchExportRequest) -> tuple[dict[str, An
                 "blocked": True,
                 "message": "Export blocked. Please complete required fields.",
                 "blocked_fields": validation["blocked_fields"],
+                "blocker_reasons": validation["blocker_reasons"],
                 "required_missing": validation["required_missing"],
                 "warnings": validation["warnings"],
             },

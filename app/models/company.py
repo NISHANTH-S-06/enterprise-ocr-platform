@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
     BigInteger, Boolean, CheckConstraint, Float, ForeignKey,
-    Float, Index, Integer, JSON, String, Text, UniqueConstraint,
+    Index, Integer, JSON, String, Text, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -200,17 +200,41 @@ class CorrectionMemory(Base, TimestampMixin):
         Index("ix_correction_memory_template_id",  "template_id"),
         Index("ix_correction_memory_field_name",   "field_name"),
         Index("ix_correction_memory_document_type","document_type"),
+        Index("ix_correction_memory_module",       "module"),
+        Index("ix_correction_memory_source_ocr_key", "source_ocr_key"),
+        Index("ix_correction_memory_normalized_source_key", "normalized_source_key"),
+        Index("ix_correction_memory_active",       "is_active"),
     )
 
-    id:             Mapped[uuid.UUID]     = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    company_id:     Mapped[uuid.UUID]     = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
-    template_id:    Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("company_templates.id", ondelete="SET NULL"), nullable=True)
-    document_type:  Mapped[Optional[str]] = mapped_column(String(50),  nullable=True)
-    field_name:     Mapped[str]           = mapped_column(String(100), nullable=False)
-    old_value:      Mapped[Optional[str]] = mapped_column(Text,        nullable=True)
-    correct_value:  Mapped[str]           = mapped_column(Text,        nullable=False)
-    evidence_text:  Mapped[Optional[str]] = mapped_column(Text,        nullable=True)
-    rule_suggestion: Mapped[Optional[str]] = mapped_column(Text,       nullable=True)
+    id:                      Mapped[uuid.UUID]     = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id:              Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True)
+    template_id:             Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("company_templates.id", ondelete="SET NULL"), nullable=True)
+    document_type:           Mapped[Optional[str]] = mapped_column(String(50),  nullable=True)
+    field_name:              Mapped[str]           = mapped_column(String(100), nullable=False)
+    old_value:               Mapped[Optional[str]] = mapped_column(Text,        nullable=True)
+    correct_value:           Mapped[str]           = mapped_column(Text,        nullable=False)
+    evidence_text:           Mapped[Optional[str]] = mapped_column(Text,        nullable=True)
+    rule_suggestion:         Mapped[Optional[str]] = mapped_column(Text,       nullable=True)
+
+    # ── new columns for Task 3 correction learning ──
+    module:                  Mapped[Optional[str]] = mapped_column(String(50),  nullable=True)
+    company_name:            Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    vendor_name:             Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    customer_name:           Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    source_ocr_key:          Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    source_ocr_label:        Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    normalized_source_key:   Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    source_value_sample:     Mapped[Optional[str]] = mapped_column(Text,        nullable=True)
+    target_erp_name:         Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    target_dom_id:           Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    target_label:            Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    corrected_value_sample:  Mapped[Optional[str]] = mapped_column(Text,        nullable=True)
+    confidence:              Mapped[Optional[float]] = mapped_column(Float,      nullable=True, default=1.0)
+    apply_count:             Mapped[int]           = mapped_column(Integer,     nullable=False, default=0)
+    reject_count:            Mapped[int]           = mapped_column(Integer,     nullable=False, default=0)
+    is_active:               Mapped[bool]          = mapped_column(Boolean,     nullable=False, default=True)
+    source:                  Mapped[Optional[str]] = mapped_column(String(50),  nullable=True, default="manual_correction")
+    metadata_json:           Mapped[dict]          = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
 
     company:  Mapped["Company"]                   = relationship("Company",         back_populates="corrections", lazy="raise")
     template: Mapped[Optional["CompanyTemplate"]] = relationship("CompanyTemplate", back_populates="corrections", lazy="raise")

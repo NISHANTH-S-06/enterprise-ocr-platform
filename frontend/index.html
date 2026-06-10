@@ -636,6 +636,34 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
   padding:12px;
   margin-bottom:12px;
 }
+.erp-form-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(180px,1fr));
+  gap:12px;
+}
+.erp-form-grid label {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:12px;
+  color:var(--text-2);
+  background:transparent !important;
+  border:0 !important;
+}
+.erp-form-grid input,
+.erp-form-grid textarea {
+  width:100%;
+  min-height:38px;
+  border:1px solid var(--border) !important;
+  border-radius:8px;
+  background:var(--surface-2) !important;
+  color:var(--text) !important;
+  padding:9px 11px;
+}
+.erp-form-grid textarea {
+  min-height:76px;
+  resize:vertical;
+}
 [data-main-form-panel] .form-section-header{
   margin-bottom:10px;
   color:#e5e7eb;
@@ -672,25 +700,6 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
 [data-main-form-panel] .form-section:nth-of-type(2) textarea{
   min-height:90px;
 }
-[data-main-form-panel] .form-section:nth-of-type(3){
-  max-height:50px;
-  overflow:hidden;
-  transition:max-height .2s ease,border-color .2s ease;
-}
-[data-main-form-panel] .form-section:nth-of-type(3)::after{
-  content:"Hover to expand additional details";
-  display:block;
-  color:#94a3b8;
-  font-size:11px;
-  margin-top:2px;
-}
-[data-main-form-panel] .form-section:nth-of-type(3):hover,
-[data-main-form-panel] .form-section:nth-of-type(3):focus-within{
-  max-height:900px;
-  border-color:#334155;
-}
-[data-main-form-panel] .form-section:nth-of-type(3):hover::after,
-[data-main-form-panel] .form-section:nth-of-type(3):focus-within::after{display:none;}
 [data-main-form-panel] table{
   min-width:1300px!important;
   font-size:12px;
@@ -1255,9 +1264,18 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
                   <details class="compact-review-item"><summary>ERP Master Selection <span class="compact-review-count" id="mainReview_masterCount">0</span></summary><div class="compact-review-body" id="mainReview_masterBody">No items.</div></details>
                   <details class="compact-review-item"><summary>Warnings <span class="compact-review-count" id="mainReview_warningsCount">0</span></summary><div class="compact-review-body" id="mainReview_warningsBody">No items.</div></details>
                   <details class="compact-review-item"><summary>Total mismatch <span class="compact-review-count" id="mainReview_totalCount">0</span></summary><div class="compact-review-body" id="mainReview_totalBody">No items.</div></details>
-                  <details class="compact-review-item"><summary>Export status <span class="compact-review-count" id="mainReview_exportCount">0</span></summary><div class="compact-review-body" id="mainReview_exportBody">Not validated.</div></details>
-                </div>
-              </div>
+    <details class="compact-review-item"><summary>Export status <span class="compact-review-count" id="mainReview_exportCount">0</span></summary><div class="compact-review-body" id="mainReview_exportBody">Not validated.</div></details>
+    <details class="compact-review-item" id="mainReview_correctionEntry" style="display:none;"><summary>Correction Learning <span class="compact-review-count" id="mainReview_correctionCount">0</span></summary><div class="compact-review-body" id="mainReview_correctionBody">
+      <div class="text-sm" style="padding:8px 0;display:flex;flex-direction:column;gap:4px;">
+        <span>Pending corrections: <strong id="mainReview_correctionPendingCount">0</strong></span>
+        <span>Saved corrections: <strong id="mainReview_correctionSavedCount">0</strong></span>
+        <span>Applied corrections: <strong id="mainReview_correctionAppliedCount">0</strong></span>
+        <span>Skipped corrections: <strong id="mainReview_correctionSkippedCount">0</strong></span>
+      </div>
+      <div id="mainReview_correctionExamples" class="text-xs text-muted" style="padding:4px 0;"></div>
+    </div></details>
+  </div>
+</div>
 
               <section id="secSalesForm" data-main-form-panel="sales">
                 <div class="card-header" style="margin-bottom:14px;">
@@ -1267,71 +1285,71 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
                     <button class="btn btn-accent btn-sm" id="sales_form_ai_button" type="button" onclick="openMainAiFillDrawer('sales')">AI Auto Fill</button>
                   </div>
                 </div>
-                <div class="form-section"><div class="form-section-header"><span class="fs-num">01</span> Header / Summary</div><div class="fg">
-                  <div><label class="field-label">Sales Order No</label><input id="sales_form_sales_order_no" data-erp-name="sales_order_no"></div>
-                  <div><label class="field-label">Sales Order Date</label><input id="sales_form_sales_order_date" data-erp-name="sales_order_date"></div>
-                  <div><label class="field-label">Order Type</label><input id="sales_form_order_type_id" data-erp-name="order_type_id"></div>
-                  <div><label class="field-label">Reference Number</label><input id="sales_form_reference_number" data-erp-name="reference_number"></div>
-                  <div><label class="field-label">Order Tax</label><input id="sales_form_order_tax" data-erp-name="order_tax"></div>
-                  <div><label class="field-label">Order Total</label><input id="sales_form_order_total" data-erp-name="order_total"></div>
-                  <div><label class="field-label">Qty Total</label><input id="sales_form_qty_total" data-erp-name="qty_total"></div>
-                  <div><label class="field-label">Source</label><input id="sales_form_source" data-erp-name="source"></div>
-                  <div><label class="field-label">Created By</label><input id="sales_form_created_by" data-erp-name="created_by"></div>
+                <div class="form-section"><div class="form-section-header"><span class="fs-num">01</span> Header / Summary</div><div class="erp-form-grid">
+                  <label>Sales Order No<input id="sales_form_sales_order_no" data-erp-name="sales_order_no" type="text"></label>
+                  <label>Sales Order Date<input id="sales_form_sales_order_date" data-erp-name="sales_order_date" type="text"></label>
+                  <label>Order Type<input id="sales_form_order_type_id" data-erp-name="order_type_id" type="text"></label>
+                  <label>Reference Number<input id="sales_form_reference_number" data-erp-name="reference_number" type="text"></label>
+                  <label>Order Tax<input id="sales_form_order_tax" data-erp-name="order_tax" type="text"></label>
+                  <label>Order Total<input id="sales_form_order_total" data-erp-name="order_total" type="text"></label>
+                  <label>Qty Total<input id="sales_form_qty_total" data-erp-name="qty_total" type="text"></label>
+                  <label>Source<input id="sales_form_source" data-erp-name="source" type="text"></label>
+                  <label>Created By<input id="sales_form_created_by" data-erp-name="created_by" type="text"></label>
                 </div></div>
-                <div class="form-section"><div class="form-section-header"><span class="fs-num">02</span> Main Fields</div><div class="fg">
-                  <div><label class="field-label">Customer Type</label><input id="sales_form_customer_type_id" data-erp-name="customer_type_id"></div>
-                  <div><label class="field-label">Price List</label><input id="sales_form_pricelist_id" data-erp-name="pricelist_id"></div>
-                  <div><label class="field-label">Customer ID</label><input id="sales_form_customer_id" data-erp-name="customer_id"></div>
-                  <div><label class="field-label">Customer Name</label><input id="sales_form_customer_name" data-erp-name="customer_name"></div>
-                  <div><label class="field-label">Customer PO Number</label><input id="sales_form_customer_po_number" data-erp-name="customer_po_number"></div>
-                  <div class="fg-1"><label class="field-label">Bill To Address</label><textarea id="sales_form_bill_to_address" data-erp-name="bill_to_address"></textarea></div>
-                  <div class="fg-1"><label class="field-label">Ship To Address</label><textarea id="sales_form_ship_to_address" data-erp-name="ship_to_address"></textarea></div>
-                  <div><label class="field-label">Delivery Date</label><input id="sales_form_delivery_date" data-erp-name="delivery_date"></div>
+                <div class="form-section"><div class="form-section-header"><span class="fs-num">02</span> Main Fields</div><div class="erp-form-grid">
+                  <label>Customer Type<input id="sales_form_customer_type_id" data-erp-name="customer_type_id" type="text"></label>
+                  <label>Price List<input id="sales_form_pricelist_id" data-erp-name="pricelist_id" type="text"></label>
+                  <label>Customer ID<input id="sales_form_customer_id" data-erp-name="customer_id" type="text"></label>
+                  <label>Customer Name<input id="sales_form_customer_name" data-erp-name="customer_name" type="text"></label>
+                  <label>Customer PO Number<input id="sales_form_customer_po_number" data-erp-name="customer_po_number" type="text"></label>
+                  <label>Bill To Address<textarea id="sales_form_bill_to_address" data-erp-name="bill_to_address"></textarea></label>
+                  <label>Ship To Address<textarea id="sales_form_ship_to_address" data-erp-name="ship_to_address"></textarea></label>
+                  <label>Delivery Date<input id="sales_form_delivery_date" data-erp-name="delivery_date" type="text"></label>
                 </div></div>
-                <div class="form-section"><div class="form-section-header"><span class="fs-num">03</span> Additional Details</div><div class="fg">
-                  <div class="fg-1"><label class="field-label">Remarks</label><textarea id="sales_form_remarks" data-erp-name="remarks"></textarea></div>
-                  <div><label class="field-label">Contact Number</label><input id="sales_form_contact_number" data-erp-name="contact_number"></div>
-                  <div><label class="field-label">Contact Person</label><input id="sales_form_contact_person" data-erp-name="contact_person"></div>
-                  <div><label class="field-label">Project</label><input id="sales_form_project_id" data-erp-name="project_id"></div>
-                  <div><label class="field-label">Salesperson</label><input id="sales_form_salesperson_id" data-erp-name="salesperson_id"></div>
-                  <div><label class="field-label">Payment Method</label><input id="sales_form_payment_method" data-erp-name="payment_method"></div>
-                  <div><label class="field-label">Payment Term</label><input id="sales_form_payment_term" data-erp-name="ar_payment_term_id"></div>
-                  <div><label class="field-label">Freight Term</label><input id="sales_form_freight_term" data-erp-name="freight_term"></div>
-                  <div><label class="field-label">Delivery Name</label><input id="sales_form_delivery_name" data-erp-name="delivery_name"></div>
-                  <div><label class="field-label">Carrier Name</label><input id="sales_form_carrier_name" data-erp-name="carrier_name"></div>
-                  <div><label class="field-label">Invoice Currency</label><input id="sales_form_invoice_currency" data-erp-name="invoice_currency"></div>
-                  <div><label class="field-label">Discount</label><input id="sales_form_discount_id" data-erp-name="discount_id"></div>
-                  <div><label class="field-label">Other Tax Amount</label><input id="sales_form_other_tax_amount" data-erp-name="other_tax_amount"></div>
-                  <div><label class="field-label">Other Freight Amount</label><input id="sales_form_other_frieght_amount" data-erp-name="other_frieght_amount"></div>
-                  <div><label class="field-label">Transport Charges</label><input id="sales_form_transport_charges" data-erp-name="transport_charges"></div>
-                  <div><label class="field-label">Insurance Charges</label><input id="sales_form_insurance_charges" data-erp-name="insurance_charges"></div>
-                  <div><label class="field-label">Packaging Charges</label><input id="sales_form_packaging_charges" data-erp-name="packaging_charges"></div>
+                <div class="form-section"><div class="form-section-header"><span class="fs-num">03</span> Additional Details</div><div class="erp-form-grid">
+                  <label>Remarks<textarea id="sales_form_remarks" data-erp-name="remarks"></textarea></label>
+                  <label>Contact Number<input id="sales_form_contact_number" data-erp-name="contact_number" type="text"></label>
+                  <label>Contact Person<input id="sales_form_contact_person" data-erp-name="contact_person" type="text"></label>
+                  <label>Project<input id="sales_form_project_id" data-erp-name="project_id" type="text"></label>
+                  <label>Salesperson<input id="sales_form_salesperson_id" data-erp-name="salesperson_id" type="text"></label>
+                  <label>Payment Method<input id="sales_form_payment_method" data-erp-name="payment_method" type="text"></label>
+                  <label>Payment Term<input id="sales_form_payment_term" data-erp-name="ar_payment_term_id" type="text"></label>
+                  <label>Freight Term<input id="sales_form_freight_term" data-erp-name="freight_term" type="text"></label>
+                  <label>Delivery Name<input id="sales_form_delivery_name" data-erp-name="delivery_name" type="text"></label>
+                  <label>Carrier Name<input id="sales_form_carrier_name" data-erp-name="carrier_name" type="text"></label>
+                  <label>Invoice Currency<input id="sales_form_invoice_currency" data-erp-name="invoice_currency" type="text"></label>
+                  <label>Discount<input id="sales_form_discount_id" data-erp-name="discount_id" type="text"></label>
+                  <label>Other Tax Amount<input id="sales_form_other_tax_amount" data-erp-name="other_tax_amount" type="text"></label>
+                  <label>Other Freight Amount<input id="sales_form_other_frieght_amount" data-erp-name="other_frieght_amount" type="text"></label>
+                  <label>Transport Charges<input id="sales_form_transport_charges" data-erp-name="transport_charges" type="text"></label>
+                  <label>Insurance Charges<input id="sales_form_insurance_charges" data-erp-name="insurance_charges" type="text"></label>
+                  <label>Packaging Charges<input id="sales_form_packaging_charges" data-erp-name="packaging_charges" type="text"></label>
                 </div></div>
                 <div class="form-section"><div class="form-section-header"><span class="fs-num">04</span> Item Table</div><div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-sm);">
                   <table id="sales_form_item_table" style="width:100%;min-width:1700px;border-collapse:collapse;"><thead><tr><th>Line No</th><th>Product</th><th>Product ID</th><th>Description</th><th>UOM</th><th>Qty</th><th>Unit Price</th><th>Disc %</th><th>Disc Amount</th><th>Tax Exemption</th><th>HSN Code</th><th>Tax Group</th><th>Tax Group ID</th><th>Tax Amount</th><th>Line Total</th><th>QOH Qty</th><th>Delivery Date</th></tr></thead><tbody id="sales_form_item_body"><tr>
                     <td><input id="sales_form_item_0_line_no" data-erp-name="line_no" value="1"></td><td><input id="sales_form_item_0_product" data-erp-name="product"></td><td><input id="sales_form_item_0_product_id" data-erp-name="product_id"></td><td><input id="sales_form_item_0_description" data-erp-name="product_description"></td><td><input id="sales_form_item_0_uom" data-erp-name="bulk_uom_code"></td><td><input id="sales_form_item_0_qty" data-erp-name="bulk_qty" onchange="recalculateSalesFormTotals()"></td><td><input id="sales_form_item_0_unit_price" data-erp-name="bulk_unit_price" onchange="recalculateSalesFormTotals()"></td><td><input id="sales_form_item_0_discount_percentage" data-erp-name="bulk_discount_percentage"></td><td><input id="sales_form_item_0_discount_amount" data-erp-name="bulk_discount_amount" onchange="recalculateSalesFormTotals()"></td><td><input id="sales_form_item_0_tax_excemption" data-erp-name="bulk_tax_excemption"></td><td><input id="sales_form_item_0_hsn_code" data-erp-name="bulk_hsn_code"></td><td><input id="sales_form_item_0_tax_group" data-erp-name="bulk_tax_group"></td><td><input id="sales_form_item_0_tax_group_id" data-erp-name="tax_group_id"></td><td><input id="sales_form_item_0_tax_amount" data-erp-name="bulk_tax_amount" onchange="recalculateSalesFormTotals()"></td><td><input id="sales_form_item_0_line_total" data-erp-name="bulk_line_total" onchange="recalculateSalesFormTotals()"></td><td><input id="sales_form_item_0_qoh_qty" data-erp-name="bulk_qoh_qty"></td><td><input id="sales_form_item_0_delivery_date" data-erp-name="bulk_delivery_date"></td>
                   </tr></tbody></table>
                 </div><button class="btn btn-ghost btn-xs mt8" type="button" onclick="addSalesFormRows(1)">+ Add Row</button></div>
-                <div class="flex-row mt24" style="padding-top:18px;border-top:1px solid var(--border);justify-content:space-between;flex-wrap:wrap;gap:8px;"><span class="text-sm text-muted" id="sales_form_action_status">Sales Order actions</span><div class="flex-row flex-wrap"><button class="btn btn-ghost btn-sm" type="button" onclick="saveMainWorkbenchDraft('sales')">Save Draft</button><button class="btn btn-primary btn-sm" type="button" onclick="validateMainWorkbenchForm('sales')">Validate</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchJson('sales')">Export JSON</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('sales','excel')">Export Excel</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('sales','pdf')">Export PDF</button></div></div>
+                <div class="flex-row mt24" style="padding-top:18px;border-top:1px solid var(--border);justify-content:space-between;flex-wrap:wrap;gap:8px;"><span class="text-sm text-muted" id="sales_form_action_status">Sales Order actions</span><div class="flex-row flex-wrap"><button class="btn btn-ghost btn-sm" type="button" onclick="saveMainWorkbenchDraft('sales')">Save Draft</button><button class="btn btn-ghost btn-sm" type="button" id="sales_form_saveCorrectionsBtn" onclick="saveWorkbenchCorrections('sales')" style="color:var(--accent-light);display:none;">Save Corrections</button><button class="btn btn-primary btn-sm" type="button" onclick="validateMainWorkbenchForm('sales')">Validate</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchJson('sales')">Export JSON</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('sales','excel')">Export Excel</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('sales','pdf')">Export PDF</button></div></div>
               </section>
 
               <section id="secPurchaseForm" data-main-form-panel="purchase" style="display:none;">
                 <div class="card-header" style="margin-bottom:14px;"><div class="card-title"><span class="card-title-icon">PO</span> Purchase Order</div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;"><span class="text-sm text-muted">Upload document and fill this form automatically</span><button class="btn btn-accent btn-sm" id="purchase_form_ai_button" type="button" onclick="openMainAiFillDrawer('purchase')">AI Auto Fill</button></div></div>
-                <div class="form-section"><div class="form-section-header"><span class="fs-num">01</span> Header / Summary</div><div class="fg">
-                  <div><label class="field-label">PO Number</label><input id="purchase_form_po_number" data-erp-name="po_number"></div><div><label class="field-label">PO Date</label><input id="purchase_form_po_date" data-erp-name="po_date"></div><div><label class="field-label">PO Type</label><input id="purchase_form_po_type" data-erp-name="po_type"></div><div><label class="field-label">Reference Number</label><input id="purchase_form_reference_number" data-erp-name="reference_number"></div><div><label class="field-label">PO Tax Total</label><input id="purchase_form_po_tax_total" data-erp-name="po_tax_total"></div><div><label class="field-label">PO Grand Total</label><input id="purchase_form_po_grand_total" data-erp-name="po_grand_total"></div><div><label class="field-label">Round Off</label><input id="purchase_form_round_off" data-erp-name="round_off"></div><div><label class="field-label">Source</label><input id="purchase_form_source" data-erp-name="source"></div><div><label class="field-label">Created By</label><input id="purchase_form_created_by" data-erp-name="created_by"></div>
+                <div class="form-section"><div class="form-section-header"><span class="fs-num">01</span> Header / Summary</div><div class="erp-form-grid">
+                  <label>PO Number<input id="purchase_form_po_number" data-erp-name="po_number" type="text"></label><label>PO Date<input id="purchase_form_po_date" data-erp-name="po_date" type="text"></label><label>PO Type<input id="purchase_form_po_type" data-erp-name="po_type" type="text"></label><label>Reference Number<input id="purchase_form_reference_number" data-erp-name="reference_number" type="text"></label><label>PO Tax Total<input id="purchase_form_po_tax_total" data-erp-name="po_tax_total" type="text"></label><label>PO Grand Total<input id="purchase_form_po_grand_total" data-erp-name="po_grand_total" type="text"></label><label>Round Off<input id="purchase_form_round_off" data-erp-name="round_off" type="text"></label><label>Source<input id="purchase_form_source" data-erp-name="source" type="text"></label><label>Created By<input id="purchase_form_created_by" data-erp-name="created_by" type="text"></label>
                 </div></div>
-                <div class="form-section"><div class="form-section-header"><span class="fs-num">02</span> Main Fields</div><div class="fg">
-                  <div><label class="field-label">Supplier ID</label><input id="purchase_form_supplier_id" data-erp-name="supplier_id"></div><div><label class="field-label">Supplier Name</label><input id="purchase_form_supplier_name" data-erp-name="supplier_name"></div><div><label class="field-label">Supplier Site</label><input id="purchase_form_supplier_site" data-erp-name="supplier_site"></div><div><label class="field-label">Reverse Charge</label><input id="purchase_form_reverse_charge" data-erp-name="reverse_charge"></div><div><label class="field-label">Delivery Date</label><input id="purchase_form_delivery_date" data-erp-name="delivery_date"></div><div><label class="field-label">Purchase Type</label><input id="purchase_form_purchase_type" data-erp-name="purchase_type"></div>
+                <div class="form-section"><div class="form-section-header"><span class="fs-num">02</span> Main Fields</div><div class="erp-form-grid">
+                  <label>Supplier ID<input id="purchase_form_supplier_id" data-erp-name="supplier_id" type="text"></label><label>Supplier Name<input id="purchase_form_supplier_name" data-erp-name="supplier_name" type="text"></label><label>Supplier Site<input id="purchase_form_supplier_site" data-erp-name="supplier_site" type="text"></label><label>Reverse Charge<input id="purchase_form_reverse_charge" data-erp-name="reverse_charge" type="text"></label><label>Delivery Date<input id="purchase_form_delivery_date" data-erp-name="delivery_date" type="text"></label><label>Purchase Type<input id="purchase_form_purchase_type" data-erp-name="purchase_type" type="text"></label>
                 </div></div>
-                <div class="form-section"><div class="form-section-header"><span class="fs-num">03</span> Additional Details</div><div class="fg">
-                  <div><label class="field-label">Project</label><input id="purchase_form_project_id" data-erp-name="project_id"></div><div><label class="field-label">Delivery Term</label><input id="purchase_form_delivery_term" data-erp-name="delivery_term"></div><div><label class="field-label">Payment Term</label><input id="purchase_form_payment_term" data-erp-name="payment_term_id"></div><div><label class="field-label">Supplier Reference No</label><input id="purchase_form_supplier_reference_no" data-erp-name="supplier_reference_no"></div><div><label class="field-label">Freight Term</label><input id="purchase_form_freight_term" data-erp-name="freight_term"></div><div class="fg-1"><label class="field-label">Remarks</label><textarea id="purchase_form_remarks" data-erp-name="remarks"></textarea></div><div><label class="field-label">Insurance Term</label><input id="purchase_form_insurance_term" data-erp-name="insurance_term"></div><div><label class="field-label">Currency</label><input id="purchase_form_currency" data-erp-name="currency"></div><div><label class="field-label">Bill To Location</label><input id="purchase_form_bill_to_location" data-erp-name="bill_to_location"></div><div class="fg-1"><label class="field-label">Bill To Address</label><textarea id="purchase_form_bill_to_address" data-erp-name="bill_to_address"></textarea></div><div><label class="field-label">Ship To Location</label><input id="purchase_form_ship_to_location" data-erp-name="ship_to_location"></div><div class="fg-1"><label class="field-label">Ship To Address</label><textarea id="purchase_form_ship_to_address" data-erp-name="ship_to_address"></textarea></div><div><label class="field-label">Payment Method</label><input id="purchase_form_payment_method" data-erp-name="payment_method"></div><div><label class="field-label">Freight Carrier</label><input id="purchase_form_freight_carrier" data-erp-name="freight_carrier"></div><div><label class="field-label">Packing Charges</label><input id="purchase_form_packing_charges" data-erp-name="packing_charges"></div><div><label class="field-label">Insurance Charges</label><input id="purchase_form_insurance_charges" data-erp-name="insurance_charges"></div><div><label class="field-label">Unloading Charges</label><input id="purchase_form_unloading_charges" data-erp-name="unloading_charges"></div><div><label class="field-label">Transport Charges</label><input id="purchase_form_transport_charges" data-erp-name="transport_charges"></div><div><label class="field-label">Other Freight Amount</label><input id="purchase_form_other_frieght_amount" data-erp-name="other_frieght_amount"></div><div><label class="field-label">Other Tax Amount</label><input id="purchase_form_other_tax_amount" data-erp-name="other_tax_amount"></div>
+                <div class="form-section"><div class="form-section-header"><span class="fs-num">03</span> Additional Details</div><div class="erp-form-grid">
+                  <label>Project<input id="purchase_form_project_id" data-erp-name="project_id" type="text"></label><label>Delivery Term<input id="purchase_form_delivery_term" data-erp-name="delivery_term" type="text"></label><label>Payment Term<input id="purchase_form_payment_term" data-erp-name="payment_term_id" type="text"></label><label>Supplier Reference No<input id="purchase_form_supplier_reference_no" data-erp-name="supplier_reference_no" type="text"></label><label>Freight Term<input id="purchase_form_freight_term" data-erp-name="freight_term" type="text"></label><label>Remarks<textarea id="purchase_form_remarks" data-erp-name="remarks"></textarea></label><label>Insurance Term<input id="purchase_form_insurance_term" data-erp-name="insurance_term" type="text"></label><label>Currency<input id="purchase_form_currency" data-erp-name="currency" type="text"></label><label>Bill To Location<input id="purchase_form_bill_to_location" data-erp-name="bill_to_location" type="text"></label><label>Bill To Address<textarea id="purchase_form_bill_to_address" data-erp-name="bill_to_address"></textarea></label><label>Ship To Location<input id="purchase_form_ship_to_location" data-erp-name="ship_to_location" type="text"></label><label>Ship To Address<textarea id="purchase_form_ship_to_address" data-erp-name="ship_to_address"></textarea></label><label>Payment Method<input id="purchase_form_payment_method" data-erp-name="payment_method" type="text"></label><label>Freight Carrier<input id="purchase_form_freight_carrier" data-erp-name="freight_carrier" type="text"></label><label>Packing Charges<input id="purchase_form_packing_charges" data-erp-name="packing_charges" type="text"></label><label>Insurance Charges<input id="purchase_form_insurance_charges" data-erp-name="insurance_charges" type="text"></label><label>Unloading Charges<input id="purchase_form_unloading_charges" data-erp-name="unloading_charges" type="text"></label><label>Transport Charges<input id="purchase_form_transport_charges" data-erp-name="transport_charges" type="text"></label><label>Other Freight Amount<input id="purchase_form_other_frieght_amount" data-erp-name="other_frieght_amount" type="text"></label><label>Other Tax Amount<input id="purchase_form_other_tax_amount" data-erp-name="other_tax_amount" type="text"></label>
                 </div></div>
                 <div class="form-section"><div class="form-section-header"><span class="fs-num">04</span> Item Table</div><div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-sm);">
                   <table id="purchase_form_item_table" style="width:100%;min-width:2100px;border-collapse:collapse;"><thead><tr><th>Line No</th><th>Product</th><th>Product ID</th><th>Supplier Part No</th><th>Description</th><th>UOM</th><th>Qty</th><th>Price</th><th>Discount %</th><th>Discount Amount</th><th>HSN Code</th><th>Tax Group</th><th>Tax Group ID</th><th>Tax Amount</th><th>Sub Total</th><th>Conv Cost</th><th>Blistering Cost</th><th>Line Total</th><th>QOH Qty</th><th>Promised Date</th><th>Promised Alt Date</th><th>Comments</th></tr></thead><tbody id="purchase_form_item_body"><tr>
                     <td><input id="purchase_form_item_0_line_no" data-erp-name="line_no" value="1"></td><td><input id="purchase_form_item_0_product" data-erp-name="product"></td><td><input id="purchase_form_item_0_product_id" data-erp-name="product_id"></td><td><input id="purchase_form_item_0_supplier_part_no" data-erp-name="supplier_part_no"></td><td><input id="purchase_form_item_0_description" data-erp-name="product_description"></td><td><input id="purchase_form_item_0_uom" data-erp-name="bulk_uom_code"></td><td><input id="purchase_form_item_0_qty" data-erp-name="bulk_qty" onchange="recalculatePurchaseFormTotals()"></td><td><input id="purchase_form_item_0_unit_price" data-erp-name="bulk_unit_price" onchange="recalculatePurchaseFormTotals()"></td><td><input id="purchase_form_item_0_discount_percentage" data-erp-name="bulk_discount_percentage"></td><td><input id="purchase_form_item_0_discount_amount" data-erp-name="bulk_discount_amount" onchange="recalculatePurchaseFormTotals()"></td><td><input id="purchase_form_item_0_hsn_code" data-erp-name="bulk_hsn_code"></td><td><input id="purchase_form_item_0_tax_group" data-erp-name="bulk_tax_group"></td><td><input id="purchase_form_item_0_tax_group_id" data-erp-name="tax_group_id"></td><td><input id="purchase_form_item_0_tax_amount" data-erp-name="bulk_tax_amount" onchange="recalculatePurchaseFormTotals()"></td><td><input id="purchase_form_item_0_line_sub_total" data-erp-name="bulk_line_sub_total"></td><td><input id="purchase_form_item_0_conv_cost" data-erp-name="bulk_conv_cost"></td><td><input id="purchase_form_item_0_blistering_cost" data-erp-name="bulk_blistering_cost"></td><td><input id="purchase_form_item_0_line_total" data-erp-name="bulk_line_total" onchange="recalculatePurchaseFormTotals()"></td><td><input id="purchase_form_item_0_qoh_qty" data-erp-name="bulk_qoh_qty"></td><td><input id="purchase_form_item_0_promised_date" data-erp-name="promised_date"></td><td><input id="purchase_form_item_0_promised_alternate_date" data-erp-name="promised_alternate_date"></td><td><input id="purchase_form_item_0_comments" data-erp-name="comments"></td>
                   </tr></tbody></table>
                 </div><button class="btn btn-ghost btn-xs mt8" type="button" onclick="addPurchaseFormRows(1)">+ Add Row</button></div>
-                <div class="flex-row mt24" style="padding-top:18px;border-top:1px solid var(--border);justify-content:space-between;flex-wrap:wrap;gap:8px;"><span class="text-sm text-muted" id="purchase_form_action_status">Purchase Order actions</span><div class="flex-row flex-wrap"><button class="btn btn-ghost btn-sm" type="button" onclick="saveMainWorkbenchDraft('purchase')">Save Draft</button><button class="btn btn-primary btn-sm" type="button" onclick="validateMainWorkbenchForm('purchase')">Validate</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchJson('purchase')">Export JSON</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('purchase','excel')">Export Excel</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('purchase','pdf')">Export PDF</button></div></div>
+                <div class="flex-row mt24" style="padding-top:18px;border-top:1px solid var(--border);justify-content:space-between;flex-wrap:wrap;gap:8px;"><span class="text-sm text-muted" id="purchase_form_action_status">Purchase Order actions</span><div class="flex-row flex-wrap"><button class="btn btn-ghost btn-sm" type="button" onclick="saveMainWorkbenchDraft('purchase')">Save Draft</button><button class="btn btn-ghost btn-sm" type="button" id="purchase_form_saveCorrectionsBtn" onclick="saveWorkbenchCorrections('purchase')" style="color:var(--accent-light);display:none;">Save Corrections</button><button class="btn btn-primary btn-sm" type="button" onclick="validateMainWorkbenchForm('purchase')">Validate</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchJson('purchase')">Export JSON</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('purchase','excel')">Export Excel</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('purchase','pdf')">Export PDF</button></div></div>
               </section>
             </div>
 
@@ -1357,7 +1375,7 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
                     <div class="review-kv"><div class="review-kv-label">Fallback Mapped</div><div class="review-kv-value" id="mainAiFill_fallbackMappedCount">0</div></div>
                   </div>
                 </div>
-                <div class="card" id="mainAiFill_summary" style="padding:14px;background:rgba(0,0,0,0.08);"><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;"><div class="review-kv"><div class="review-kv-label">Detected</div><div class="review-kv-value" id="mainAiFill_mappedCount">0</div></div><div class="review-kv"><div class="review-kv-label">Filled</div><div class="review-kv-value" id="mainAiFill_filledCount">0</div></div><div class="review-kv"><div class="review-kv-label">Skipped</div><div class="review-kv-value" id="mainAiFill_skippedCount">0</div></div><div class="review-kv"><div class="review-kv-label">Rows</div><div class="review-kv-value" id="mainAiFill_rowsCount">0</div></div><div class="review-kv"><div class="review-kv-label">Missing</div><div class="review-kv-value" id="mainAiFill_missingCount">0</div></div><div class="review-kv"><div class="review-kv-label">Master</div><div class="review-kv-value" id="mainAiFill_masterCount">0</div></div></div></div>
+                <div class="card" id="mainAiFill_summary" style="padding:14px;background:rgba(0,0,0,0.08);"><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;"><div class="review-kv"><div class="review-kv-label">Detected</div><div class="review-kv-value" id="mainAiFill_mappedCount">0</div></div><div class="review-kv"><div class="review-kv-label">Filled</div><div class="review-kv-value" id="mainAiFill_filledCount">0</div></div><div class="review-kv"><div class="review-kv-label">Skipped</div><div class="review-kv-value" id="mainAiFill_skippedCount">0</div></div><div class="review-kv"><div class="review-kv-label">Rows</div><div class="review-kv-value" id="mainAiFill_rowsCount">0</div></div><div class="review-kv"><div class="review-kv-label">Missing</div><div class="review-kv-value" id="mainAiFill_missingCount">0</div></div><div class="review-kv"><div class="review-kv-label">Master</div><div class="review-kv-value" id="mainAiFill_masterCount">0</div></div><div class="review-kv"><div class="review-kv-label">Correction</div><div class="review-kv-value" id="mainAiFill_correctionCount">0</div></div></div></div>
                 <div id="mainAiFill_fieldsPreview" class="debug-panel" style="display:none;"></div>
                 <details id="mainAiFill_debugDetails" class="debug-panel" style="display:none;"><summary class="text-sm">Debug summary</summary><pre id="mainAiFill_debugPre">{}</pre></details>
                 <div id="mainAiFill_missingFields" style="display:none;"></div>
@@ -1365,7 +1383,7 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
                 <div id="mainAiFill_warningsPanel" style="display:none;"></div>
                 <button class="btn btn-ghost btn-sm" id="mainAiFill_rawToggle" type="button" onclick="toggleMainAiFillRawPreview()">Show Raw OCR Preview</button>
                 <pre id="mainAiFill_rawPreview" style="display:none;max-height:220px;">No OCR text available.</pre>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-accent" id="mainAiFill_autoFillBtn" type="button" onclick="applyMainAiFillToCurrentForm()" disabled>Auto Fill</button><button class="btn btn-ghost" id="mainAiFill_clearBtn" type="button" onclick="clearMainAiFilledValues()">Clear AI Filled Values</button></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-accent" id="mainAiFill_autoFillBtn" type="button" onclick="applyMainAiFillToCurrentForm()" disabled>Auto Fill</button><button class="btn btn-ghost" id="mainAiFill_debugDownload" type="button" onclick="downloadMainAiFillDebug()" disabled>Download Mapping Debug JSON</button><button class="btn btn-ghost" id="mainAiFill_clearBtn" type="button" onclick="clearMainAiFilledValues()">Clear AI Filled Values</button></div>
               </div>
             </aside>
 
@@ -1674,9 +1692,9 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
                 <div class="field-label">Training Dataset</div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;">
                   <div><label class="field-label">Dataset Name</label><input id="trainingDataset_name" placeholder="Sales Order Dataset 1"></div>
-                  <div><label class="field-label">Company</label><input id="trainingDataset_company"></div>
-                  <div><label class="field-label">Vendor</label><input id="trainingDataset_vendor"></div>
-                  <div><label class="field-label">Customer</label><input id="trainingDataset_customer"></div>
+                  <div><label class="field-label">Company</label><input id="trainingDataset_company" oninput="updateTrainingQualityPanel()"></div>
+                  <div><label class="field-label">Vendor</label><input id="trainingDataset_vendor" oninput="updateTrainingQualityPanel()"></div>
+                  <div><label class="field-label">Customer</label><input id="trainingDataset_customer" oninput="updateTrainingQualityPanel()"></div>
                   <div><label class="field-label">Saved Datasets</label><select id="trainingDataset_select"><option value="">Select dataset</option></select></div>
                 </div>
                 <div class="flex-row flex-wrap mt12">
@@ -1685,6 +1703,7 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
                   <button class="btn btn-ghost btn-sm" id="trainingDataset_loadBtn" type="button" onclick="loadSelectedTrainingDataset()">Load Dataset</button>
                   <button class="btn btn-ghost btn-sm" id="trainingDataset_deactivateBtn" type="button" onclick="deactivateSelectedTrainingDataset()">Deactivate Dataset</button>
                   <span class="text-muted" id="trainingDataset_status" style="font-size:11px;">Datasets not loaded.</span>
+                  <div id="trainingDataset_qualityPanel"></div>
                 </div>
               </div>
             </div>
@@ -4181,6 +4200,52 @@ function renderOcrTraining(){
 
   /* Update JSON preview */
   updateTrainingPreview();
+
+  /* Update quality panel */
+  updateTrainingQualityPanel();
+}
+
+function updateTrainingQualityPanel() {
+  const panel = $("trainingDataset_qualityPanel");
+  if(!panel) return;
+  
+  const hCount = Object.keys(TR.mappings || {}).length;
+  const module_ = trainingDatasetModule();
+  const rowMap = module_ === "purchase_order" ? MAIN_PURCHASE_ROW_MAP : MAIN_SALES_ROW_MAP;
+  let rCount = 0;
+  let emptyIgnored = 0;
+  
+  Object.keys(rowMap).forEach(key => {
+    const val = S.mappedFields && S.mappedFields[key];
+    const v = (val && typeof val === "object" ? val.value : val) || "";
+    if(v && String(v).trim()) {
+      rCount++;
+    } else {
+      emptyIgnored++;
+    }
+  });
+
+  const company = (($("trainingDataset_company") && $("trainingDataset_company").value) || "").trim();
+  const vendor = (($("trainingDataset_vendor") && $("trainingDataset_vendor").value) || "").trim();
+  const customer = (($("trainingDataset_customer") && $("trainingDataset_customer").value) || "").trim();
+  
+  const identities = [];
+  if(company) identities.push("Company");
+  if(vendor) identities.push("Vendor");
+  if(customer) identities.push("Customer");
+  
+  let html = `<div style="margin-top:10px; padding:10px; background:var(--bg-2); border:1px solid var(--border); border-radius:4px; font-size:12px;">`;
+  html += `<b>Dataset Quality</b>: ${hCount} header mapping${hCount!==1?"s":""}, ${rCount} row mapping${rCount!==1?"s":""}`;
+  if(emptyIgnored > 0) html += `, ${emptyIgnored} empty ignored`;
+  
+  html += `<br><b>Identity Completeness</b>: ${identities.length}/3 (${identities.join(", ") || "None"})`;
+  
+  if(!company && !vendor && !customer) {
+    html += `<div style="color:var(--accent); margin-top:5px;">⚠️ Warning: No identity fields (Company/Vendor/Customer) provided. Best-match accuracy will be significantly lower.</div>`;
+  }
+  
+  html += `</div>`;
+  panel.innerHTML = html;
 }
 
 function updateTrainingPreviewMeta(){
@@ -4715,7 +4780,17 @@ function buildTrainingDatasetPayload(){
     const signature = `${sourceKey}:${targetField || ""}`;
     if(!sourceKey || !targetField || seenRowMappings.has(signature)) return;
     seenRowMappings.add(signature);
-    rowMappings.push({ocr_key:key, target_field:targetField, source:"training"});
+    rowMappings.push({
+      source_key: key,
+      source_label: key,
+      normalized_source_key: sourceKey,
+      target_erp_name: targetField,
+      canonical_name: (rowMap[sourceKey] || [])[1] || targetField,
+      target_dom_id: "",
+      sample_value: "",
+      source: "training",
+      module: trainingDatasetModule()
+    });
   }));
   return {
     id: selectedId || undefined,
@@ -4726,12 +4801,26 @@ function buildTrainingDatasetPayload(){
     vendor_name: (($("trainingDataset_vendor") && $("trainingDataset_vendor").value) || "").trim() || null,
     customer_name: (($("trainingDataset_customer") && $("trainingDataset_customer").value) || "").trim() || null,
     is_active: !!($("trainingDataset_active") && $("trainingDataset_active").checked),
-    mappings_json: Object.entries(TR.mappings || {}).map(([target, mapping]) => ({
-      ocr_key: mapping.label || target,
-      target_field: target,
-      confidence: mapping.confidence || null,
-      source: mapping.source || "training"
-    })),
+    mappings_json: Object.entries(TR.mappings || {}).filter(([target, mapping]) => {
+      const ocr_key = mapping.label || target;
+      return ocr_key && target && (mapping.value || mapping.confidence);
+    }).map(([target, mapping]) => {
+      const ocr_key = mapping.label || target;
+      const sample_value = mapping.value ? String(mapping.value).trim() : "";
+      return {
+        source_key: ocr_key,
+        source_label: mapping.label || ocr_key,
+        normalized_source_key: ocr_key.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,""),
+        target_erp_name: target,
+        canonical_name: target,
+        target_dom_id: "",
+        target_label: target,
+        sample_value: sample_value,
+        confidence: mapping.confidence || null,
+        source: mapping.source || "training",
+        module: trainingDatasetModule()
+      };
+    }),
     row_mappings_json: rowMappings,
     metadata_json: {
       missing: result.missing || [],
@@ -4746,6 +4835,7 @@ async function saveTrainingDataset(){
   const payload = buildTrainingDatasetPayload();
   if(!payload.dataset_name){ toast("Dataset name is required", "warn"); return; }
   if(!payload.mappings_json.length){ toast("No field mappings to save", "warn"); return; }
+  updateDatasetQualityPanel(payload);
   try{
     const result = await req("/api/v1/companies/training-datasets", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
     TR.selectedDataset = result.dataset;
@@ -4765,19 +4855,48 @@ async function saveTrainingDataset(){
   }
 }
 
+function updateDatasetQualityPanel(payload){
+  const hCount = (payload.mappings_json || []).length;
+  const rCount = (payload.row_mappings_json || []).length;
+  const emptyIgnored = Object.keys(TR.mappings || {}).length - hCount;
+  const hasDocType = !!(payload.document_type);
+  const hasCompany = !!(payload.company_name);
+  const hasIdentity = !!(payload.vendor_name || payload.customer_name);
+  const warnings = [];
+  if(!hasDocType) warnings.push("document type");
+  if(!hasCompany) warnings.push("company name");
+  if(!hasIdentity) warnings.push("vendor/customer name");
+  const el = $("trainingDataset_qualityPanel");
+  if(!el) return;
+  let html = `<div style="font-size:11px;color:var(--text-2);margin-top:6px;padding:6px 8px;background:var(--bg-2);border-radius:6px;border:1px solid var(--border);">`;
+  html += `<b>Dataset Quality</b>: ${hCount} header mapping${hCount!==1?"s":""}, ${rCount} row mapping${rCount!==1?"s":""}`;
+  if(emptyIgnored > 0) html += `, ${emptyIgnored} empty ignored`;
+  html += `<br><span style="color:${hasDocType?"var(--green)":"var(--amber)"}">● Doc type</span> `;
+  html += `<span style="color:${hasCompany?"var(--green)":"var(--amber)"}">● Company</span> `;
+  html += `<span style="color:${hasIdentity?"var(--green)":"var(--amber)"}">● Identity</span>`;
+  if(warnings.length){
+    html += `<br><span style="color:var(--amber)">⚠ Missing: ${warnings.join(", ")} — dataset can still be saved, but best-match quality will be lower.</span>`;
+  }
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
 function applyTrainingDatasetToEditor(dataset){
   if(!dataset) return;
   TR.selectedDataset = dataset;
   TR.mappings = {};
   (dataset.mappings_json || []).forEach(mapping => {
-    const target = mapping.target_field || mapping.erp_field_name;
+    // Support all known target key variants (canonical + legacy)
+    const target = mapping.target_erp_name || mapping.target_field || mapping.erp_field_name || mapping.target;
     if(!target) return;
-    const sourceKey = trainingUploadKey(mapping.ocr_key || mapping.source_label || target);
+    // Support all known source key variants
+    const sourceKeyRaw = mapping.source_key || mapping.ocr_key || mapping.source_label || mapping.label || target;
+    const sourceKey = trainingUploadKey(sourceKeyRaw);
     const current = TRAINING_UPLOAD.result && TRAINING_UPLOAD.result.fields ? TRAINING_UPLOAD.result.fields[sourceKey] : null;
     TR.mappings[target] = {
-      label: mapping.ocr_key || mapping.source_label || target,
-      value: current ? trainingUploadValue(current) : "",
-      confidence: current && typeof current === "object" ? current.confidence : mapping.confidence || null,
+      label: sourceKeyRaw,
+      value: current ? trainingUploadValue(current) : (mapping.sample_value || ""),
+      confidence: current && typeof current === "object" ? current.confidence : (mapping.confidence || null),
       source: "training_dataset"
     };
   });
@@ -4866,7 +4985,7 @@ function resetTrainingMapping(){
    INIT
 ═══════════════════════════════════════════════════════ */
 /* Main workspace Sales/Purchase workbench AI Auto Fill. */
-const MAIN_AI_FILL = {module:"sales", result:null, sourceJobId:null, warnings:[], filled:[], datasets:[], selectedDataset:null, datasetMatch:null, datasetUserSelected:false, steps:["File selected","Uploading","OCR processing","Extracting fields","Mapping fields","Ready for auto fill"]};
+const MAIN_AI_FILL = {module:"sales", result:null, rawOcrResult:null, backendResult:null, sourceJobId:null, warnings:[], filled:[], datasets:[], selectedDataset:null, datasetMatch:null, datasetUserSelected:false, steps:["File selected","Uploading","OCR processing","Extracting fields","Mapping fields","Ready for auto fill"], autoFilledValues:{}, correctedFields:[], correctionsSaved:0, correctionsPending:0, backendAvailable:true};
 const MAIN_WORKBENCH_EXPORT_STATE = {sales:[], purchase:[]};
 const MAIN_MASTER_STATE = {resolvedCount:0, unresolved:[], usingLocalCache:false};
 const ERP_MASTER_CACHE_KEY = "ocr_erp_master_mappings_cache";
@@ -4974,6 +5093,8 @@ function openMainAiFillDrawer(module){
   const retainedUserSelection = !!(retainedDataset && MAIN_AI_FILL.datasetUserSelected);
   setMainWorkbenchTab(module);
   MAIN_AI_FILL.result = null;
+  MAIN_AI_FILL.rawOcrResult = null;
+  MAIN_AI_FILL.backendResult = null;
   MAIN_AI_FILL.sourceJobId = null;
   MAIN_AI_FILL.warnings = [];
   MAIN_AI_FILL.filled = [];
@@ -4983,6 +5104,7 @@ function openMainAiFillDrawer(module){
   const file = $("mainAiFill_file"); if(file) file.value = "";
   const process = $("mainAiFill_processBtn"); if(process) process.disabled = true;
   const apply = $("mainAiFill_autoFillBtn"); if(apply) apply.disabled = true;
+  const debugDownload = $("mainAiFill_debugDownload"); if(debugDownload) debugDownload.disabled = true;
   mainAiText("mainAiFill_fileName", "No file selected.");
   mainAiText("mainAiFill_mappedCount", "0");
   mainAiText("mainAiFill_filledCount", "0");
@@ -5067,6 +5189,7 @@ function onMainAiDatasetChange(){
   mainAiText("mainAiFill_datasetUsed", MAIN_AI_FILL.selectedDataset ? MAIN_AI_FILL.selectedDataset.dataset_name : "Generic");
   mainAiText("mainAiFill_datasetReason", MAIN_AI_FILL.selectedDataset ? "user_selected" : "-");
   mainAiText("mainAiFill_datasetStatus", MAIN_AI_FILL.selectedDataset ? `Using Dataset: ${MAIN_AI_FILL.selectedDataset.dataset_name}` : "No saved dataset selected. Using generic mapping.");
+  MAIN_AI_FILL.backendResult = null;
 }
 
 async function resolveBestMainAiDataset(result){
@@ -5140,9 +5263,11 @@ async function processMainAiFillOcr(){
     if(!completed) throw new Error("TIMEOUT: OCR processing did not finish. Retry Process.");
     setMainAiFillStep(2, "done", "OCR complete");
     setMainAiFillStep(3, "active", "Extracting fields");
+    MAIN_AI_FILL.rawOcrResult = data;
     MAIN_AI_FILL.result = normalizeMainAiFillOcrResult(data);
     setMainAiFillStep(3, "done", "Fields extracted");
     await resolveBestMainAiDataset(MAIN_AI_FILL.result);
+    await requestMainWorkbenchAutoFill();
     setMainAiFillStep(4, "done", "Fields mapped");
     setMainAiFillStep(5, "done", "Ready for auto fill");
     renderMainAiFillSummary(MAIN_AI_FILL.result);
@@ -5158,6 +5283,160 @@ async function processMainAiFillOcr(){
   }finally{
     if(process) process.disabled = false;
   }
+}
+
+async function requestMainWorkbenchAutoFill(){
+  const payload = {
+    module: mainAiDatasetModule(),
+    job_id: MAIN_AI_FILL.sourceJobId || null,
+    ocr_result: MAIN_AI_FILL.rawOcrResult || {},
+    dataset_id: MAIN_AI_FILL.selectedDataset ? MAIN_AI_FILL.selectedDataset.id : null,
+    overwrite: !!($("mainAiFill_overwrite") && $("mainAiFill_overwrite").checked)
+  };
+  try{
+    const result = await req("/api/v1/forms/workbench/auto-fill", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    MAIN_AI_FILL.backendResult = result;
+    MAIN_AI_FILL.result.backendAutoFill = result;
+    MAIN_AI_FILL.result.applyStats = {
+      filled:result.filled_count || 0, skipped:result.skipped_count || 0,
+      rowFilled:(result.matched_targets || []).filter(item => String(item.ocr_key || "").startsWith("row ")).length,
+      masterSelection:(result.unresolved_masters || []).length,
+      datasetMapped:result.dataset_mapped_count || 0, datasetRowMapped:0,
+      fallbackMapped:result.fallback_mapped_count || 0, directMapped:result.direct_mapped_count || 0,
+      datasetMissing:[]
+    };
+    MAIN_AI_FILL.result.debug = {
+      normalizedKeys:(result.detected_fields || []).map(item => item.normalized_key),
+      matchedTargets:result.matched_targets || [], skippedKeys:result.skipped_keys || []
+    };
+    MAIN_AI_FILL.result.missing = result.missing_fields || MAIN_AI_FILL.result.missing || [];
+    MAIN_AI_FILL.result.warnings = [...(MAIN_AI_FILL.result.warnings || []), ...(result.warnings || [])];
+    mainAiText("mainAiFill_mappedCount", String(result.detected_count || 0));
+    mainAiText("mainAiFill_filledCount", String(result.filled_count || 0));
+    mainAiText("mainAiFill_skippedCount", String(result.skipped_count || 0));
+    mainAiText("mainAiFill_rowsCount", String(result.row_count || 0));
+    mainAiText("mainAiFill_missingCount", String((result.missing_fields || []).length));
+    mainAiText("mainAiFill_masterCount", String((result.unresolved_masters || []).length));
+    mainAiText("mainAiFill_correctionCount", String(result.correction_applied_count || 0));
+    mainAiText("mainAiFill_datasetMappedCount", String(result.dataset_mapped_count || 0));
+    mainAiText("mainAiFill_fallbackMappedCount", String(result.fallback_mapped_count || 0));
+    const debugDownload = $("mainAiFill_debugDownload"); if(debugDownload) debugDownload.disabled = false;
+    renderMainAiFillDebug(MAIN_AI_FILL.result);
+    return result;
+  }catch(err){
+    MAIN_AI_FILL.backendResult = null;
+    MAIN_AI_FILL.warnings.push(`Backend auto-fill unavailable: ${err.message}. Emergency frontend fallback will be used.`);
+    renderMainAiFillWarnings();
+    return null;
+  }
+}
+
+function applyBackendMainAiFill(result){
+  const module = MAIN_AI_FILL.module;
+  const overwrite = !!($("mainAiFill_overwrite") && $("mainAiFill_overwrite").checked);
+  MAIN_AI_FILL.filled = [];
+  MAIN_AI_FILL.autoFilledValues = {};
+  MAIN_AI_FILL.correctedFields = [];
+  MAIN_AI_FILL.correctionsPending = 0;
+
+  const matchedTargets = result.matched_targets || [];
+  const matchedByTarget = {};
+  matchedTargets.forEach(m => { matchedByTarget[m.target_erp_name] = m; });
+
+  Object.entries(result.form_data || {}).forEach(([erpName,value]) => {
+    const target = mainAiFormFieldElements(module).find(el => mainAiKey(el.dataset.erpName) === mainAiKey(erpName));
+    if(safeSetMainFormValue(target, value, overwrite)){
+      MAIN_AI_FILL.filled.push(target);
+      const match = matchedByTarget[erpName] || {};
+      MAIN_AI_FILL.autoFilledValues[target.id] = {
+        autoValue: value,
+        sourceOcrKey: match.ocr_key || "",
+        normalizedKey: match.normalized_key || "",
+        targetErpName: erpName,
+        source: match.source || "auto_fill",
+        originalValue: target.value,
+      };
+    }
+  });
+  const rows = result.item_rows || [];
+  const bodySelector = `#${module}_form_item_body tr`;
+  const addRows = module === "purchase" ? addPurchaseFormRows : addSalesFormRows;
+  if(rows.length) addRows(Math.max(0, rows.length - document.querySelectorAll(bodySelector).length));
+  rows.forEach((row,index) => Object.entries(row || {}).forEach(([erpName,value]) => {
+    if(erpName === "row_index") return;
+    const rowEl = document.querySelectorAll(bodySelector)[index];
+    const target = rowEl && Array.from(rowEl.querySelectorAll("[data-erp-name]")).find(el => mainAiKey(el.dataset.erpName) === mainAiKey(erpName));
+    if(safeSetMainFormValue(target, value, overwrite)){
+      MAIN_AI_FILL.filled.push(target);
+      MAIN_AI_FILL.autoFilledValues[target.id] = {
+        autoValue: value,
+        sourceOcrKey: `row${index}.${erpName}`,
+        normalizedKey: mainAiKey(erpName),
+        targetErpName: erpName,
+        source: "row_fill",
+        originalValue: value,
+      };
+    }
+  }));
+  if(module === "purchase") recalculatePurchaseFormTotals(); else recalculateSalesFormTotals();
+  setMainWorkbenchStatus(module, `Auto Fill: ${result.filled_count || 0} mapped, ${result.skipped_count || 0} skipped`, result.filled_count ? "success" : "warn");
+  setupCorrectionDetection(module);
+  updateCorrectionUI(module);
+}
+
+function downloadMainAiFillDebug(){
+  const result = MAIN_AI_FILL.backendResult;
+  if(!result){ toast("No backend mapping debug result available", "warn"); return; }
+  const selectedDataset = MAIN_AI_FILL.selectedDataset || null;
+  const matchResult = MAIN_AI_FILL.datasetMatchResult || null;
+  const stats = (MAIN_AI_FILL.result && MAIN_AI_FILL.result.applyStats) || {};
+  const normalizedDatasetMappings = selectedDataset
+    ? (selectedDataset.mappings_json || []).map(m => ({
+        source_key: m.source_key || m.ocr_key || m.label || "",
+        source_label: m.source_label || m.label || m.ocr_key || "",
+        normalized_source_key: m.normalized_source_key || (m.source_key||m.ocr_key||"").toLowerCase().replace(/[^a-z0-9]+/g,"_"),
+        target_erp_name: m.target_erp_name || m.target_field || m.target || "",
+        sample_value: m.sample_value || "",
+        confidence: m.confidence || null
+      }))
+    : [];
+  const normalizedRowMappings = selectedDataset
+    ? (selectedDataset.row_mappings_json || []).map(m => ({
+        source_key: m.source_key || m.ocr_key || "",
+        normalized_source_key: m.normalized_source_key || (m.source_key||m.ocr_key||"").toLowerCase().replace(/[^a-z0-9]+/g,"_"),
+        target_erp_name: m.target_erp_name || m.target_field || ""
+      }))
+    : [];
+  const datasetMatchedTargets = (result.matched_targets || []).filter(t => t.source === "dataset");
+  const datasetSkippedKeys = (result.skipped_keys || []).filter(k => k.reason === "source_key_not_found" || k.reason === "target_field_not_found" || k.reason === "empty_value");
+  const fallbackMatchedTargets = (result.matched_targets || []).filter(t => t.source === "fallback");
+  const payload = {
+    module: result.module,
+    document_type: result.document_type,
+    selected_dataset: selectedDataset ? {id: selectedDataset.id, name: selectedDataset.dataset_name, match_score: matchResult && matchResult.match_score, match_reason: matchResult && matchResult.match_reason, matched_identity: matchResult && matchResult.matched_identity} : null,
+    normalized_dataset_mappings: normalizedDatasetMappings,
+    normalized_row_mappings: normalizedRowMappings,
+    dataset_matched_targets: datasetMatchedTargets,
+    dataset_skipped_keys: datasetSkippedKeys,
+    fallback_matched_targets: fallbackMatchedTargets,
+    final_form_data: result.form_data || {},
+    item_rows: result.item_rows || [],
+    detected_fields: result.detected_fields || [],
+    all_matched_targets: result.matched_targets || [],
+    all_skipped_keys: result.skipped_keys || [],
+    counts: {
+      detected: result.detected_count,
+      filled: result.filled_count,
+      skipped: result.skipped_count,
+      rows: result.row_count,
+      dataset_mapped: result.dataset_mapped_count,
+      fallback_mapped: result.fallback_mapped_count,
+      direct_mapped: result.direct_mapped_count
+    }
+  };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = `${MAIN_AI_FILL.module}-mapping-debug.json`; a.click(); URL.revokeObjectURL(url);
 }
 
 function setMainAiFillStep(step,state,message){
@@ -5238,12 +5517,17 @@ function normalizeMainAiFillOcrResult(data){
 
 function renderMainAiFillSummary(result){
   const stats = result.applyStats || previewMainAiFillMatches(result);
-  mainAiText("mainAiFill_mappedCount", String(Object.keys(result.fields || {}).length));
+  const backend = result.backendAutoFill || MAIN_AI_FILL.backendResult;
+  mainAiText("mainAiFill_mappedCount", String(backend ? backend.detected_count || 0 : Object.keys(result.fields || {}).length));
   mainAiText("mainAiFill_filledCount", String(stats.filled || 0));
   mainAiText("mainAiFill_skippedCount", String(stats.skipped || 0));
-  mainAiText("mainAiFill_rowsCount", String((result.rows || []).length));
+  mainAiText("mainAiFill_rowsCount", String(backend ? backend.row_count || 0 : (result.rows || []).length));
   mainAiText("mainAiFill_missingCount", String((result.missing || []).length));
-  mainAiText("mainAiFill_masterCount", String(stats.masterSelection || 0));
+  mainAiText("mainAiFill_masterCount", String(backend ? (backend.unresolved_masters || []).length : stats.masterSelection || 0));
+  const correctionCount = backend ? (backend.correction_applied_count || 0) : 0;
+  mainAiText("mainAiFill_correctionCount", String(correctionCount));
+  mainAiText("mainAiFill_datasetMappedCount", String(backend ? backend.dataset_mapped_count || 0 : 0));
+  mainAiText("mainAiFill_fallbackMappedCount", String(backend ? backend.fallback_mapped_count || 0 : 0));
   const raw = $("mainAiFill_rawPreview"); if(raw) raw.textContent = result.rawText || "No OCR text available.";
   renderMainAiFillFieldsPreview(result.fields || {});
   renderMainAiFillDebug(result);
@@ -5274,11 +5558,41 @@ function renderMainAiFillDebug(result){
   const pre = $("mainAiFill_debugPre");
   if(!details || !pre) return;
   const debug = result && result.debug ? result.debug : {normalizedKeys:[], matchedTargets:[], skippedKeys:[]};
-  details.style.display = (debug.normalizedKeys.length || debug.matchedTargets.length || debug.skippedKeys.length) ? "block" : "none";
+  const backend = (result && result.backendAutoFill) || {};
+  const stats = (result && result.applyStats) || {};
+  const selectedDataset = MAIN_AI_FILL.selectedDataset || null;
+  const matchResult = MAIN_AI_FILL.datasetMatchResult || null;
+
+  // Build dataset debug section
+  const datasetDebug = {
+    selected_dataset: selectedDataset ? {id: selectedDataset.id, name: selectedDataset.dataset_name} : null,
+    match_score: matchResult ? matchResult.match_score : null,
+    match_reason: matchResult ? matchResult.match_reason : null,
+    matched_identity: matchResult ? (matchResult.matched_identity || "") : null,
+    dataset_header_mapping_count: selectedDataset ? (selectedDataset.mappings_json || []).length : 0,
+    dataset_row_mapping_count: selectedDataset ? (selectedDataset.row_mappings_json || []).length : 0,
+    dataset_mapped_count: stats.datasetMapped || backend.dataset_mapped_count || 0,
+    dataset_skipped_count: (backend.skipped_keys || []).filter(k => k && (k.reason === "source_key_not_found" || k.reason === "target_field_not_found")).length,
+    top_skipped_reasons: Object.entries(
+      (backend.skipped_keys || []).reduce((acc, k) => { if(k && k.reason){ acc[k.reason] = (acc[k.reason]||0)+1; } return acc; }, {})
+    ).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([reason,count])=>({reason,count})),
+    module_only_warning: matchResult && matchResult.match_reason === "module_only" ? "Dataset matched by module only. Mapping may be incomplete." : null,
+    normalized_dataset_mappings: selectedDataset ? (selectedDataset.mappings_json || []).map(m => ({source: m.source_key || m.ocr_key, target: m.target_erp_name || m.target_field})) : [],
+    dataset_matched_targets: (backend.matched_targets || []).filter(t => t.source === "dataset").map(t => ({target: t.target_erp_name || t.target_dom_id, ocr: t.ocr_key}))
+  };
+
+  details.style.display = (debug.normalizedKeys.length || debug.matchedTargets.length || debug.skippedKeys.length || selectedDataset) ? "block" : "none";
   pre.textContent = JSON.stringify({
-    normalized_field_keys: debug.normalizedKeys || [],
-    matched_target_ids: debug.matchedTargets || [],
-    skipped_keys: debug.skippedKeys || []
+    dataset_debug: datasetDebug,
+    columns:["OCR Key","Value","Normalized","Target","Source","Reason"],
+    matched:(debug.matchedTargets || []).map(item => typeof item === "object" ? {
+      ocr_key:item.ocr_key, value:item.ocr_value, normalized:item.normalized_key,
+      target:item.target_dom_id || item.target_erp_name, source:item.source, reason:""
+    } : {ocr_key:String(item)}),
+    skipped:(debug.skippedKeys || []).map(item => typeof item === "object" ? {
+      ocr_key:item.ocr_key, value:item.ocr_value, normalized:item.normalized_key,
+      target:"", source:"", reason:item.reason
+    } : {ocr_key:String(item)})
   }, null, 2);
 }
 
@@ -5366,8 +5680,9 @@ function renderMainAiFillWarnings(result=MAIN_AI_FILL.result){
   const missingValues = result ? (result.missing || []) : [];
   const lowValues = result ? (result.lowConfidence || []) : [];
   const debug = result && result.debug ? result.debug : {};
-  const remaining = [...(debug.skippedKeys || []), ...((result && result.applyStats && result.applyStats.datasetMissing) || []).map(value => `Dataset missing mapping: ${value}`)];
-  const master = (debug.matchedTargets || []).filter(value => /customer|supplier|product|tax_group/i.test(String(value)));
+  const debugLabel = value => typeof value === "object" && value ? `${value.ocr_key || "field"}: ${value.reason || value.source || "unmapped"}` : String(value || "");
+  const remaining = [...(debug.skippedKeys || []).map(debugLabel), ...((result && result.applyStats && result.applyStats.datasetMissing) || []).map(value => `Dataset missing mapping: ${value}`)];
+  const master = (debug.matchedTargets || []).filter(value => /customer|supplier|product|tax_group/i.test(debugLabel(value))).map(debugLabel);
   const totalMismatch = warnings.filter(value => /total.*(mismatch|difference)|mismatch.*total/i.test(String(value)));
   const generalWarnings = warnings.filter(value => !totalMismatch.includes(value));
   const totalCount = generalWarnings.length + totalMismatch.length + missingValues.length + lowValues.length;
@@ -5392,8 +5707,16 @@ async function applyMainAiFillToCurrentForm(){
     toast("Sales form cannot accept Purchase documents", "error");
     return;
   }
-  if(MAIN_AI_FILL.module === "purchase" && (docType.includes("sales") || docType.includes("invoice") || docType.includes("commercial"))){
+  if(MAIN_AI_FILL.module === "purchase" && (docType.includes("sales_invoice") || docType.includes("sales invoice") || docType.includes("commercial_invoice") || docType.includes("commercial invoice") || docType.includes("export_invoice") || docType.includes("export invoice"))){
     toast("Purchase form cannot accept Sales documents", "error");
+    return;
+  }
+  if(MAIN_AI_FILL.backendResult){
+    applyBackendMainAiFill(MAIN_AI_FILL.backendResult);
+    renderMainAiFillSummary(MAIN_AI_FILL.result);
+    renderMainAiFillWarnings(MAIN_AI_FILL.result);
+    await applySavedMasterMappings(MAIN_AI_FILL.module);
+    toast(`${MAIN_AI_FILL.module === "purchase" ? "Purchase" : "Sales"} Order auto-filled from backend mapping`, "success");
     return;
   }
   MAIN_AI_FILL.filled = [];
@@ -5506,6 +5829,13 @@ function finishMainAiApplyStats(result,stats){
   const datasetName = MAIN_AI_FILL.selectedDataset ? MAIN_AI_FILL.selectedDataset.dataset_name : "Generic";
   mainAiText("mainAiFill_datasetStatus", `${datasetName}: ${stats.datasetMapped || 0} header, ${stats.datasetRowMapped || 0} row, ${stats.fallbackMapped || 0} fallback mapped`);
   if(stats.skipped) MAIN_AI_FILL.warnings.push(`${stats.skipped} field(s) skipped. See Debug summary.`);
+  const matchedIds = (result.debug?.matchedTargets || []).map(value => String(value).split(" -> ")[1]?.split(" ")[0]).filter(Boolean);
+  console.log(`[AI Fill] ${MAIN_AI_FILL.module} mapping result`, {
+    filled_count: stats.filled || 0,
+    skipped_keys: result.debug?.skippedKeys || [],
+    matched_target_ids: matchedIds
+  });
+  setMainWorkbenchStatus(MAIN_AI_FILL.module, `Auto Fill: ${stats.filled || 0} filled, ${stats.skipped || 0} skipped. Matched: ${matchedIds.join(", ") || "none"}`, stats.filled ? "success" : "warn");
   renderMainAiFillWarnings(result);
 }
 
@@ -5624,8 +5954,159 @@ function clearMainAiFilledValues(){
     if(el) el.value = item.oldValue;
   });
   MAIN_AI_FILL.filled = [];
+  MAIN_AI_FILL.autoFilledValues = {};
+  MAIN_AI_FILL.correctedFields = [];
+  MAIN_AI_FILL.correctionsPending = 0;
   recalculateSalesFormTotals();
   recalculatePurchaseFormTotals();
+  updateCorrectionUI("sales");
+  updateCorrectionUI("purchase");
+}
+
+function setupCorrectionDetection(module){
+  const selector = `#sec${module==="purchase"?"Purchase":"Sales"}Form [data-erp-name]`;
+  document.querySelectorAll(selector).forEach(el => {
+    el.removeEventListener("change", onCorrectionFieldChange);
+    el.addEventListener("change", onCorrectionFieldChange);
+  });
+}
+
+function onCorrectionFieldChange(e){
+  const el = e.target;
+  if(!el || !el.id) return;
+  const autoInfo = MAIN_AI_FILL.autoFilledValues[el.id];
+  if(!autoInfo) return;
+  const newVal = (el.value||"").trim();
+  const autoVal = (autoInfo.originalValue||"").trim();
+  if(newVal !== autoVal){
+    const erpName = el.dataset.erpName || "";
+    const existingIdx = MAIN_AI_FILL.correctedFields.findIndex(c => c.fieldId === el.id);
+    const corr = {
+      fieldId: el.id,
+      erpName: erpName,
+      sourceOcrKey: autoInfo.sourceOcrKey,
+      normalizedKey: autoInfo.normalizedKey,
+      autoValue: autoVal,
+      correctedValue: newVal,
+      module: MAIN_AI_FILL.module || "sales",
+    };
+    if(existingIdx >= 0){
+      MAIN_AI_FILL.correctedFields[existingIdx] = corr;
+    } else {
+      MAIN_AI_FILL.correctedFields.push(corr);
+    }
+  } else {
+    MAIN_AI_FILL.correctedFields = MAIN_AI_FILL.correctedFields.filter(c => c.fieldId !== el.id);
+  }
+  MAIN_AI_FILL.correctionsPending = MAIN_AI_FILL.correctedFields.length;
+  updateCorrectionUI(MAIN_AI_FILL.module);
+}
+
+function updateCorrectionUI(module){
+  const pending = MAIN_AI_FILL.correctionsPending || 0;
+  const btn = $(`${module}_form_saveCorrectionsBtn`);
+  if(btn){
+    btn.style.display = pending > 0 ? "inline-flex" : "none";
+    btn.textContent = `Save Corrections (${pending})`;
+  }
+  const statusEl = $(`${module}_form_action_status`);
+  if(statusEl){
+    const baseText = module === "purchase" ? "Purchase Order actions" : "Sales Order actions";
+    statusEl.textContent = pending > 0 ? `${baseText} — Corrections pending: ${pending}` : baseText;
+  }
+  const correctionEntry = $("mainReview_correctionEntry");
+  if(correctionEntry){
+    correctionEntry.style.display = pending > 0 || MAIN_AI_FILL.correctionsSaved > 0 ? "block" : "none";
+    $("mainReview_correctionPendingCount").textContent = pending;
+    $("mainReview_correctionSavedCount").textContent = MAIN_AI_FILL.correctionsSaved || 0;
+    $("mainReview_correctionCount").textContent = pending + (MAIN_AI_FILL.correctionsSaved || 0);
+  }
+  const examplesEl = $("mainReview_correctionExamples");
+  if(examplesEl){
+    const recent = MAIN_AI_FILL.correctedFields.slice(0,5);
+    examplesEl.innerHTML = recent.length ? recent.map(c =>
+      `<div>OCR "${c.sourceOcrKey}" → ERP "${c.erpName}": "${c.autoValue}" → "${c.correctedValue}"</div>`
+    ).join("") : '<div class="text-muted">No corrections yet.</div>';
+  }
+}
+
+function saveWorkbenchCorrections(module){
+  const corrections = MAIN_AI_FILL.correctedFields;
+  if(!corrections.length){
+    toast("No corrections to save.", "warn");
+    return;
+  }
+  const backendResult = MAIN_AI_FILL.backendResult || {};
+  const moduleLabel = module === "purchase" ? "purchase_order" : "sales_order";
+  const payload = {
+    corrections: corrections.map(c => ({
+      module: moduleLabel,
+      source_ocr_key: c.sourceOcrKey || c.erpName,
+      source_ocr_label: c.sourceOcrKey || c.erpName,
+      source_value_sample: c.autoValue || "",
+      target_erp_name: c.erpName,
+      corrected_value_sample: c.correctedValue,
+      confidence: 1.0,
+      metadata: {
+        source: "manual_correction",
+        document_type: backendResult.document_type || "",
+      },
+    })),
+  };
+  function saveToLocalFallback(){
+    try {
+      const key = "ocr_workbench_correction_memory_cache";
+      let cached = [];
+      try { cached = JSON.parse(localStorage.getItem(key) || "[]"); } catch(e) { cached = []; }
+      payload.corrections.forEach(c => {
+        const existingIdx = cached.findIndex(x => x.source_ocr_key === c.source_ocr_key && x.target_erp_name === c.target_erp_name);
+        if(existingIdx >= 0) cached[existingIdx] = {...c, savedAt: new Date().toISOString()};
+        else cached.push({...c, savedAt: new Date().toISOString()});
+      });
+      localStorage.setItem(key, JSON.stringify(cached));
+      MAIN_AI_FILL.backendAvailable = false;
+      MAIN_AI_FILL.correctionsSaved = (MAIN_AI_FILL.correctionsSaved || 0) + corrections.length;
+      MAIN_AI_FILL.correctedFields = [];
+      MAIN_AI_FILL.correctionsPending = 0;
+      updateCorrectionUI(module);
+      toast(`Backend unavailable. Saved ${corrections.length} correction(s) locally.`, "warn", 5000);
+    } catch(e){
+      toast("Failed to save corrections locally.", "error");
+    }
+  }
+  fetch("/api/v1/forms/workbench/corrections/bulk", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload),
+  }).then(r => {
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }).then(data => {
+    const savedCount = data.saved_count || 0;
+    MAIN_AI_FILL.correctionsSaved = (MAIN_AI_FILL.correctionsSaved || 0) + savedCount;
+    MAIN_AI_FILL.correctedFields = [];
+    MAIN_AI_FILL.correctionsPending = 0;
+    MAIN_AI_FILL.backendAvailable = true;
+    updateCorrectionUI(module);
+    toast(`Saved ${savedCount} correction(s). Future uploads will learn from this.`, "success", 5000);
+    if(data.errors && data.errors.length){
+      console.warn("Correction save errors:", data.errors);
+    }
+  }).catch(err => {
+    console.warn("Correction save failed, using local fallback:", err);
+    saveToLocalFallback();
+  });
+}
+
+function loadCorrectionLocalFallback(){
+  try {
+    const key = "ocr_workbench_correction_memory_cache";
+    const raw = localStorage.getItem(key);
+    if(!raw) return [];
+    return JSON.parse(raw);
+  } catch(e){
+    return [];
+  }
 }
 
 function toggleMainAiFillRawPreview(){
@@ -5674,6 +6155,10 @@ function clearMainWorkbenchForm(module){
   document.querySelectorAll(`[data-main-form-panel="${module}"] input, [data-main-form-panel="${module}"] textarea`).forEach(el => { el.value = ""; });
   if(module === "sales") recalculateSalesFormTotals();
   else recalculatePurchaseFormTotals();
+  MAIN_AI_FILL.autoFilledValues = {};
+  MAIN_AI_FILL.correctedFields = [];
+  MAIN_AI_FILL.correctionsPending = 0;
+  updateCorrectionUI(module);
 }
 
 function readErpMasterMappingCache(){
@@ -5894,10 +6379,12 @@ async function validateMainWorkbenchForm(module){
 
 async function downloadMainWorkbenchExport(module, fmt){
   const payload = collectMainWorkbenchPayload(module);
-  console.log(`[Export] ${fmt} for ${module}`, payload);
+  const endpoint = `${apiBase()}/api/v1/forms/workbench/export/${fmt}`;
+  console.log(`[Export] Endpoint: ${endpoint}`);
+  console.log(`[Export] Payload for ${module}:`, payload);
   let res;
   try {
-    res = await fetch(`${apiBase()}/api/v1/forms/workbench/export/${fmt}`, {
+    res = await fetch(endpoint, {
       method:"POST",
       headers:{"Content-Type":"application/json","Authorization":`Bearer ${S.token}`},
       body:JSON.stringify(payload)
@@ -5924,11 +6411,14 @@ async function downloadMainWorkbenchExport(module, fmt){
         const blockerMsgs = blockers.map(b => `Blocked: ${b.field_key || b.field} — ${b.reason || b.message}`);
         const simpleBlocked = (detail.blocked_fields || []).filter(f => !blockers.some(b => b.field_key === f || b.field === f)).map(f => `Blocked field: ${f}`);
         const warnings = (detail.warnings || []).map(w => `Warning: ${w}`);
-        message = detail.message || `Export blocked (${(detail.blocked_fields || []).join(", ") || "validation failed"})`;
+        const exactReasons = [...blockerMsgs, ...simpleBlocked].join("; ");
+        message = `${detail.message || "Export blocked"}${exactReasons ? `: ${exactReasons}` : ` (${(detail.blocked_fields || []).join(", ") || "validation failed"})`}`;
+        console.error(`[Export] Exact blocked reason: ${message}`, detail);
         updateMainExportReview(module, ["Export status: blocked", ...blockerMsgs, ...simpleBlocked, ...warnings]);
         toast(`Export blocked: ${message}`, "warn", 8000);
       } else {
         message = detail.message || detail.detail || JSON.stringify(detail);
+        if(res.status === 500) console.error(`[Export] Server response text: ${rawText}`);
         toast(`Export failed (${res.status}): ${message}`, "error", 8000);
       }
     } catch(_) {
@@ -5960,8 +6450,6 @@ async function exportMainWorkbenchJson(module){
 
 async function exportMainWorkbenchFile(module, fmt){
   try{
-    const validation = await validateMainWorkbenchForm(module);
-    if(!validation || !validation.export_allowed) return;
     const filename = await downloadMainWorkbenchExport(module, fmt);
     updateMainExportReview(module, [`Export status: complete`, `Last exported format: ${fmt}`, `Download status: downloaded`, `File: ${filename}`]);
     setMainWorkbenchStatus(module, `Exported ${filename}`, "success");
@@ -5970,7 +6458,7 @@ async function exportMainWorkbenchFile(module, fmt){
     const existing = MAIN_WORKBENCH_EXPORT_STATE[module] || [];
     updateMainExportReview(module, existing.concat([`Download status: failed`, `Error: ${err.message}`]));
     if(err.isBlocked) {
-      setMainWorkbenchStatus(module, `Export blocked`, "warn");
+      setMainWorkbenchStatus(module, `Export blocked: ${err.message}`, "warn");
       toast("Export blocked. See review panel.", "warn");
     } else {
       setMainWorkbenchStatus(module, `Export failed: ${err.message}`, "error");

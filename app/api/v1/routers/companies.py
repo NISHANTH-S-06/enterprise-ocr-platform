@@ -296,9 +296,10 @@ def _detected_identity(body: TrainingDatasetBestMatchRequest, key: str) -> str:
 def _score_training_dataset(
     dataset: TrainingDataset,
     body: TrainingDatasetBestMatchRequest,
-) -> tuple[int, str]:
+) -> tuple[int, str, str]:
+    """Return (score, reason, matched_identity)."""
     if _normalized_dataset_text(dataset.module) != _normalized_dataset_text(body.module):
-        return 0, "module_mismatch"
+        return 0, "module_mismatch", ""
     requested_doc = _normalized_dataset_text(body.document_type)
     dataset_doc = _normalized_dataset_text(dataset.document_type)
     doc_matches = bool(requested_doc and requested_doc == dataset_doc)
@@ -309,11 +310,22 @@ def _score_training_dataset(
     }
     exact = [name for name, (requested, stored) in identities.items()
              if requested and stored and _normalized_dataset_text(requested) == _normalized_dataset_text(stored)]
+    partial = [name for name, (requested, stored) in identities.items()
+               if requested and stored and not _normalized_dataset_text(requested) == _normalized_dataset_text(stored)
+               and _normalized_dataset_text(requested) in _normalized_dataset_text(stored)
+               or (stored and requested and _normalized_dataset_text(stored) in _normalized_dataset_text(requested))]
+    matched_identity = "_".join(exact) if exact else "_".join(partial) if partial else ""
     if doc_matches and exact:
-        return 100, f"exact_module_document_{'_'.join(exact)}"
+        return 100, f"exact_module_document_{'_'.join(exact)}", matched_identity
+    if doc_matches and partial:
+        return 85, f"partial_module_document_{'_'.join(partial)}", matched_identity
     if doc_matches:
-        return 60, "module_document_type"
-    return 30, "module_only"
+        return 70, "module_document_type", ""
+    if exact:
+        return 60, f"module_identity_{'_'.join(exact)}", matched_identity
+    if partial:
+        return 45, f"module_partial_identity_{'_'.join(partial)}", matched_identity
+    return 30, "module_only", ""
 
 
 @router.post("/templates/mappings/save", summary="Save OCR training mapping")
@@ -485,9 +497,24 @@ async def best_match_training_dataset(
         reverse=True,
     )
     if not ranked or ranked[0][0][0] <= 0:
-        return {"dataset": None, "match_score": 0, "match_reason": "no_dataset_found"}
-    (score, reason), dataset = ranked[0]
-    return {"dataset": _dataset_to_dict(dataset), "match_score": score, "match_reason": reason}
+        return {"dataset": None, "match_score": 0, "match_reason": "no_dataset_found", "matched_identity": "", "mapping_count": 0, "row_mapping_count": 0}
+    (score, reason, matched_identity), dataset = ranked[0]
+    mapping_count = len(dataset.mappings_json or [])
+    row_mapping_count = len(dataset.row_mappings_json or [])
+    response = {
+        "dataset": _dataset_to_dict(dataset),
+        "match_score": score,
+        "match_reason": reason,
+        "matched_identity": matched_identity,
+        "mapping_count": mapping_count,
+        "row_mapping_count": row_mapping_count,
+        "is_partial": score < 90,
+    }
+    if score < 60:
+        response["warning"] = "Low confidence dataset match. Manual review recommended."
+    elif reason == "module_only":
+        response["warning"] = "Dataset matched by module only. Mapping may be incomplete."
+    return response
 
 
 @router.get("/training-datasets/{dataset_id}")

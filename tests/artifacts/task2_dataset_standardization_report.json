@@ -1,0 +1,42 @@
+{
+  "status": "COMPLETED",
+  "task": "Dataset Mapping Standardization",
+  "highlights": {
+    "old_formats_supported": [
+      "canonical list schema {source_key, target_erp_name}",
+      "frontend save format {ocr_key, target_field}",
+      "label/target format",
+      "source_label/erp_field_name format",
+      "plain object map {\"ocr_key\": \"target_erp_name\"}",
+      "localStorage training format {\"target\": {\"label\": \"...\", \"confidence\": 0.9}}"
+    ],
+    "canonical_schema_sample": {
+      "source_key": "invoice_no",
+      "source_label": "Invoice No",
+      "normalized_source_key": "invoice_no",
+      "target_erp_name": "sales_order_no",
+      "canonical_name": "order_number",
+      "sample_value": "INV-2026-001",
+      "confidence": "0.95"
+    },
+    "best_match_scoring_examples": [
+      {"match": "exact_module_document_company_customer", "score": 100},
+      {"match": "module_document_type", "score": 70},
+      {"match": "module_only", "score": 30, "warning": "Dataset matched by module only"}
+    ],
+    "skipped_reason_samples": [
+      "source_key_not_found",
+      "target_field_not_found",
+      "empty_value"
+    ],
+    "remaining_risks": [
+      "Legacy datasets without canonical_name will use target_erp_name as fallback",
+      "UI quality panel depends on accurate backend match_reason reporting"
+    ]
+  },
+  "verification": {
+    "pytest": "tests/test_dataset_normalization.py passed 10/10",
+    "platform_tests": "tests/test_platform.py updated and passed for dataset matching",
+    "frontend": "renderMainAiFillDebug and downloadMainAiFillDebug updated with comprehensive dataset info"
+  }
+}
