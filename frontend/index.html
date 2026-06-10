@@ -666,19 +666,6 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
   grid-template-columns:repeat(9,minmax(116px,1fr));
   gap:8px;
 }
-[data-main-form-panel] .form-section:first-of-type .fg > div{
-  background:#0f172a;
-  border:1px solid #26324a;
-  border-radius:8px;
-  padding:8px;
-}
-[data-main-form-panel] .form-section:first-of-type input{
-  border:none;
-  padding:0;
-  min-height:22px;
-  background:transparent;
-  font-weight:700;
-}
 [data-main-form-panel] .form-section:nth-of-type(2) .fg-1{
   grid-column:span 1;
 }
@@ -4896,6 +4883,25 @@ function renderCompactReview(prefix, sections){
   });
 }
 function mainAiFields(){ return MAIN_AI_FILL.result ? MAIN_AI_FILL.result.fields || {} : {}; }
+function extractValueFromObject(obj) {
+  if (obj === null || obj === undefined) return "";
+  if (typeof obj === "string" || typeof obj === "number") return String(obj).trim();
+  if (typeof obj === "object") {
+    const valueKeys = ["value","text","raw_value","normalized_value","extracted_value"];
+    for (const key of valueKeys) {
+      if (obj[key] !== undefined && obj[key] !== null) {
+        const extracted = extractValueFromObject(obj[key]);
+        if (extracted && extracted !== "[object Object]") return extracted;
+      }
+    }
+    const firstKey = Object.keys(obj)[0];
+    if (firstKey && typeof obj[firstKey] === "object") {
+       return extractValueFromObject(obj[firstKey]);
+    }
+  }
+  return "";
+}
+
 function getOcrFieldValue(field){
   const meta = {value:"", confidence:null, status:"", source:""};
   if(field === null || field === undefined) return meta;
@@ -4904,15 +4910,7 @@ function getOcrFieldValue(field){
     return meta;
   }
   if(typeof field === "object"){
-    const valueKeys = ["value","text","raw_value","normalized_value","extracted_value"];
-    for(const key of valueKeys){
-      let val = field[key];
-      if(val !== null && typeof val === "object") val = val.value || val.text || val.raw_value || "";
-      if(val !== null && val !== undefined && String(val).trim() && String(val).trim() !== "[object Object]"){
-        meta.value = String(val).trim();
-        break;
-      }
-    }
+    meta.value = extractValueFromObject(field);
     meta.confidence = field.confidence ?? field.score ?? null;
     meta.status = field.status || "";
     meta.source = field.source || field.method || field.engine || "";
@@ -5871,13 +5869,20 @@ async function downloadMainWorkbenchExport(module, fmt){
   });
   if(!res.ok){
     let message = `${res.status}`;
+    let isBlocked = false;
     try{
       const error = await res.json();
       const detail = error.detail || error;
       message = detail.message || JSON.stringify(detail);
-      updateMainExportReview(module, ["Export status: blocked", ...(detail.blocked_fields || []).map(field => `Blocked field: ${field}`), ...(detail.warnings || []).map(w => `Warning: ${w}`)]);
+      if(detail.blocked) isBlocked = true;
+      const blockers = detail.blocker_reasons || [];
+      const blockerMsgs = blockers.map(b => `Blocked: ${b.field_key || b.field} - ${b.reason}`);
+      const simpleBlocked = (detail.blocked_fields || []).filter(f => !blockers.some(b => b.field_key === f || b.field === f)).map(f => `Blocked field: ${f}`);
+      updateMainExportReview(module, ["Export status: blocked", ...blockerMsgs, ...simpleBlocked, ...(detail.warnings || []).map(w => `Warning: ${w}`)]);
     }catch{ message += " - Export request failed"; }
-    throw new Error(message);
+    const err = new Error(message);
+    err.isBlocked = isBlocked;
+    throw err;
   }
   const blob = await res.blob();
   const dispo = res.headers.get("content-disposition") || "";
@@ -5908,8 +5913,13 @@ async function exportMainWorkbenchFile(module, fmt){
   }catch(err){
     const existing = MAIN_WORKBENCH_EXPORT_STATE[module] || [];
     updateMainExportReview(module, existing.concat([`Download status: failed`, `Error: ${err.message}`]));
-    setMainWorkbenchStatus(module, `Export failed: ${err.message}`, "error");
-    toast("Export failed: " + err.message, "error");
+    if(err.isBlocked) {
+      setMainWorkbenchStatus(module, `Export blocked`, "warn");
+      toast("Export blocked. See review panel.", "warn");
+    } else {
+      setMainWorkbenchStatus(module, `Export failed: ${err.message}`, "error");
+      toast("Export failed: " + err.message, "error");
+    }
   }
 }
 

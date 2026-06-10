@@ -100,7 +100,7 @@ def create_app() -> FastAPI:
         return response
 
     app.add_middleware(GZipMiddleware, minimum_size=1000)
-    app.add_middleware(CORSMiddleware, allow_origins=_cors_origins(), allow_methods=["*"], allow_headers=["*"])
+    app.add_middleware(CORSMiddleware, allow_origins=_cors_origins(), allow_methods=["*"], allow_headers=["*"], expose_headers=["Content-Disposition"])
 
     @app.exception_handler(RequestValidationError)
     async def _val(request: Request, exc: RequestValidationError):
