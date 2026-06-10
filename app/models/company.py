@@ -1,6 +1,6 @@
 """Company master data models — Phase 1.
 
-Tables: companies, company_templates, field_mappings,
+Tables: companies, company_templates, field_mappings, training_datasets,
         correction_memory, validation_results, document_quality_reports
 """
 from __future__ import annotations
@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
     BigInteger, Boolean, CheckConstraint, Float, ForeignKey,
-    Index, Integer, String, Text, UniqueConstraint,
+    Float, Index, Integer, JSON, String, Text, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -113,6 +113,80 @@ class FieldMapping(Base, TimestampMixin):
 
     def __repr__(self) -> str:
         return f"<FieldMapping field={self.field_name!r} method={self.method!r}>"
+
+
+# ---------------------------------------------------------------------------
+# OCR Training Dataset
+# ---------------------------------------------------------------------------
+
+class TrainingDataset(Base, TimestampMixin):
+    __tablename__ = "training_datasets"
+    __table_args__ = (
+        Index("ix_training_datasets_org_id", "org_id"),
+        Index("ix_training_datasets_module", "module"),
+        Index("ix_training_datasets_document_type", "document_type"),
+        Index("ix_training_datasets_active", "is_active"),
+        UniqueConstraint(
+            "org_id", "dataset_name", "module", "document_type",
+            name="uq_training_datasets_scope_name",
+        ),
+        CheckConstraint(
+            "module IN ('sales_order','purchase_order')",
+            name="ck_training_datasets_module",
+        ),
+    )
+
+    id:                Mapped[str]           = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    org_id:            Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    dataset_name:      Mapped[str]           = mapped_column(String(255), nullable=False)
+    module:            Mapped[str]           = mapped_column(String(50), nullable=False)
+    document_type:     Mapped[str]           = mapped_column(String(100), nullable=False)
+    company_name:      Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    vendor_name:       Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    customer_name:     Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_active:         Mapped[bool]          = mapped_column(Boolean, nullable=False, default=True)
+    version:           Mapped[int]           = mapped_column(Integer, nullable=False, default=1)
+    mappings_json:     Mapped[list]          = mapped_column(JSONB, nullable=False, default=list)
+    row_mappings_json: Mapped[list]          = mapped_column(JSONB, nullable=False, default=list)
+    metadata_json:     Mapped[dict]          = mapped_column(JSONB, nullable=False, default=dict)
+
+    def __repr__(self) -> str:
+        return f"<TrainingDataset name={self.dataset_name!r} module={self.module!r} version={self.version}>"
+
+
+# ---------------------------------------------------------------------------
+# ERP Master Mapping
+# ---------------------------------------------------------------------------
+
+class ERPMasterMapping(Base, TimestampMixin):
+    __tablename__ = "erp_master_mappings"
+    __table_args__ = (
+        Index("ix_erp_master_mappings_org_id", "org_id"),
+        Index("ix_erp_master_mappings_lookup", "master_type", "normalized_text", "module"),
+        Index("ix_erp_master_mappings_active", "is_active"),
+        UniqueConstraint("org_id", "master_type", "normalized_text", "module", "company_name", name="uq_erp_master_mapping_scope"),
+        CheckConstraint(
+            "master_type IN ('customer','supplier','product','tax_group','customer_site','supplier_site')",
+            name="ck_erp_master_mappings_type",
+        ),
+    )
+
+    id:              Mapped[uuid.UUID]     = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    org_id:          Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    master_type:     Mapped[str]           = mapped_column(String(32), nullable=False)
+    detected_text:   Mapped[str]           = mapped_column(String(500), nullable=False)
+    normalized_text: Mapped[str]           = mapped_column(String(500), nullable=False)
+    erp_id:          Mapped[str]           = mapped_column(String(255), nullable=False)
+    erp_code:        Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    erp_name:        Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    module:          Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    company_name:    Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    vendor_name:     Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    customer_name:   Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_active:       Mapped[bool]          = mapped_column(Boolean, nullable=False, default=True)
+    confidence:      Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    source:          Mapped[str]           = mapped_column(String(32), nullable=False, default="manual")
+    metadata_json:   Mapped[dict]          = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
 
 
 # ---------------------------------------------------------------------------

@@ -265,10 +265,11 @@ def run_validation(
     # Required fields per doc type
     req_map: dict[str, list[str]] = {
         "sales":              ["invoice_no", "invoice_date", "grand_total"],
+        "sales_order":        ["sales_order_date", "customer_id", "bill_to_address", "ship_to_address", "delivery_date", "order_total"],
         "sales_invoice":      ["invoice_no", "invoice_date", "grand_total"],
         "export_invoice":     ["invoice_no", "invoice_date", "grand_total", "iec_code"],
         "commercial_invoice": ["invoice_no", "invoice_date", "grand_total"],
-        "purchase_order":     ["po_number", "po_date"],
+        "purchase_order":     ["po_number", "po_date", "supplier_id", "delivery_date", "po_grand_total"],
         "grn":                ["grn_number"],
         "general":            [],
     }

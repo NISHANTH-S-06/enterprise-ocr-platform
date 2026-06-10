@@ -1,0 +1,212 @@
+[
+  {
+    "document_filename": "salesinvoice.pdf",
+    "document_type": "EXPORT_INVOICE",
+    "before_row_count": 2,
+    "after_row_count": 2,
+    "before_blocked_fields": [
+      "invoice_number",
+      "invoice_date",
+      "company_name"
+    ],
+    "after_blocked_fields": [
+      "invoice_number"
+    ],
+    "blocker_classification": [
+      {
+        "field": "company_name",
+        "classification": "mapped_but_not_canonical",
+        "still_blocking": false
+      },
+      {
+        "field": "invoice_date",
+        "classification": "mapped_but_not_canonical",
+        "still_blocking": false
+      },
+      {
+        "field": "invoice_number",
+        "classification": "truly_absent_from_ocr",
+        "still_blocking": true
+      }
+    ],
+    "fields_still_truly_missing": [],
+    "erp_master_blockers": [],
+    "export_allowed_after_canonical": false,
+    "needs_review_reasons": [
+      "invoice_number"
+    ],
+    "notes": [
+      "Invoice No label is present, but no invoice-number value exists in the PDF text layer; blocker retained."
+    ]
+  },
+  {
+    "document_filename": "Glsprint.pdf",
+    "document_type": "COMMERCIAL_INVOICE",
+    "before_row_count": 0,
+    "after_row_count": 10,
+    "before_blocked_fields": [
+      "invoice_number",
+      "company_name",
+      "grand_total"
+    ],
+    "after_blocked_fields": [],
+    "blocker_classification": [
+      {
+        "field": "company_name",
+        "classification": "mapped_but_not_canonical",
+        "still_blocking": false
+      },
+      {
+        "field": "grand_total",
+        "classification": "mapped_but_not_canonical",
+        "still_blocking": false
+      },
+      {
+        "field": "invoice_number",
+        "classification": "mapped_but_not_canonical",
+        "still_blocking": false
+      }
+    ],
+    "fields_still_truly_missing": [
+      "export_category",
+      "taxation",
+      "total_cartons",
+      "currency",
+      "igst_percent",
+      "igst_amount",
+      "exchange_rate"
+    ],
+    "erp_master_blockers": [],
+    "export_allowed_after_canonical": true,
+    "needs_review_reasons": [
+      "delivery_name",
+      "delivery_address",
+      "export_category",
+      "taxation",
+      "total_cartons",
+      "currency",
+      "igst_percent",
+      "igst_amount",
+      "exchange_rate"
+    ],
+    "notes": [
+      "Recovered 10 validated vertical rows and paired-column invoice number/date; footer totals and repeated copy rows are excluded.",
+      "Mapper-level canonical blockers cleared; ERP master IDs are still enforced by workbench validation when visible names lack selected IDs."
+    ]
+  },
+  {
+    "document_filename": "POPRINT.pdf",
+    "document_type": "PURCHASE_ORDER",
+    "before_row_count": 35,
+    "after_row_count": 35,
+    "before_blocked_fields": [
+      "invoice_number"
+    ],
+    "after_blocked_fields": [],
+    "blocker_classification": [
+      {
+        "field": "invoice_number",
+        "classification": "mapped_but_not_canonical",
+        "still_blocking": false
+      }
+    ],
+    "fields_still_truly_missing": [
+      "tax_amount",
+      "eway_bill_number",
+      "lr_number",
+      "billing_address",
+      "discount",
+      "subtotal",
+      "shipping_address",
+      "invoice_number",
+      "pan_number",
+      "bill_number",
+      "vehicle_number",
+      "unit_price",
+      "email",
+      "due_date"
+    ],
+    "erp_master_blockers": [],
+    "export_allowed_after_canonical": true,
+    "needs_review_reasons": [
+      "tax_amount",
+      "eway_bill_number",
+      "lr_number",
+      "billing_address",
+      "discount",
+      "subtotal",
+      "shipping_address",
+      "invoice_number",
+      "pan_number",
+      "bill_number",
+      "notes",
+      "vehicle_number",
+      "unit_price",
+      "email",
+      "due_date"
+    ],
+    "notes": [
+      "Mapper-level canonical blockers cleared; ERP master IDs are still enforced by workbench validation when visible names lack selected IDs."
+    ]
+  },
+  {
+    "document_filename": "GRN.pdf",
+    "document_type": "GRN",
+    "before_row_count": 4,
+    "after_row_count": 4,
+    "before_blocked_fields": [
+      "invoice_number"
+    ],
+    "after_blocked_fields": [],
+    "blocker_classification": [
+      {
+        "field": "invoice_number",
+        "classification": "invalid_false_positive_removed",
+        "still_blocking": false
+      }
+    ],
+    "fields_still_truly_missing": [
+      "phone",
+      "tax_amount",
+      "eway_bill_number",
+      "lr_number",
+      "customer_name",
+      "transport_name",
+      "gst_number",
+      "billing_address",
+      "discount",
+      "payment_status",
+      "shipping_address",
+      "pan_number",
+      "bill_number",
+      "vehicle_number",
+      "email",
+      "due_date"
+    ],
+    "erp_master_blockers": [],
+    "export_allowed_after_canonical": true,
+    "needs_review_reasons": [
+      "phone",
+      "tax_amount",
+      "eway_bill_number",
+      "lr_number",
+      "customer_name",
+      "transport_name",
+      "gst_number",
+      "billing_address",
+      "discount",
+      "payment_status",
+      "shipping_address",
+      "invoice_number",
+      "pan_number",
+      "bill_number",
+      "vehicle_number",
+      "email",
+      "due_date"
+    ],
+    "notes": [
+      "Four existing GRN detections are now exposed as structured item_rows; invalid Invoice Date aliases remain rejected.",
+      "Mapper-level canonical blockers cleared; ERP master IDs are still enforced by workbench validation when visible names lack selected IDs."
+    ]
+  }
+]

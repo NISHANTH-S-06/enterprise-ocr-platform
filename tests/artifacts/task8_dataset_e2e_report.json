@@ -1,0 +1,37 @@
+{
+  "task": "Task 8 - Training Dataset End-to-End Apply Verification",
+  "generated_at": "2026-06-10",
+  "status": "passed",
+  "dataset_created": true,
+  "best_match_selected": true,
+  "mappings_applied_count": 1,
+  "row_mappings_applied_count": 1,
+  "fallback_mappings_count": 3,
+  "export_dataset_metadata_present": true,
+  "workflow": {
+    "training_save_includes_header_mappings": true,
+    "training_save_includes_row_mapping_definitions": true,
+    "best_match_returns_mapping_sets": true,
+    "user_selected_dataset_retained": true,
+    "dataset_header_priority_before_generic": true,
+    "dataset_row_priority_before_generic": true,
+    "raw_ocr_objects_unwrapped_before_validation": true,
+    "validate_save_export_receive_dataset_id": true,
+    "validate_save_export_receive_dataset_metadata": true,
+    "local_storage_fallback_present": true,
+    "local_storage_fallback_visible": true
+  },
+  "verification": {
+    "javascript_parse": "PASS - 1 script",
+    "duplicate_ids": "PASS - 0 duplicates across 486 IDs",
+    "compile_app": "PASS",
+    "compile_alembic": "PASS",
+    "pytest": "PASS - 219 passed",
+    "e2e": "PASS - 4/4 documents"
+  },
+  "notes": [
+    "Dataset row mappings are stored as source-to-target definitions rather than copied OCR row values.",
+    "Dataset mappings override generic values only when the mapped OCR source contains a real value.",
+    "ERP master IDs remain subject to existing validation and are not synthesized."
+  ]
+}

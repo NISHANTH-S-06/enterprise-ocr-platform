@@ -9,7 +9,9 @@ from app.models.fill_job import FormFillJob
 from app.models.company import (
     Company, CompanyTemplate, FieldMapping,
     CorrectionMemory, ValidationResult, DocumentQualityReport,
+    TrainingDataset, ERPMasterMapping,
 )
+from app.models.workbench import WorkbenchDraft
 
 __all__ = [
     "Organisation", "User", "UserSession", "ApiKey",
@@ -22,4 +24,6 @@ __all__ = [
     "FormFillJob",
     "Company", "CompanyTemplate", "FieldMapping",
     "CorrectionMemory", "ValidationResult", "DocumentQualityReport",
+    "TrainingDataset", "ERPMasterMapping",
+    "WorkbenchDraft",
 ]

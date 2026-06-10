@@ -175,9 +175,11 @@ def validate_mapped_fields(
     # Required fields by doc_type
     required_map = {
         "sales":    ["invoice_number", "consignee_name", "grand_total"],
+        "sales_order": ["sales_order_date", "customer_id", "bill_to_address", "ship_to_address", "delivery_date", "order_total"],
         "general":  [],
         "grn":      ["grn_number"],
         "purchase": ["po_number"],
+        "purchase_order": ["po_number", "po_date", "supplier_id", "delivery_date", "po_grand_total"],
     }
     required = required_map.get(doc_type, [])
     for rf in required:

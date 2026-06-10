@@ -409,11 +409,7 @@ def _extract_pdf_text(doc: Any, max_pages: int) -> str:
         except Exception as exc:
             logger.warning(f"PDF page {page.number} text extraction error (skipping): {exc}")
             
-    valid_chunks = _original_only_chunks(chunks)
-    if not valid_chunks and chunks:
-        valid_chunks = [chunks[0]]
-        
-    return "\n\n".join(valid_chunks).strip()
+    return "\n\n".join(chunks).strip()
 
 
 async def ocr_pdf_bytes(data: bytes, engine: Optional[OCREngine] = None) -> Tuple[str, float, int, Dict[str, int]]:
@@ -438,7 +434,7 @@ async def ocr_pdf_bytes(data: bytes, engine: Optional[OCREngine] = None) -> Tupl
     if doc.page_count == 0:
         raise ValueError("PDF has no pages.")
 
-    max_pages = max(1, int(getattr(settings, "MAX_PDF_PAGES", 2) or 2))
+    max_pages = max(1, settings.MAX_PDF_PAGES)
     t_text = time.monotonic()
     extracted_text = _extract_pdf_text(doc, max_pages)
     timings["pdf_text_extraction_ms"] = int((time.monotonic() - t_text) * 1000)

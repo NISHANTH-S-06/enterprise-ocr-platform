@@ -1,0 +1,174 @@
+﻿{
+    "task":  "Task 10 - Final Production Workflow QA and Release Readiness Fix",
+    "generated_at":  "2026-06-10T11:10:34+05:30",
+    "status":  "pass_with_browser_qa_limitation",
+    "server_status":  {
+                          "backend_started":  true,
+                          "backend_url":  "http://127.0.0.1:8000",
+                          "frontend_started":  true,
+                          "frontend_url":  "http://127.0.0.1:3000",
+                          "health_status":  200,
+                          "ready_status":  200,
+                          "docs_status":  200,
+                          "post_fix_log_errors":  [
+
+                                                  ]
+                      },
+    "ui_status":  {
+                      "frontend_http_status":  200,
+                      "javascript_parse":  "pass",
+                      "script_count":  1,
+                      "html_id_count":  486,
+                      "duplicate_id_count":  0,
+                      "main_workbench_present":  true,
+                      "legacy_panels_hidden":  true,
+                      "review_sections_collapsed_by_default":  true,
+                      "ocr_training_source_paths_present":  true,
+                      "spreadsheet_unsupported_warning_present":  true,
+                      "friendly_backend_error_present":  true,
+                      "clear_ai_values_uses_filled_field_tracking":  true,
+                      "live_browser_console_and_click_test":  "not_run_browser_connection_unavailable"
+                  },
+    "workflow":  {
+                     "sales":  {
+                                   "document":  "salesinvoice.pdf",
+                                   "document_type":  "sales",
+                                   "detected_field_count":  280,
+                                   "item_row_count":  2,
+                                   "dataset_created":  true,
+                                   "best_dataset_selected":  true,
+                                   "dataset_match_score":  100,
+                                   "dataset_match_reason":  "exact match",
+                                   "master_mappings_resolved":  3,
+                                   "remaining_master_mappings":  [
+                                                                     "customer_site_id"
+                                                                 ],
+                                   "validation_export_allowed":  false,
+                                   "validation_blockers":  [
+                                                               "delivery_date"
+                                                           ],
+                                   "blocker_classification":  "truly_absent_from_ocr",
+                                   "draft_saved":  true,
+                                   "export_behavior":  "correctly blocked for missing required delivery_date"
+                               },
+                     "purchase":  {
+                                      "document":  "POPRINT.pdf",
+                                      "document_type":  "purchase_order",
+                                      "detected_field_count":  218,
+                                      "item_row_count":  35,
+                                      "dataset_created":  true,
+                                      "best_dataset_selected":  true,
+                                      "dataset_match_score":  100,
+                                      "dataset_match_reason":  "exact match",
+                                      "master_mappings_resolved":  2,
+                                      "remaining_master_mappings":  [
+
+                                                                    ],
+                                      "validation_export_allowed":  true,
+                                      "draft_saved":  true,
+                                      "exports_completed":  [
+                                                                "json",
+                                                                "excel",
+                                                                "pdf"
+                                                            ]
+                                  }
+                 },
+    "dataset_flow":  {
+                         "save_to_database":  "pass",
+                         "load":  "pass",
+                         "best_match":  "pass",
+                         "header_mapping_order":  "pass",
+                         "row_mapping_order":  "pass",
+                         "test_datasets_deactivated":  true
+                     },
+    "master_mapping_flow":  {
+                                "bulk_save":  "pass",
+                                "apply_saved_mappings":  "pass",
+                                "resolved_ids_update_payload":  "pass",
+                                "unresolved_ids_block_export":  "pass",
+                                "test_mappings_deactivated":  true
+                            },
+    "exports_tested":  {
+                           "json":  {
+                                        "status":  "pass",
+                                        "bytes":  2968,
+                                        "valid_json":  true,
+                                        "module":  "purchase_order",
+                                        "header_present":  true,
+                                        "line_count":  1,
+                                        "dataset_metadata_present":  true,
+                                        "validation_present":  true,
+                                        "master_resolution_metadata_present":  true
+                                    },
+                           "excel":  {
+                                         "status":  "pass",
+                                         "bytes":  7151,
+                                         "opened_with_openpyxl":  true,
+                                         "sheets":  [
+                                                        "Header",
+                                                        "Lines",
+                                                        "Validation"
+                                                    ]
+                                     },
+                           "pdf":  {
+                                       "status":  "pass",
+                                       "bytes":  3945,
+                                       "page_count":  2,
+                                       "header_lines_validation_dataset_present":  true,
+                                       "long_line_render_smoke":  "pass"
+                                   }
+                       },
+    "negative_cases":  {
+                           "empty_required_fields_block_export":  "pass",
+                           "missing_master_ids_block_export":  "pass",
+                           "missing_master_reason_code":  "ERP_master_id_missing",
+                           "save_draft_with_unresolved_export_blockers":  "pass",
+                           "spreadsheet_unsupported_warning_source_check":  "pass",
+                           "backend_failure_friendly_message_source_check":  "pass",
+                           "clear_ai_values_tracking_source_check":  "pass"
+                       },
+    "documents_tested":  [
+                             "salesinvoice.pdf",
+                             "Glsprint.pdf",
+                             "POPRINT.pdf",
+                             "GRN.pdf"
+                         ],
+    "bugs_found":  [
+                       {
+                           "id":  "training_dataset_postgresql_uuid_varchar_mismatch",
+                           "severity":  "release_blocker",
+                           "symptom":  "POST /api/v1/companies/training-datasets returned HTTP 500 on PostgreSQL",
+                           "root_cause":  "Migration 0005 created training_datasets.id as VARCHAR(36), while the SQLAlchemy model bound UUID values during refresh and lookup"
+                       }
+                   ],
+    "bugs_fixed":  [
+                       {
+                           "id":  "training_dataset_postgresql_uuid_varchar_mismatch",
+                           "files":  [
+                                         "app/models/company.py",
+                                         "app/api/v1/routers/companies.py",
+                                         "tests/test_platform.py"
+                                     ],
+                           "fix":  "Aligned TrainingDataset.id with VARCHAR(36), generated string UUIDs, and normalized route lookup IDs to strings",
+                           "production_database_retest":  "create 201, load 200, best match 200, deactivate 200"
+                       }
+                   ],
+    "verification":  {
+                         "compile_app":  "pass",
+                         "compile_alembic":  "pass",
+                         "alembic_current":  "0006 (head)",
+                         "pytest":  "232 passed",
+                         "e2e":  "4/4 passed",
+                         "e2e_document_fields":  {
+                                                     "salesinvoice.pdf":  278,
+                                                     "Glsprint.pdf":  330,
+                                                     "POPRINT.pdf":  218,
+                                                     "GRN.pdf":  99
+                                                 }
+                     },
+    "remaining_risks":  [
+                            "Live browser console and click verification could not run because neither the in-app browser nor Chrome connector was available in this session.",
+                            "salesinvoice.pdf is not export-ready without a real delivery_date because that required value is absent from its OCR text.",
+                            "OCR startup logs report unavailable optional native OCR engines; searchable PDF text extraction and all four E2E documents still passed."
+                        ]
+}

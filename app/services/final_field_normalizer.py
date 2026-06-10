@@ -61,6 +61,8 @@ ALIAS_MAP = {
     "shipping_address": "consignee_address",
     "address": "buyer_address",
     "igst_rate": "igst_percentage",
+    "grn_no": "grn_number",
+    "grn_date": "grn_date",
 }
 
 DROP_FROM_CANONICAL = {
@@ -141,6 +143,8 @@ CANONICAL_TARGETS = {
     "ifsc_code",
     "document_type",
     "line_item_count",
+    "grn_number",
+    "grn_date",
 }
 
 INVALID_PLACEHOLDERS = {
@@ -170,7 +174,7 @@ CRITICAL_FIELDS = {
 }
 
 CORE_REQUIRED_FIELDS = {"invoice_number", "invoice_date", "company_name"}
-BLOCKING_STATUSES = {"NEED_REVIEW", "MISSING", "VALIDATION_ERROR", "MANUAL_REQUIRED"}
+BLOCKING_STATUSES = {"MISSING", "VALIDATION_ERROR", "MANUAL_REQUIRED"}
 STATUS_RANK = {
     "AUTO_FILLED": 4,
     "NEED_REVIEW": 3,
@@ -194,6 +198,8 @@ def _canonical_name(field: dict[str, Any]) -> str:
 
 
 def _clean_value(value: Any) -> str:
+    while isinstance(value, dict):
+        value = value.get("value", "")
     return str(value or "").strip()
 
 
@@ -245,7 +251,8 @@ def _is_better_candidate(candidate: dict[str, Any], current: dict[str, Any] | No
     return _confidence(candidate.get("confidence")) > _confidence(current.get("confidence"))
 
 
-def _missing_field(name: str) -> dict[str, Any]:
+def _missing_field(name: str, required_fields: set[str] | None = None) -> dict[str, Any]:
+    required_fields = required_fields or CORE_REQUIRED_FIELDS
     return {
         "field_name": name,
         "value": "",
@@ -254,7 +261,7 @@ def _missing_field(name: str) -> dict[str, Any]:
         "method": "final_normalizer",
         "source": "final_normalizer",
         "evidence": "",
-        "is_critical": name in CRITICAL_FIELDS,
+        "is_critical": name in required_fields,
         "validation_message": f"Required field missing: {name}",
     }
 
@@ -268,7 +275,7 @@ def _block_reason(field: dict[str, Any]) -> str:
     return f"{name} is {status}"
 
 
-def build_final_ocr_decision(p2_fields: list[dict]) -> dict:
+def build_final_ocr_decision(p2_fields: list[dict], document_type: str | None = None) -> dict:
     """Build the final canonical OCR decision from Phase 2 field rows."""
     canonical_fields: dict[str, dict[str, Any]] = {}
 
@@ -282,17 +289,31 @@ def build_final_ocr_decision(p2_fields: list[dict]) -> dict:
         if _is_better_candidate(normalized, canonical_fields.get(canonical_name)):
             canonical_fields[canonical_name] = normalized
 
-    for required_name in CORE_REQUIRED_FIELDS:
-        canonical_fields.setdefault(required_name, _missing_field(required_name))
+    detected_type = _clean_value(document_type or canonical_fields.get("document_type", {}).get("value")).lower()
+    if detected_type in {"purchase_order", "po", "purchase"}:
+        required_fields = {"purchase_order_number", "company_name"}
+        total_required = False
+    elif detected_type in {"grn", "goods_receipt", "goods_receipt_note"}:
+        required_fields = {"grn_number"}
+        total_required = False
+    else:
+        required_fields = set(CORE_REQUIRED_FIELDS)
+        total_required = detected_type in {
+            "sales", "invoice", "tax_invoice", "export_invoice", "commercial_invoice"
+        } or not detected_type
+
+    for required_name in required_fields:
+        canonical_fields.setdefault(required_name, _missing_field(required_name, required_fields))
 
     has_grand_total = bool(_clean_value(canonical_fields.get("grand_total", {}).get("value")))
     has_total_amount = bool(_clean_value(canonical_fields.get("total_amount", {}).get("value")))
-    if not has_grand_total and not has_total_amount:
-        canonical_fields.setdefault("grand_total", _missing_field("grand_total"))
+    if total_required and not has_grand_total and not has_total_amount:
+        canonical_fields.setdefault("grand_total", _missing_field("grand_total", required_fields | {"grand_total"}))
 
     review_fields: list[str] = []
     blocked_fields: list[str] = []
     export_block_reasons: list[str] = []
+    blocker_classification: list[dict[str, str]] = []
 
     counts = {
         "canonical_auto_filled_count": 0,
@@ -315,13 +336,24 @@ def build_final_ocr_decision(p2_fields: list[dict]) -> dict:
             counts["canonical_validation_error_count"] += 1
             review_fields.append(name)
 
-        if name in CRITICAL_FIELDS and status in BLOCKING_STATUSES:
+        if name in required_fields and status in BLOCKING_STATUSES:
             blocked_fields.append(name)
-            export_block_reasons.append(_block_reason(field))
+            message = _block_reason(field)
+            export_block_reasons.append(message)
+            blocker_classification.append({
+                "field": name,
+                "reason_code": "canonical_but_validation_blocked" if status == "VALIDATION_ERROR" else "truly_absent_from_ocr",
+                "message": message,
+            })
 
-    if not has_grand_total and not has_total_amount and "grand_total" not in blocked_fields:
+    if total_required and not has_grand_total and not has_total_amount and "grand_total" not in blocked_fields:
         blocked_fields.append("grand_total")
         export_block_reasons.append("grand_total/total_amount is MISSING")
+        blocker_classification.append({
+            "field": "grand_total",
+            "reason_code": "truly_absent_from_ocr",
+            "message": "grand_total/total_amount is MISSING",
+        })
 
     return {
         "canonical_fields": canonical_fields,
@@ -329,5 +361,6 @@ def build_final_ocr_decision(p2_fields: list[dict]) -> dict:
         "blocked_fields": blocked_fields,
         "export_allowed": not blocked_fields,
         "export_block_reasons": export_block_reasons,
+        "blocker_classification": blocker_classification,
         **counts,
     }

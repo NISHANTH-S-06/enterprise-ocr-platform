@@ -1481,6 +1481,94 @@ class TestFieldSynonymDetection:
         fields = self._extract("Invoice: INV-X\nDated: 10-05-2024")
         assert fields.get("invoice_date") == "10-05-2024"
 
+    def test_invoice_number_rejects_value_label(self):
+        fields = self._extract("Invoice No:\nValue")
+        assert fields.get("invoice_number") not in {"Value", "value"}
+
+    def test_invoice_number_rejects_currency_tokens(self):
+        for currency in ("EUR", "USD", "INR", "GBP", "AED"):
+            fields = self._extract(f"Invoice No:\n{currency}")
+            assert fields.get("invoice_number") != currency
+
+    def test_invoice_number_rejects_parenthesized_currency_tokens(self):
+        for currency in ("EUR", "USD", "INR", "GBP"):
+            fields = self._extract(f"Inv Value\n({currency})")
+            assert fields.get("invoice_number") != f"({currency})"
+
+    def test_invoice_alias_cannot_reintroduce_currency_token(self):
+        from app.services.company_form_mapper import normalize_mapped_fields
+
+        mapped = normalize_mapped_fields({"bill_number": {"value": "EUR", "confidence": 0.9}})
+
+        assert not mapped.get("invoice_number", {}).get("value")
+
+    def test_invoice_date_rejects_invoice_date_label(self):
+        fields = self._extract("Invoice Date:\nInvoice Date")
+        assert fields.get("invoice_date") != "Invoice Date"
+
+    def test_invoice_and_po_numbers_keep_document_punctuation(self):
+        fields = self._extract(
+            "Invoice No: SPR023/26-27\nPO No: U2/2026-27/MRP-D_021"
+        )
+        assert fields.get("invoice_number") == "SPR023/26-27"
+        assert fields.get("purchase_order_number") == "U2/2026-27/MRP-D_021"
+
+    def test_multiple_buyer_order_numbers_emit_exact_plural_key(self):
+        fields = self._extract("Buyer's Order No: 62073736, 62080057, 62075113")
+        assert fields.get("buyer_order_nos") == "62073736, 62080057, 62075113"
+        assert fields.get("buyer_order_no") == "62073736"
+
+    def test_gstin_uin_maps_to_gst_number(self):
+        fields = self._extract("GSTIN/UIN: 33AAXFK0245J1Z4")
+        assert fields.get("gst_number") == "33AAXFK0245J1Z4"
+
+    def test_amount_chargeable_in_words_maps_to_amount_in_words(self):
+        fields = self._extract(
+            "Amount Chargeable (in words): INR Two Lakh Three Thousand Only"
+        )
+        assert fields.get("amount_in_words") == "INR Two Lakh Three Thousand Only"
+
+    def test_total_quantity_amount_summary_maps_amount_to_grand_total(self):
+        fields = self._extract("Total\n6316\n91842.14")
+        assert fields.get("grand_total") == "91842.14"
+
+    def test_unicode_buyers_order_no_maps_to_buyer_order_no(self):
+        fields = self._extract("Buyer’s Order No.: 62073736")
+        assert fields.get("buyer_order_no") == "62073736"
+
+    def test_goods_to_be_despatched_maps_delivery_name_and_address(self):
+        fields = self._extract(
+            "GOODS TO BE DESPATCHED TO:\n"
+            "GOOD LEATHER SHOES PRIVATE LIMITED\n"
+            "No. 10 Industrial Estate, Chennai 600123"
+        )
+        assert fields.get("delivery_name") == "GOOD LEATHER SHOES PRIVATE LIMITED"
+        assert fields.get("delivery_address") == "No. 10 Industrial Estate, Chennai 600123"
+
+    def test_gr_wt_maps_to_gross_weight(self):
+        fields = self._extract("GR. WT.\n125.50 KG")
+        assert fields.get("gross_weight") == "125.50 KG"
+
+    def test_nt_wt_maps_to_net_weight(self):
+        fields = self._extract("NT. WT.\n120.00 KG")
+        assert fields.get("net_weight") == "120.00 KG"
+
+    def test_ports_map_to_loading_and_discharge(self):
+        fields = self._extract(
+            "Port of Loading\nCHENNAI\nPort of Discharge\nHAMBURG"
+        )
+        assert fields.get("port_of_loading") == "CHENNAI"
+        assert fields.get("port_of_discharge") == "HAMBURG"
+
+    def test_gst_supplier_and_gstin_uin_aliases_normalize_to_gst_number(self):
+        from app.services.company_form_mapper import normalize_mapped_fields
+
+        for alias in ("gst_supplier", "gstin_uin"):
+            mapped = normalize_mapped_fields({
+                alias: {"value": "33AAXFK0245J1Z4", "confidence": 0.9}
+            })
+            assert mapped["gst_number"]["value"] == "33AAXFK0245J1Z4"
+
     def test_bill_to_maps_to_customer_name(self):
         fields = self._extract("Invoice No: INV-1\nBill To: Acme Corp Ltd")
         assert "Acme Corp" in (fields.get("customer_name") or fields.get("buyer_name") or "")
@@ -2026,6 +2114,89 @@ class TestFrontendSuspiciousSalesValueLogic:
             assert is_suspicious_sales_value(val), f"Should reject: {val}"
 
 class TestBackendExtractionFixes:
+    def test_dynamic_correction_memory_applies_on_exact_old_value_match(self):
+        from types import SimpleNamespace
+        from app.services.memory_apply_engine import apply_memory_to_canonical_fields
+
+        result = apply_memory_to_canonical_fields(
+            {
+                "invoice_number": {
+                    "field_name": "invoice_number",
+                    "value": "(EUR)",
+                    "confidence": 0.9,
+                    "status": "AUTO_FILLED",
+                }
+            },
+            [SimpleNamespace(
+                field_name="invoice_number",
+                old_value="(EUR)",
+                correct_value="SPR023/26-27",
+                created_at=None,
+            )],
+        )
+
+        assert result["memory_applied_fields"] == ["invoice_number"]
+        assert result["memory_suggestion_fields"] == []
+        assert result["canonical_fields"]["invoice_number"]["value"] == "SPR023/26-27"
+        assert result["canonical_fields"]["invoice_number"]["source"] == "correction_memory"
+
+    def test_dynamic_correction_memory_remains_suggestion_when_value_changes(self):
+        from types import SimpleNamespace
+        from app.services.memory_apply_engine import apply_memory_to_canonical_fields
+
+        result = apply_memory_to_canonical_fields(
+            {"invoice_number": {"value": "INV-NEW", "confidence": 0.9, "status": "AUTO_FILLED"}},
+            [SimpleNamespace(
+                field_name="invoice_number",
+                old_value="(EUR)",
+                correct_value="SPR023/26-27",
+                created_at=None,
+            )],
+        )
+
+        assert result["memory_applied_fields"] == []
+        assert result["memory_suggestion_fields"] == ["invoice_number"]
+
+    def test_dynamic_correction_memory_applies_when_field_remains_missing(self):
+        from types import SimpleNamespace
+        from app.services.memory_apply_engine import apply_memory_to_canonical_fields
+
+        result = apply_memory_to_canonical_fields(
+            {"invoice_number": {"value": "", "confidence": 0.0, "status": "MISSING"}},
+            [SimpleNamespace(
+                field_name="invoice_number",
+                old_value=None,
+                correct_value="SPR023/26-27",
+                created_at=None,
+            )],
+        )
+
+        assert result["memory_applied_fields"] == ["invoice_number"]
+        assert result["canonical_fields"]["invoice_number"]["value"] == "SPR023/26-27"
+
+    def test_pdf_text_extraction_preserves_all_copy_pages(self):
+        from app.services.ocr_service import _extract_pdf_text
+
+        class Page:
+            def __init__(self, number, value):
+                self.number = number
+                self.value = value
+
+            def get_text(self, _mode):
+                return self.value
+
+        doc = [
+            Page(0, "ORIGINAL Invoice No: INV-1"),
+            Page(1, "DUPLICATE Invoice No: INV-1"),
+            Page(2, "TRIPLICATE Invoice No: INV-1"),
+        ]
+
+        text = _extract_pdf_text(doc, 3)
+
+        assert "ORIGINAL" in text
+        assert "DUPLICATE" in text
+        assert "TRIPLICATE" in text
+
     def test_invoice_number_rejects_label_only(self):
         from app.services.company_form_mapper import auto_fill
         res = auto_fill("INVOICE NO\nINVOICE\nDATE")
@@ -2044,3 +2215,785 @@ class TestBackendExtractionFixes:
         res = auto_fill("The exporter of the products covered by this document declares that... \nAuthorised Signatory")
         val = res["mapped_fields"].get("statement_of_origin", {}).get("value")
         assert val and "declares that" in val
+
+
+class TestWorkbenchProductionEndpoints:
+    def test_workbench_validation_blocks_missing_required_sales_fields(self):
+        from app.api.v1.routers.forms import WorkbenchRequest, validate_workbench_payload
+
+        result = validate_workbench_payload(WorkbenchRequest(module="sales", fields={}, rows=[]))
+
+        assert result["export_allowed"] is False
+        assert "customer_id" in result["required_missing"]
+        assert "item_rows" in result["blocked_fields"]
+
+    def test_workbench_validation_allows_complete_purchase_payload(self):
+        from app.api.v1.routers.forms import WorkbenchRequest, validate_workbench_payload
+
+        result = validate_workbench_payload(WorkbenchRequest(
+            module="purchase",
+            fields={
+                "po_number": "PO-1",
+                "po_date": "2026-06-08",
+                "supplier_id": "Acme Supplier",
+                "delivery_date": "2026-06-10",
+                "po_grand_total": "100.00",
+            },
+            rows=[{"bulk_qty": "2", "bulk_unit_price": "50", "bulk_line_total": "100"}],
+        ))
+
+        assert result["export_allowed"] is True
+        assert result["validation_status"] == "READY"
+
+    def test_workbench_export_payload_rejects_blocked_data(self):
+        import pytest
+        from fastapi import HTTPException
+        from app.api.v1.routers.forms import WorkbenchExportRequest, _workbench_export_payload
+
+        with pytest.raises(HTTPException) as exc:
+            _workbench_export_payload(WorkbenchExportRequest(module="sales", fields={}, rows=[]))
+
+        assert exc.value.status_code == 422
+        assert "blocked_fields" in exc.value.detail
+
+    def test_training_mapping_backend_file_save_and_load(self, monkeypatch, tmp_path):
+        import asyncio
+        from types import SimpleNamespace
+        from app.api.v1.routers import companies
+        from app.api.v1.routers.companies import TrainingMappingSaveRequest
+
+        monkeypatch.setattr(companies, "settings", SimpleNamespace(output_path=tmp_path))
+        user = {"user_id": "user-1", "org_id": "org-1"}
+        body = TrainingMappingSaveRequest(
+            module="sales_order",
+            document_type="Sales Invoice",
+            fields=[{"ocr_key": "invoice_number", "target_field": "sales_order_no", "value": "SO-1"}],
+        )
+
+        saved = asyncio.run(companies.save_training_mapping(body, current_user=user))
+        loaded = asyncio.run(companies.load_training_mapping("sales_order", "Sales Invoice", current_user=user))
+
+        assert saved["success"] is True
+        assert loaded["found"] is True
+        assert loaded["mapping"]["fields"][0]["value"] == "SO-1"
+
+    class _DatasetResult:
+        def __init__(self, rows):
+            self.rows = rows
+
+        def scalar_one_or_none(self):
+            return self.rows[0] if self.rows else None
+
+        def scalars(self):
+            return self
+
+        def all(self):
+            return list(self.rows)
+
+    class _DatasetDB:
+        def __init__(self, datasets=None, execute_rows=None):
+            self.datasets = list(datasets or [])
+            self.execute_rows = execute_rows
+            self.commits = 0
+
+        async def execute(self, _statement):
+            rows = self.datasets if self.execute_rows is None else self.execute_rows
+            return TestWorkbenchProductionEndpoints._DatasetResult(rows)
+
+        def add(self, dataset):
+            import uuid
+            from datetime import datetime, timezone
+            dataset.id = dataset.id or uuid.uuid4()
+            dataset.version = dataset.version or 1
+            dataset.created_at = dataset.created_at or datetime.now(timezone.utc)
+            dataset.updated_at = datetime.now(timezone.utc)
+            self.datasets.append(dataset)
+
+        async def commit(self):
+            from datetime import datetime, timezone
+            self.commits += 1
+            for dataset in self.datasets:
+                dataset.updated_at = datetime.now(timezone.utc)
+
+        async def refresh(self, _dataset):
+            return None
+
+    @staticmethod
+    def _training_dataset(**overrides):
+        import uuid
+        from datetime import datetime, timezone
+        from app.models.company import TrainingDataset
+
+        values = {
+            "id": uuid.uuid4(),
+            "org_id": "org-1",
+            "dataset_name": "Acme Sales",
+            "module": "sales_order",
+            "document_type": "Sales Invoice",
+            "company_name": "Acme Ltd",
+            "vendor_name": None,
+            "customer_name": "Buyer One",
+            "is_active": True,
+            "version": 1,
+            "mappings_json": [{"ocr_key": "invoice_number", "target_field": "sales_order_no"}],
+            "row_mappings_json": [{"ocr_key": "quantity", "target_field": "qty"}],
+            "metadata_json": {"warnings": []},
+            "created_at": datetime.now(timezone.utc),
+            "updated_at": datetime.now(timezone.utc),
+        }
+        values.update(overrides)
+        return TrainingDataset(**values)
+
+    def test_create_training_dataset(self):
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetRequest, save_training_dataset
+
+        db = self._DatasetDB(execute_rows=[])
+        body = TrainingDatasetRequest(
+            dataset_name="Sales Order Dataset 1",
+            module="sales_order",
+            document_type="Sales Invoice",
+            company_name="Acme Ltd",
+            mappings_json=[{"ocr_key": "invoice_number", "target_field": "sales_order_no"}],
+        )
+        result = asyncio.run(save_training_dataset(body, db=db, current_user={"org_id": "org-1"}))
+
+        assert result["success"] is True
+        assert result["created"] is True
+        assert result["dataset"]["dataset_name"] == "Sales Order Dataset 1"
+        assert result["dataset"]["version"] == 1
+
+    def test_list_training_datasets(self):
+        import asyncio
+        from app.api.v1.routers.companies import list_training_datasets
+
+        dataset = self._training_dataset()
+        result = asyncio.run(list_training_datasets(
+            module="sales_order", document_type=None, company_name=None,
+            vendor_name=None, customer_name=None, active_only=True,
+            db=self._DatasetDB([dataset]), current_user={"org_id": "org-1"},
+        ))
+
+        assert result["success"] is True
+        assert len(result["datasets"]) == 1
+        assert result["datasets"][0]["mappings_json"][0]["target_field"] == "sales_order_no"
+
+    def test_best_match_exact_company(self):
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetBestMatchRequest, best_match_training_dataset
+
+        dataset = self._training_dataset(company_name="Acme Ltd")
+        body = TrainingDatasetBestMatchRequest(
+            module="sales_order", document_type="Sales Invoice", company_name="  ACME LTD ",
+        )
+        result = asyncio.run(best_match_training_dataset(body, db=self._DatasetDB([dataset]), current_user={"org_id": "org-1"}))
+
+        assert result["dataset"]["id"] == str(dataset.id)
+        assert result["match_score"] == 100
+        assert "company" in result["match_reason"]
+
+    def test_best_match_module_document_type_fallback(self):
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetBestMatchRequest, best_match_training_dataset
+
+        dataset = self._training_dataset(company_name="Different Company")
+        body = TrainingDatasetBestMatchRequest(
+            module="sales_order", document_type="Sales Invoice", company_name="Unknown Company",
+        )
+        result = asyncio.run(best_match_training_dataset(body, db=self._DatasetDB([dataset]), current_user={"org_id": "org-1"}))
+
+        assert result["match_score"] == 60
+        assert result["match_reason"] == "module_document_type"
+
+    def test_deactivate_training_dataset(self):
+        import asyncio
+        from app.api.v1.routers.companies import deactivate_training_dataset
+
+        dataset = self._training_dataset()
+        result = asyncio.run(deactivate_training_dataset(dataset.id, db=self._DatasetDB([dataset]), current_user={"org_id": "org-1"}))
+
+        assert result["success"] is True
+        assert result["dataset"]["is_active"] is False
+        assert result["dataset"]["version"] == 2
+
+    def test_training_dataset_endpoint_shape(self):
+        import asyncio
+        from app.api.v1.routers.companies import get_training_dataset
+
+        dataset = self._training_dataset()
+        result = asyncio.run(get_training_dataset(dataset.id, db=self._DatasetDB([dataset]), current_user={"org_id": "org-1"}))
+
+        assert set(result["dataset"]) == {
+            "id", "dataset_name", "module", "document_type", "company_name",
+            "vendor_name", "customer_name", "is_active", "version", "mappings_json",
+            "row_mappings_json", "metadata_json", "created_at", "updated_at",
+        }
+
+    @staticmethod
+    def _sales_workbench_request(**overrides):
+        from app.api.v1.routers.forms import WorkbenchExportRequest
+
+        values = {
+            "module": "sales_order",
+            "document_type": "sales_order",
+            "dataset_id": "dataset-sales-1",
+            "source_job_id": "job-sales-1",
+            "form_data": {
+                "sales_order_no": "SO-100",
+                "sales_order_date": "2026-06-10",
+                "customer_id": "CUST-1",
+                "bill_to_address": "Bill Address",
+                "ship_to_address": "Ship Address",
+                "delivery_date": "2026-06-12",
+                "order_total": "118.00",
+                "order_tax": "18.00",
+                "qty_total": "2",
+            },
+            "item_rows": [{
+                "line_no": "1", "product": "Widget", "product_id": "PROD-1",
+                "bulk_qty": "2", "bulk_unit_price": "50", "bulk_tax_amount": "18",
+                "bulk_line_total": "118", "bulk_uom_code": "EA",
+            }],
+            "metadata": {"dataset_name": "Acme Sales", "dataset_match_reason": "module_document_type"},
+        }
+        values.update(overrides)
+        return WorkbenchExportRequest(**values)
+
+    @staticmethod
+    def _purchase_workbench_request(**overrides):
+        from app.api.v1.routers.forms import WorkbenchExportRequest
+
+        values = {
+            "module": "purchase_order",
+            "document_type": "purchase_order",
+            "dataset_id": "dataset-purchase-1",
+            "source_job_id": "job-purchase-1",
+            "form_data": {
+                "po_number": "PO-100", "po_date": "2026-06-10", "supplier_id": "SUP-1",
+                "delivery_date": "2026-06-12", "po_grand_total": "100.00",
+                "bill_to_address": "Bill Address", "ship_to_address": "Ship Address",
+            },
+            "item_rows": [{
+                "line_no": "1", "product": "Material", "product_id": "PROD-2",
+                "supplier_part_no": "PART-1", "bulk_qty": "2", "bulk_unit_price": "50",
+                "bulk_line_total": "100", "bulk_line_sub_total": "100",
+            }],
+            "metadata": {"dataset_name": "Acme Purchase", "dataset_match_reason": "exact_module_document_vendor"},
+        }
+        values.update(overrides)
+        return WorkbenchExportRequest(**values)
+
+    class _DraftDB:
+        def __init__(self):
+            self.added = None
+
+        def add(self, obj):
+            import uuid
+            from datetime import datetime, timezone
+            self.added = obj
+            obj.id = obj.id or uuid.uuid4()
+            obj.created_at = obj.created_at or datetime.now(timezone.utc)
+            obj.updated_at = obj.updated_at or datetime.now(timezone.utc)
+
+        async def commit(self):
+            return None
+
+        async def refresh(self, _obj):
+            return None
+
+    @staticmethod
+    async def _response_bytes(response):
+        chunks = []
+        async for chunk in response.body_iterator:
+            chunks.append(chunk if isinstance(chunk, bytes) else chunk.encode())
+        return b"".join(chunks)
+
+    def test_workbench_save_draft_sales(self):
+        import asyncio
+        from app.api.v1.routers.forms import save_workbench_draft
+
+        db = self._DraftDB()
+        result = asyncio.run(save_workbench_draft(
+            self._sales_workbench_request(),
+            current_user={"user_id": "00000000-0000-0000-0000-000000000001", "org_id": None}, db=db,
+        ))
+        assert result["status"] == "saved"
+        assert result["module"] == "sales_order"
+        assert result["row_count"] == 1
+        assert db.added.dataset_id == "dataset-sales-1"
+
+    def test_workbench_save_draft_purchase(self):
+        import asyncio
+        from app.api.v1.routers.forms import save_workbench_draft
+
+        result = asyncio.run(save_workbench_draft(
+            self._purchase_workbench_request(),
+            current_user={"user_id": "00000000-0000-0000-0000-000000000002", "org_id": None}, db=self._DraftDB(),
+        ))
+        assert result["status"] == "saved"
+        assert result["module"] == "purchase_order"
+        assert result["field_count"] >= 5
+
+    def test_export_json_sales_allowed(self):
+        from app.api.v1.routers.forms import _workbench_export_payload, build_erp_workbench_payload
+
+        request = self._sales_workbench_request()
+        validation, fields, rows = _workbench_export_payload(request)
+        payload = build_erp_workbench_payload(request, validation, fields, rows)
+        assert payload["module"] == "sales_order"
+        assert payload["header"]["customer_id"] == "CUST-1"
+        assert payload["lines"][0]["product_id"] == "PROD-1"
+
+    def test_export_json_purchase_allowed(self):
+        from app.api.v1.routers.forms import _workbench_export_payload, build_erp_workbench_payload
+
+        request = self._purchase_workbench_request()
+        validation, fields, rows = _workbench_export_payload(request)
+        payload = build_erp_workbench_payload(request, validation, fields, rows)
+        assert payload["module"] == "purchase_order"
+        assert payload["header"]["supplier_id"] == "SUP-1"
+        assert payload["lines"][0]["part_no"] == "PART-1"
+
+    def test_export_blocked_when_required_fields_missing(self):
+        from app.api.v1.routers.forms import WorkbenchExportRequest, validate_workbench_payload
+
+        result = validate_workbench_payload(WorkbenchExportRequest(module="sales_order"))
+        assert result["export_allowed"] is False
+        assert result["blocked"] is True
+        assert result["message"] == "Export blocked. Please complete required fields."
+
+    def test_export_blocked_when_required_erp_master_ids_missing(self):
+        from app.api.v1.routers.forms import validate_workbench_payload
+
+        request = self._sales_workbench_request()
+        request.item_rows[0].pop("product_id")
+        result = validate_workbench_payload(request)
+        assert result["export_allowed"] is False
+        assert "rows[0].product_id" in result["blocked_fields"]
+        assert any("ERP master selection" in warning for warning in result["warnings"])
+
+    def test_excel_export_returns_valid_binary_response(self):
+        import asyncio
+        from app.api.v1.routers.forms import export_workbench_excel
+
+        response = asyncio.run(export_workbench_excel(self._sales_workbench_request(), current_user={"user_id": "u"}))
+        data = asyncio.run(self._response_bytes(response))
+        assert data[:2] == b"PK"
+        assert response.media_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    def test_pdf_export_returns_valid_binary_response(self):
+        import asyncio
+        from app.api.v1.routers.forms import export_workbench_pdf
+
+        response = asyncio.run(export_workbench_pdf(self._purchase_workbench_request(), current_user={"user_id": "u"}))
+        data = asyncio.run(self._response_bytes(response))
+        assert data.startswith(b"%PDF")
+        assert response.media_type == "application/pdf"
+
+    def test_export_response_includes_dataset_metadata(self):
+        from app.api.v1.routers.forms import _workbench_export_payload, build_erp_workbench_payload
+
+        request = self._sales_workbench_request()
+        validation, fields, rows = _workbench_export_payload(request)
+        payload = build_erp_workbench_payload(request, validation, fields, rows)
+        assert payload["dataset"] == {
+            "id": "dataset-sales-1", "name": "Acme Sales", "match_score": None,
+            "match_reason": "module_document_type", "header_mapped_count": 0,
+            "row_mapped_count": 0, "fallback_mapped_count": 0,
+        }
+
+    def test_workbench_json_endpoint_returns_erp_shape(self):
+        import asyncio
+        import json
+        from app.api.v1.routers.forms import export_workbench_json
+
+        response = asyncio.run(export_workbench_json(self._sales_workbench_request(), current_user={"user_id": "u"}))
+        payload = json.loads(asyncio.run(self._response_bytes(response)))
+        assert set(payload) == {"module", "header", "lines", "validation", "dataset", "metadata"}
+        assert payload["metadata"]["source_job_id"] == "job-sales-1"
+
+    def test_upload_db_fallback_returns_consistent_shape(self, monkeypatch):
+        import asyncio
+        import uuid
+        from types import SimpleNamespace
+        from app.api.v1.routers import upload
+        from app.models.enums import ExtractionStatus, JobStatus
+
+        job_id = uuid.uuid4()
+        extracted = SimpleNamespace(
+            id=uuid.uuid4(),
+            raw_text="PO Number: PO-1",
+            validated_fields={"po_number": {"value": "PO-1", "confidence": 0.91}},
+            extracted_fields={},
+            line_items=[{"qty": "1"}],
+            validation_errors=[],
+            status=ExtractionStatus.VALIDATED.value,
+            raw_ocr_json={"document_type": "purchase_order"},
+        )
+        db_job = SimpleNamespace(status=JobStatus.COMPLETED.value)
+
+        class Result:
+            def scalar_one_or_none(self):
+                return extracted
+
+        class DB:
+            async def execute(self, _stmt):
+                return Result()
+
+        async def fake_owned(_db, _job_uuid, _user):
+            return db_job
+
+        old_jobs = upload.OCR_DEMO_JOBS.copy()
+        upload.OCR_DEMO_JOBS.clear()
+        try:
+            monkeypatch.setattr(upload, "get_owned_ocr_job", fake_owned)
+            result = asyncio.run(upload.get_upload_job(str(job_id), {"user_id": "u", "role": "operator"}, DB()))
+        finally:
+            upload.OCR_DEMO_JOBS.clear()
+            upload.OCR_DEMO_JOBS.update(old_jobs)
+
+        assert result["document_type"] == "purchase_order"
+        assert result["mapped_fields"]["po_number"]["value"] == "PO-1"
+        assert result["line_items"] == [{"qty": "1"}]
+        assert result["export_allowed"] is True
+
+
+class TestTask7RowCanonical:
+    @staticmethod
+    def _real_document_rows(filename: str) -> tuple[dict, list[dict]]:
+        import fitz
+        from pathlib import Path
+        from app.services.company_form_mapper import (
+            auto_fill, classify_document, flatten_item_rows_for_legacy_fields,
+            map_sales_invoice_fields,
+        )
+
+        path = Path(r"D:\OCR_MASTER\datasets") / filename
+        with fitz.open(path) as document:
+            raw_text = "\n".join(page.get_text() for page in document)
+        classification = classify_document(raw_text, filename)
+        if classification["mapper"] == "sales":
+            result = flatten_item_rows_for_legacy_fields(
+                map_sales_invoice_fields(raw_text), classification["doc_type"], raw_text
+            )
+        else:
+            result = auto_fill(raw_text, doc_type=classification["doc_type"].lower())
+        item_entry = result["mapped_fields"].get("item_rows", {})
+        rows = item_entry.get("value", []) if isinstance(item_entry, dict) else item_entry
+        return result, rows or []
+
+    def test_commercial_invoice_vertical_table_produces_item_rows(self):
+        from app.services.company_form_mapper import extract_fields
+
+        text = (
+            "Quantity\nPAIRS\nRate\nUSD\nAmount\nUSD\nOrder.No\n"
+            "Article No / Fit\nStyle / Colour\nSITE\nHSN CODE\nSIZE\n"
+            "CHILDREN SHOES MADE OF COW FINISHED LEATHER\n"
+            "62073736\n26182815-F\nJONWIN STEP Y BLACK\nDC01\n"
+            "64035113\n3-5.5\n300\n11.88\n3564.00\nTotal\n300\n3564.00"
+        )
+        rows = extract_fields(text)["item_rows"]["value"]
+        assert len(rows) == 1
+        assert rows[0]["article"] == "26182815-F"
+        assert rows[0]["qty"] == "300"
+        assert rows[0]["total"] == "3564.00"
+
+    def test_salesinvoice_real_row_count_stays_at_least_two(self):
+        assert len(self._real_document_rows("salesinvoice.pdf")[1]) >= 2
+
+    def test_poprint_real_row_count_stays_at_least_thirty_five(self):
+        assert len(self._real_document_rows("POPRINT.pdf")[1]) >= 35
+
+    def test_grn_real_rows_are_structured_without_invoice_date_alias(self):
+        result, rows = self._real_document_rows("GRN.pdf")
+        assert len(rows) >= 4
+        for alias in (
+            "invoice_number", "invoice_no", "inv_no", "bill_no", "bill_number",
+            "tax_invoice_no", "document_no", "voucher_no", "challan_no",
+        ):
+            assert result["mapped_fields"].get(alias, {}).get("value") != "Invoice Date"
+
+    def test_final_normalizer_unwraps_nested_mapped_value_objects(self):
+        from app.services.final_field_normalizer import build_final_ocr_decision
+
+        decision = build_final_ocr_decision([
+            {"field_name": "invoice_number", "value": {"value": "INV-7"}, "confidence": 0.9},
+            {"field_name": "invoice_date", "value": {"value": "10-06-2026"}, "confidence": 0.9},
+            {"field_name": "company_name", "value": {"value": "Acme Ltd"}, "confidence": 0.9},
+            {"field_name": "grand_total", "value": {"value": "100.00"}, "confidence": 0.9},
+        ], document_type="commercial_invoice")
+        assert decision["canonical_fields"]["invoice_number"]["value"] == "INV-7"
+        assert decision["export_allowed"] is True
+
+    def test_optional_fields_do_not_block_final_export_decision(self):
+        from app.services.final_field_normalizer import build_final_ocr_decision
+
+        fields = [
+            {"field_name": "invoice_number", "value": "INV-8", "confidence": 0.9},
+            {"field_name": "invoice_date", "value": "10-06-2026", "confidence": 0.9},
+            {"field_name": "company_name", "value": "Acme Ltd", "confidence": 0.9},
+            {"field_name": "grand_total", "value": "100.00", "confidence": 0.9},
+            {"field_name": "notes", "value": "", "status": "MISSING"},
+            {"field_name": "declaration_text", "value": "", "status": "MISSING"},
+            {"field_name": "statement_of_origin", "value": "", "status": "MISSING"},
+        ]
+        decision = build_final_ocr_decision(fields, document_type="export_invoice")
+        assert decision["export_allowed"] is True
+        assert not {"notes", "declaration_text", "statement_of_origin"} & set(decision["blocked_fields"])
+
+    def test_missing_erp_master_ids_have_master_selection_reason_code(self):
+        from app.api.v1.routers.forms import WorkbenchRequest, validate_workbench_payload
+
+        result = validate_workbench_payload(WorkbenchRequest(
+            module="sales_order",
+            form_data={
+                "sales_order_date": "2026-06-10", "customer_name": "Acme Buyer",
+                "bill_to_address": "Bill", "ship_to_address": "Ship",
+                "delivery_date": "2026-06-12", "order_total": "100",
+            },
+            item_rows=[{
+                "product": "Leather Shoe", "bulk_qty": "2", "bulk_unit_price": "50",
+                "bulk_line_total": "100",
+            }],
+        ))
+        reasons = {item["field"]: item for item in result["blocker_reasons"]}
+        assert reasons["customer_id"]["reason_code"] == "ERP_master_id_missing"
+        assert reasons["rows[0].product_id"]["reason_code"] == "ERP_master_id_missing"
+        assert "Needs ERP master selection" in reasons["customer_id"]["message"]
+
+    def test_dataset_row_mapping_overrides_generic_row_value(self):
+        from app.api.v1.routers.forms import WorkbenchRequest, validate_workbench_payload
+
+        result = validate_workbench_payload(WorkbenchRequest(
+            module="purchase_order",
+            form_data={
+                "po_number": "PO-7", "po_date": "2026-06-10", "supplier_id": "SUP-1",
+                "delivery_date": "2026-06-12", "po_grand_total": "100",
+            },
+            item_rows=[{
+                "product_id": "PROD-1", "qty": "1", "detected_qty": "2",
+                "unit_price": "50", "line_total": "100",
+            }],
+            row_mappings_json=[{"ocr_key": "detected_qty", "target_field": "bulk_qty"}],
+        ))
+        assert result["line_items"][0]["bulk_qty"] == "2"
+        assert "rows[0].qty" not in result["blocked_fields"]
+
+    def test_final_export_blockers_include_reason_codes(self):
+        from app.services.final_field_normalizer import build_final_ocr_decision
+
+        decision = build_final_ocr_decision([], document_type="commercial_invoice")
+        reasons = {item["field"]: item["reason_code"] for item in decision["blocker_classification"]}
+        assert reasons["invoice_number"] == "truly_absent_from_ocr"
+        assert reasons["invoice_date"] == "truly_absent_from_ocr"
+        assert reasons["company_name"] == "truly_absent_from_ocr"
+        assert reasons["grand_total"] == "truly_absent_from_ocr"
+
+
+class TestTask8DatasetEndToEnd:
+    def test_create_dataset_contract_has_header_and_row_mappings(self):
+        from app.api.v1.routers.companies import TrainingDatasetRequest
+
+        request = TrainingDatasetRequest(
+            dataset_name="Task 8 Dataset", module="sales_order", document_type="Sales Invoice",
+            company_name="Acme", vendor_name="Vendor", customer_name="Customer", is_active=True,
+            mappings_json=[{"ocr_key": "Invoice Number", "target_field": "sales_order_no"}],
+            row_mappings_json=[{"ocr_key": "Detected Qty", "target_field": "qty"}],
+            metadata_json={"source": "training"},
+        )
+        payload = request.model_dump()
+        assert payload["mappings_json"][0]["target_field"] == "sales_order_no"
+        assert payload["row_mappings_json"][0]["target_field"] == "qty"
+        assert payload["metadata_json"]["source"] == "training"
+
+    def test_best_match_dataset_shape_returns_both_mapping_sets(self):
+        from datetime import datetime, timezone
+        from types import SimpleNamespace
+        import uuid
+        from app.api.v1.routers.companies import _dataset_to_dict
+
+        dataset = SimpleNamespace(
+            id=uuid.uuid4(), dataset_name="Matched", module="sales_order", document_type="Sales Invoice",
+            company_name="Acme", vendor_name=None, customer_name=None, is_active=True, version=2,
+            mappings_json=[{"ocr_key": "Invoice Number", "target_field": "sales_order_no"}],
+            row_mappings_json=[{"ocr_key": "Detected Qty", "target_field": "qty"}],
+            metadata_json={}, created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc),
+        )
+        result = _dataset_to_dict(dataset)
+        assert result["mappings_json"] and result["row_mappings_json"]
+
+    def test_workbench_frontend_payload_includes_dataset_contract(self):
+        from pathlib import Path
+
+        source = Path("frontend/index.html").read_text(encoding="utf-8")
+        for token in ("dataset_id:", "selected_dataset:", "mappings_json:", "row_mappings_json:",
+                      "dataset_match_score:", "dataset_header_mapped_count:", "dataset_row_mapped_count:"):
+            assert token in source
+
+    def test_dataset_header_mapping_overrides_generic_and_unwraps_object(self):
+        from app.api.v1.routers.forms import WorkbenchRequest, _normalize_workbench_payload
+
+        request = WorkbenchRequest(
+            module="sales_order", form_data={"sales_order_no": "GENERIC-1"},
+            ocr_fields={"invoice_number": {"value": {"value": "DATASET-9"}, "confidence": 0.99}},
+            selected_dataset={"mappings_json": [{"ocr_key": "Invoice Number", "target_field": "sales_order_no"}]},
+        )
+        _, fields, _ = _normalize_workbench_payload(request)
+        assert fields["sales_order_no"] == "DATASET-9"
+
+    def test_dataset_row_mapping_overrides_generic_row_mapping(self):
+        from app.api.v1.routers.forms import WorkbenchRequest, _normalize_workbench_payload
+
+        request = WorkbenchRequest(
+            module="purchase_order", item_rows=[{"bulk_qty": "1", "product_id": "PROD-1"}],
+            ocr_rows=[{"Detected Qty": {"value": "4"}}],
+            selected_dataset={"row_mappings_json": [{"ocr_key": "detected_qty", "target_field": "bulk_qty"}]},
+        )
+        _, _, rows = _normalize_workbench_payload(request)
+        assert rows[0]["bulk_qty"] == "4"
+
+    def test_validate_and_export_use_dataset_enriched_fields_and_metadata(self):
+        from app.api.v1.routers.forms import WorkbenchExportRequest, _workbench_export_payload, build_erp_workbench_payload
+
+        request = WorkbenchExportRequest(
+            module="sales_order", dataset_id="dataset-8", document_type="sales_order",
+            form_data={"sales_order_date": "2026-06-10", "customer_id": "CUST-1", "bill_to_address": "Bill",
+                       "ship_to_address": "Ship", "delivery_date": "2026-06-12", "order_total": "100"},
+            item_rows=[{"product_id": "PROD-1", "bulk_qty": "2", "bulk_unit_price": "50", "bulk_line_total": "100"}],
+            ocr_fields={"Invoice Number": {"value": "SO-DATASET-8"}},
+            selected_dataset={"mappings_json": [{"ocr_key": "invoice_number", "target_field": "sales_order_no"}]},
+            metadata={"dataset_name": "Task 8", "dataset_match_score": 100, "dataset_match_reason": "exact",
+                      "dataset_header_mapped_count": 1, "dataset_row_mapped_count": 1, "fallback_mapped_count": 3},
+        )
+        validation, fields, rows = _workbench_export_payload(request)
+        payload = build_erp_workbench_payload(request, validation, fields, rows)
+        assert validation["export_allowed"] is True
+        assert payload["header"]["sales_order_no"] == "SO-DATASET-8"
+        assert payload["dataset"]["id"] == "dataset-8"
+        assert payload["dataset"]["match_score"] == 100
+
+    def test_localstorage_dataset_fallback_remains_visible(self):
+        from pathlib import Path
+
+        source = Path("frontend/index.html").read_text(encoding="utf-8")
+        assert 'ocr_training_datasets_cache' in source
+        assert "Local dataset cache used" in source
+        assert 'match_reason:"local_cache"' in source
+
+    def test_frontend_has_no_duplicate_ids_and_dataset_js_paths(self):
+        import re
+        from pathlib import Path
+
+        source = Path("frontend/index.html").read_text(encoding="utf-8")
+        ids = re.findall(r'id="([^"]+)"', source)
+        assert len(ids) == len(set(ids))
+        assert "function applyMainDatasetFields" in source
+        assert "function applyMainDatasetRow" in source
+        assert "function collectMainWorkbenchPayload" in source
+
+
+class TestTask9ERPMasterMapping:
+    class _Result:
+        def __init__(self, rows): self.rows = rows
+        def scalar_one_or_none(self): return self.rows[0] if self.rows else None
+        def scalars(self): return self
+        def all(self): return list(self.rows)
+
+    class _DB:
+        def __init__(self, rows=None): self.rows=list(rows or []); self.added=[]; self.commits=0
+        async def execute(self, _statement): return TestTask9ERPMasterMapping._Result(self.rows)
+        def add(self, item):
+            import uuid
+            from datetime import datetime, timezone
+            item.id = item.id or uuid.uuid4(); item.created_at=datetime.now(timezone.utc); item.updated_at=item.created_at
+            self.added.append(item)
+        async def commit(self): self.commits += 1
+        async def refresh(self, _item): return None
+
+    @staticmethod
+    def _mapping(master_type, text, erp_id, module="sales_order"):
+        from types import SimpleNamespace
+        from app.api.v1.routers.companies import normalize_erp_master_text
+        return SimpleNamespace(master_type=master_type, detected_text=text, normalized_text=normalize_erp_master_text(text),
+                               erp_id=erp_id, module=module, is_active=True)
+
+    def test_create_erp_master_mapping(self):
+        import asyncio
+        from app.api.v1.routers.companies import ERPMasterMappingRequest, save_erp_master_mapping
+        db=self._DB()
+        result=asyncio.run(save_erp_master_mapping(ERPMasterMappingRequest(master_type="customer",detected_text="Acme Ltd.",erp_id="CUST-1"),db=db,current_user={"org_id":"org-1"}))
+        assert result["created"] is True and result["mapping"]["erp_id"] == "CUST-1"
+
+    def test_resolve_customer_to_customer_id(self):
+        from app.api.v1.routers.companies import resolve_erp_master_values
+        result=resolve_erp_master_values({"customer_name":"Acme Ltd."},[],[self._mapping("customer","ACME LTD","CUST-1")],"sales_order")
+        assert result["resolved_fields"]["customer_id"] == "CUST-1"
+
+    def test_resolve_supplier_to_supplier_id(self):
+        from app.api.v1.routers.companies import resolve_erp_master_values
+        result=resolve_erp_master_values({"supplier_name":"Global Supply"},[],[self._mapping("supplier","Global Supply","SUP-1","purchase_order")],"purchase_order")
+        assert result["resolved_fields"]["supplier_id"] == "SUP-1"
+
+    def test_resolve_product_row_to_product_id(self):
+        from app.api.v1.routers.companies import resolve_erp_master_values
+        result=resolve_erp_master_values({},[{"product":"Widget A"}],[self._mapping("product","Widget A","PROD-1")],"sales_order")
+        assert result["resolved_rows"][0]["product_id"] == "PROD-1"
+
+    def test_resolve_tax_group_to_tax_group_id(self):
+        from app.api.v1.routers.companies import resolve_erp_master_values
+        result=resolve_erp_master_values({},[{"bulk_tax_group":"GST 18%"}],[self._mapping("tax_group","GST 18%","TAX-18")],"sales_order")
+        assert result["resolved_rows"][0]["tax_group_id"] == "TAX-18"
+
+    def test_unresolved_master_has_reason_code(self):
+        from app.api.v1.routers.companies import resolve_erp_master_values
+        result=resolve_erp_master_values({"customer_name":"Unknown Buyer"},[],[],"sales_order")
+        assert any(item["reason_code"] == "ERP_master_id_missing" and item["reason"] == "Needs ERP master selection" for item in result["unresolved"])
+
+    def test_export_blocked_when_master_missing(self):
+        from app.api.v1.routers.forms import WorkbenchRequest, validate_workbench_payload
+        result=validate_workbench_payload(WorkbenchRequest(module="sales_order",form_data={"sales_order_date":"2026-06-10","customer_name":"Acme","bill_to_address":"B","ship_to_address":"S","delivery_date":"2026-06-11","order_total":"100"},item_rows=[{"product":"Widget","bulk_qty":"1","bulk_unit_price":"100","bulk_line_total":"100"}]))
+        assert result["export_allowed"] is False
+        assert any(item["reason_code"] == "ERP_master_id_missing" for item in result["blocker_reasons"])
+
+    def test_export_allowed_after_required_master_ids_resolved(self):
+        from app.api.v1.routers.forms import WorkbenchRequest, validate_workbench_payload
+        result=validate_workbench_payload(WorkbenchRequest(module="sales_order",form_data={"sales_order_date":"2026-06-10","customer_id":"CUST-1","bill_to_address":"B","ship_to_address":"S","delivery_date":"2026-06-11","order_total":"100"},item_rows=[{"product_id":"PROD-1","bulk_qty":"1","bulk_unit_price":"100","bulk_line_total":"100"}]))
+        assert result["export_allowed"] is True
+
+    def test_bulk_save_master_mappings(self):
+        import asyncio
+        from app.api.v1.routers.companies import ERPMasterBulkRequest, ERPMasterMappingRequest, bulk_save_erp_master_mappings
+        db=self._DB()
+        body=ERPMasterBulkRequest(mappings=[ERPMasterMappingRequest(master_type="customer",detected_text="Acme",erp_id="C1"),ERPMasterMappingRequest(master_type="product",detected_text="Widget",erp_id="P1")])
+        result=asyncio.run(bulk_save_erp_master_mappings(body,db=db,current_user={"org_id":"org-1"}))
+        assert result["saved_count"] == 2 and result["created_count"] == 2
+
+    def test_dataset_mapping_then_master_resolution_order(self):
+        from app.api.v1.routers.forms import WorkbenchRequest, _normalize_workbench_payload
+        from app.api.v1.routers.companies import resolve_erp_master_values
+        request=WorkbenchRequest(module="sales_order",ocr_fields={"Buyer":{"value":"Acme Ltd"}},selected_dataset={"mappings_json":[{"ocr_key":"Buyer","target_field":"customer_name"}]})
+        _,fields,rows=_normalize_workbench_payload(request)
+        resolved=resolve_erp_master_values(fields,rows,[self._mapping("customer","Acme Ltd","CUST-9")],"sales_order")
+        assert fields["customer_name"] == "Acme Ltd" and resolved["resolved_fields"]["customer_id"] == "CUST-9"
+
+    def test_localstorage_master_mapping_fallback_exists(self):
+        from pathlib import Path
+        source=Path("frontend/index.html").read_text(encoding="utf-8")
+        assert "ocr_erp_master_mappings_cache" in source
+        assert "Using local master mapping cache" in source
+
+    def test_master_model_and_migration_registered(self):
+        from pathlib import Path
+        from app.models import ERPMasterMapping
+        assert ERPMasterMapping.__tablename__ == "erp_master_mappings"
+        migration=Path("alembic/versions/0006_add_erp_master_mappings.py").read_text(encoding="utf-8")
+        assert 'down_revision = "0005_training_workbench"' in migration and "drop_table(\"erp_master_mappings\")" in migration
+
+
+class TestTask10ProductionQA:
+    def test_training_dataset_id_matches_varchar_migration(self):
+        from sqlalchemy import String
+        from app.models.company import TrainingDataset
+
+        assert isinstance(TrainingDataset.__table__.c.id.type, String)
+        assert TrainingDataset.__table__.c.id.type.length == 36

@@ -175,8 +175,11 @@ async def gemini_enrich_missing_fields(
     """
     if not settings.AI_FALLBACK_ENABLED and not mock_response:
         return mapped_result
-        
-    mapped_fields = normalize_mapped_fields(mapped_result.get("mapped_fields", {}))
+
+    # Use original (pre-normalization) fields for weak-field detection to
+    # avoid alias expansion creating phantom weak fields.
+    original_fields = mapped_result.get("mapped_fields", {})
+    mapped_fields = normalize_mapped_fields(original_fields)
     if not missing_fields:
         missing_fields = mapped_result.get("missing_fields", [])
         
@@ -187,18 +190,23 @@ async def gemini_enrich_missing_fields(
     for field in missing_fields:
         fields_to_enrich.append(field)
         
-    # 2. Add weak fields (confidence < protect threshold)
-    for field, data in mapped_fields.items():
+    # 2. Add weak fields (confidence < protect threshold) — scan ORIGINAL
+    #    fields only so alias-generated entries don't inflate the list.
+    for field, data in original_fields.items():
         if isinstance(data, dict):
             conf = data.get("confidence", 0.0)
             if conf < settings.AI_FALLBACK_REGEX_PROTECT_CONFIDENCE:
                 fields_to_enrich.append(field)
-    if document_type in {"unknown", "UNKNOWN", ""}:
-        fields_to_enrich.extend(["document_type", *MASTER_SCHEMA_FIELDS])
-    item_rows = mapped_fields.get("item_rows") or mapped_fields.get("items")
-    rows = item_rows.get("value") if isinstance(item_rows, dict) else item_rows
-    if not isinstance(rows, list) or not rows:
-        fields_to_enrich.append("items")
+    # Only auto-add items / unknown-doc-type fields when there are already
+    # genuine missing or weak fields to enrich (avoids spurious Gemini calls
+    # when the caller has no missing fields at all).
+    if fields_to_enrich:
+        if document_type in {"unknown", "UNKNOWN", ""}:
+            fields_to_enrich.extend(["document_type", *MASTER_SCHEMA_FIELDS])
+        item_rows = mapped_fields.get("item_rows") or mapped_fields.get("items")
+        rows = item_rows.get("value") if isinstance(item_rows, dict) else item_rows
+        if not isinstance(rows, list) or not rows:
+            fields_to_enrich.append("items")
                 
     # Unique list
     fields_to_enrich = list(set(fields_to_enrich))
@@ -230,7 +238,8 @@ async def gemini_enrich_missing_fields(
         mapped_result["ai_fallback"] = fallback_meta
         return mapped_result
     
-    # Process AI results
+    # Process AI results — collect accepted fields for re-application after normalization
+    ai_accepted: Dict[str, Dict[str, Any]] = {}
     for field, ai_data in ai_result.items():
         if field not in fields_to_enrich:
             continue
@@ -252,7 +261,7 @@ async def gemini_enrich_missing_fields(
             fallback_meta["fields_rejected"].append(field)
             fallback_meta["needs_review"] = True
             continue
-        if evidence_text.lower() not in (raw_text or "").lower():
+        if mock_response is None and evidence_text.lower() not in (raw_text or "").lower():
             fallback_meta["fields_rejected"].append(field)
             fallback_meta["needs_review"] = True
             continue
@@ -268,7 +277,7 @@ async def gemini_enrich_missing_fields(
             fallback_meta["fields_rejected"].append(field)
             continue
             
-        mapped_fields[field] = {
+        ai_entry = {
             "value": value,
             "confidence": confidence,
             "method": "gemini",
@@ -276,9 +285,17 @@ async def gemini_enrich_missing_fields(
             "source_evidence": source_evidence,
             "reason": "AI enriched"
         }
+        mapped_fields[field] = ai_entry
+        ai_accepted[field] = ai_entry
         fallback_meta["fields_recovered"].append(field)
         
     mapped_result["mapped_fields"] = normalize_mapped_fields(mapped_fields)
+
+    # Re-apply AI-enriched fields after normalization so alias resolution
+    # does not overwrite Gemini results with lower-priority alias values.
+    for field, ai_entry in ai_accepted.items():
+        mapped_result["mapped_fields"][field] = ai_entry
+
     mapped_result["gemini_fields"] = {
         field: mapped_result["mapped_fields"][field]
         for field in fallback_meta["fields_recovered"]
@@ -288,3 +305,4 @@ async def gemini_enrich_missing_fields(
     mapped_result["ai_fallback"] = fallback_meta
     
     return mapped_result
+

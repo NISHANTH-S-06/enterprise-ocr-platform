@@ -1,0 +1,234 @@
+[
+  {
+    "document_filename": "salesinvoice.pdf",
+    "document_type": "EXPORT_INVOICE",
+    "raw_text_length": 11892,
+    "mapped_field_count_before": 91,
+    "mapped_field_count_after": 93,
+    "item_row_count": 2,
+    "improved_fields": [
+      "gst_supplier",
+      "gstin_uin"
+    ],
+    "still_missing_fields": [
+      "company_name",
+      "invoice_number",
+      "invoice_date",
+      "order_number",
+      "declaration_text",
+      "statement_of_origin"
+    ],
+    "missing_value_genuinely_absent_from_ocr_text": {
+      "company_name": false,
+      "invoice_number": false,
+      "invoice_date": false,
+      "order_number": false,
+      "declaration_text": true,
+      "statement_of_origin": true
+    },
+    "export_allowed": false,
+    "blocked_fields": [
+      "invoice_number",
+      "invoice_date",
+      "company_name"
+    ],
+    "notes": [
+      "OCR text contains a related label for still-missing fields: company_name, invoice_number, invoice_date, order_number",
+      "Absence classification is based on OCR text label evidence; a present label does not guarantee a legible value."
+    ]
+  },
+  {
+    "document_filename": "Glsprint.pdf",
+    "document_type": "COMMERCIAL_INVOICE",
+    "raw_text_length": 6717,
+    "mapped_field_count_before": 34,
+    "mapped_field_count_after": 36,
+    "item_row_count": 0,
+    "improved_fields": [
+      "gst_supplier",
+      "gstin_uin"
+    ],
+    "still_missing_fields": [
+      "company_name",
+      "iec_code",
+      "delivery_name",
+      "delivery_address",
+      "invoice_number",
+      "order_number",
+      "export_category",
+      "taxation",
+      "payment_terms",
+      "mode_of_transport",
+      "country_of_origin",
+      "gross_weight",
+      "net_weight",
+      "total_cartons",
+      "currency",
+      "amount_in_words",
+      "igst_percent",
+      "igst_amount",
+      "total_amount_inr",
+      "exchange_rate",
+      "grand_total",
+      "account_number",
+      "swift_code",
+      "bank_name",
+      "branch",
+      "declaration_text",
+      "statement_of_origin"
+    ],
+    "missing_value_genuinely_absent_from_ocr_text": {
+      "company_name": false,
+      "iec_code": false,
+      "delivery_name": false,
+      "delivery_address": false,
+      "invoice_number": false,
+      "order_number": false,
+      "export_category": true,
+      "taxation": true,
+      "payment_terms": true,
+      "mode_of_transport": true,
+      "country_of_origin": false,
+      "gross_weight": false,
+      "net_weight": false,
+      "total_cartons": true,
+      "currency": true,
+      "amount_in_words": false,
+      "igst_percent": true,
+      "igst_amount": true,
+      "total_amount_inr": true,
+      "exchange_rate": true,
+      "grand_total": false,
+      "account_number": true,
+      "swift_code": true,
+      "bank_name": true,
+      "branch": false,
+      "declaration_text": true,
+      "statement_of_origin": true
+    },
+    "export_allowed": false,
+    "blocked_fields": [
+      "invoice_number",
+      "company_name",
+      "grand_total"
+    ],
+    "notes": [
+      "Changed mapped values after validation/regex fixes: address, billing_address, buyer_address, consignee_address, shipping_address",
+      "OCR text contains a related label for still-missing fields: company_name, iec_code, delivery_name, delivery_address, invoice_number, order_number, country_of_origin, gross_weight, net_weight, amount_in_words, grand_total, branch",
+      "Absence classification is based on OCR text label evidence; a present label does not guarantee a legible value."
+    ]
+  },
+  {
+    "document_filename": "POPRINT.pdf",
+    "document_type": "PURCHASE_ORDER",
+    "raw_text_length": 11505,
+    "mapped_field_count_before": 209,
+    "mapped_field_count_after": 212,
+    "item_row_count": 35,
+    "improved_fields": [
+      "delivery_address",
+      "delivery_name",
+      "gstin_uin"
+    ],
+    "still_missing_fields": [
+      "subtotal",
+      "pan_number",
+      "discount",
+      "notes",
+      "unit_price",
+      "tax_amount",
+      "invoice_number",
+      "shipping_address",
+      "email",
+      "lr_number",
+      "vehicle_number",
+      "billing_address",
+      "bill_number",
+      "due_date",
+      "eway_bill_number"
+    ],
+    "missing_value_genuinely_absent_from_ocr_text": {
+      "subtotal": true,
+      "tax_amount": true,
+      "vehicle_number": true,
+      "invoice_number": true,
+      "lr_number": true,
+      "pan_number": true,
+      "discount": true,
+      "eway_bill_number": true,
+      "billing_address": true,
+      "shipping_address": true,
+      "bill_number": true,
+      "unit_price": true,
+      "email": true,
+      "notes": false,
+      "due_date": true
+    },
+    "export_allowed": false,
+    "blocked_fields": [
+      "invoice_number"
+    ],
+    "notes": [
+      "Changed mapped values after validation/regex fixes: amount_payable, buyer_order_no, final_total, grand_total, invoice_total, invoice_value, net_amount, order_no, po_no, po_number, purchase_order_number, total_amount, total_amount_inr",
+      "OCR text contains a related label for still-missing fields: notes",
+      "Absence classification is based on OCR text label evidence; a present label does not guarantee a legible value."
+    ]
+  },
+  {
+    "document_filename": "GRN.pdf",
+    "document_type": "GRN",
+    "raw_text_length": 702,
+    "mapped_field_count_before": 102,
+    "mapped_field_count_after": 93,
+    "item_row_count": 4,
+    "improved_fields": [],
+    "still_missing_fields": [
+      "phone",
+      "pan_number",
+      "discount",
+      "transport_name",
+      "tax_amount",
+      "invoice_number",
+      "customer_name",
+      "shipping_address",
+      "email",
+      "vehicle_number",
+      "lr_number",
+      "payment_status",
+      "billing_address",
+      "bill_number",
+      "due_date",
+      "eway_bill_number",
+      "gst_number"
+    ],
+    "missing_value_genuinely_absent_from_ocr_text": {
+      "transport_name": true,
+      "tax_amount": true,
+      "vehicle_number": true,
+      "invoice_number": false,
+      "lr_number": true,
+      "pan_number": true,
+      "discount": true,
+      "payment_status": true,
+      "eway_bill_number": true,
+      "gst_number": true,
+      "billing_address": true,
+      "shipping_address": true,
+      "bill_number": true,
+      "email": true,
+      "phone": true,
+      "customer_name": true,
+      "due_date": true
+    },
+    "export_allowed": false,
+    "blocked_fields": [
+      "invoice_number"
+    ],
+    "notes": [
+      "Lower post-patch count is intentional: nine invoice aliases with label-only value \"Invoice Date\" were rejected by value guards.",
+      "Changed mapped values after validation/regex fixes: buyer_order_no, order_no, po_no, po_number, purchase_order_number",
+      "OCR text contains a related label for still-missing fields: invoice_number",
+      "Absence classification is based on OCR text label evidence; a present label does not guarantee a legible value."
+    ]
+  }
+]

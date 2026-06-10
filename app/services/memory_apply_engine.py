@@ -169,8 +169,14 @@ def apply_memory_to_canonical_fields(canonical_fields: dict, memories: list) -> 
         current = updated.get(field_name)
         current_value = current.get("value", "") if isinstance(current, dict) else ""
         classification = classify_memory_field(field_name)
+        old_value = normalize_correction_value(getattr(memory, "old_value", ""))
 
-        if classification == "stable" and _is_apply_target(current):
+        exact_dynamic_match = (
+            classification == "dynamic"
+            and normalize_correction_value(current_value) == old_value
+            and (bool(old_value) or _is_apply_target(current))
+        )
+        if (classification == "stable" and _is_apply_target(current)) or exact_dynamic_match:
             previous = current if isinstance(current, dict) else {}
             updated[field_name] = {
                 **previous,

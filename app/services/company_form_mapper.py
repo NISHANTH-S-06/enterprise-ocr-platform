@@ -26,10 +26,10 @@ FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
         (r"bill\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/]+)", re.I),
     ],
     "purchase_order_number": [
-        (r"p\.?o\.?\s*(?:no|number|#)[:\s#]*([A-Z0-9\-/]+)", re.I),
-        (r"purchase\s*order\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/]+)", re.I),
-        (r"order\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/]+)", re.I),
-        (r"purchase\s*order[:\s#]*([A-Z0-9\-/]+)", re.I),
+        (r"p[._]?o[._]?\s*(?:no\.?|number|#)[:\s#]*([A-Z0-9_\-/]+)", re.I),
+        (r"purchase\s*order\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9_\-/]+)", re.I),
+        (r"order\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9_\-/]+)", re.I),
+        (r"purchase\s*order[:\s#]*([A-Z0-9_\-/]+)", re.I),
     ],
     "po_date": [
         (r"p\.?o\.?\s*(?:date|dt)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
@@ -59,6 +59,7 @@ FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
     ],
     "gst_number": [
         (r"GST(?:IN|\s*No\.?)?[:\s#-]*([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})", re.I),
+        (r"GSTIN/UIN[:\s#-]*([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1})", re.I),
         (r"([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z])", 0),
     ],
     "pan_number": [
@@ -104,6 +105,8 @@ FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
         (r"grand\s*total[:\s₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)", re.I),
         (r"(?:net\s*amount|final\s*total)[:\s₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)", re.I),
         (r"(?:amount\s*payable|total\s*payable)[:\s₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)", re.I),
+        # Table summary: "Total\n6316\n91842.14" - last number is value.
+        (r"^Total\s*\n\s*[0-9,]+\s*\n\s*([0-9,]+(?:\.[0-9]{1,2})?)$", re.I | re.M),
     ],
     "subtotal": [
         (r"sub\s*total[:\s₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)", re.I),
@@ -171,12 +174,24 @@ FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
     ],
     "delivery_name": [
         (r"(?:delivery\s*to|deliver\s*to)[:\s]+([^\r\n]{3,80})", re.I),
+        (r"goods\s*to\s*be\s*despatched\s*to\s*:[:\s]*([^\r\n]{3,80})", re.I),
+        (r"ship\s*to[:\s]+([^\r\n]{3,80})", re.I),
     ],
     "delivery_address": [
         (r"(?:delivery\s*address)[:\s]+(.{10,120}?)(?:\n\n|\r\n\r\n|invoice|$)", re.I | re.S),
+        (r"goods\s*to\s*be\s*despatched\s*to\s*:?[^\r\n]*\r?\n[^\r\n]{3,80}\r?\n(.{10,240}?)(?=\r?\n\r?\n|\r?\n(?:invoice|buyer|supplier|total|terms?)\b|$)", re.I | re.S),
     ],
     "order_number": [
         (r"(?:order|po)\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/]+)", re.I),
+    ],
+    "buyer_order_no": [
+        # Multi-value: capture all buyer order numbers as comma-joined string
+        (r"buyer['\s]*s?\s*order\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/,\s]+?)(?:\n|$)", re.I),
+        (r"buyer\s*order[:\s#-]*([A-Z0-9\-/,\s]+?)(?:\n|$)", re.I),
+        (r"b/?o\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/,\s]+?)(?:\n|$)", re.I),
+        (r"your\s*order\s*(?:no\.?|ref)[:\s#-]*([A-Z0-9\-/,\s]+?)(?:\n|$)", re.I),
+        # Glsprint format: "Buyer's Order No.:62073736,62075113"
+        (r"buyer['\u2019]?s?\s*order\s*no\.?[:\s]*([A-Z0-9\-/,\s]+?)(?:\n|$)", re.I),
     ],
     "export_category": [
         (r"export\s*category[:\s]*([A-Za-z\s]+)", re.I),
@@ -216,6 +231,8 @@ FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
     ],
     "amount_in_words": [
         (r"(?:amount\s*in\s*words|rupees)[:\s]+([^\r\n]{10,120})", re.I),
+        (r"(?:amount\s*chargeable\s*\(?in\s*words\)?)[:\s]+([^\r\n]{10,160})", re.I),
+        (r"(?:in\s*words)[:\s]+([^\r\n]{10,120})", re.I),
     ],
     "igst_percent": [
         (r"igst\s*(?:@|at)?\s*([0-9.]+)\s*%", re.I),
@@ -342,7 +359,7 @@ CANONICAL_FIELD_ALIASES: Dict[str, List[str]] = {
     "buyer_name": ["buyer", "bill_to", "customer_name", "importer", "buyer_company", "consignee_buyer"],
     "consignee_name": ["consignee", "ship_to", "delivery_to", "consignee_buyer"],
     "vendor_name": ["vendor", "supplier", "seller", "exporter", "supplier_name", "company_name"],
-    "gst_number": ["gstin", "gst_number", "gst_no", "gst", "supplier_gstin", "buyer_gstin"],
+    "gst_number": ["gstin", "gst_number", "gst_no", "gst", "supplier_gstin", "buyer_gstin", "gst_supplier", "gstin_uin"],
     "po_number": ["po_no", "purchase_order_number", "order_no", "buyer_order_no"],
     "purchase_order_number": ["po_number", "po_no", "order_no", "buyer_order_no"],
     "eway_bill_number": ["eway_bill", "eway_no", "e_way_bill"],
@@ -421,7 +438,10 @@ for _canonical, _aliases in REQUIRED_CANONICAL_ALIASES.items():
 
 
 def _clean(val: str) -> str:
-    return re.sub(r"\s+", " ", val.strip()).rstrip(".,;:")
+    val = re.sub(r"\s+", " ", val.strip()).rstrip(".,;:")
+    # Strip trailing slash from invoice/order numbers (e.g. "INV/2024/" → "INV/2024")
+    val = re.sub(r"/+$", "", val.strip())
+    return val
 
 
 def _field_value(data: Any) -> str:
@@ -454,13 +474,17 @@ def _as_field_entry(data: Any, *, default_method: str = "regex", source_key: str
         method = default_method
         evidence = f"alias:{source_key}" if default_method == "alias" and source_key else ""
         source = method
-    return {
+    entry = {
         "value": value,
         "confidence": confidence,
         "method": method,
         "source": source,
         "source_evidence": evidence,
     }
+    # Preserve optional provenance keys (e.g. "reason": "AI enriched")
+    if isinstance(data, dict) and data.get("reason"):
+        entry["reason"] = data["reason"]
+    return entry
 
 
 def _choose_better_field(current: Any, candidate: Any) -> Dict[str, Any]:
@@ -480,6 +504,9 @@ def normalize_mapped_fields(mapped: Dict[str, Any]) -> Dict[str, Any]:
             normalized[key] = data
             continue
         entry = _as_field_entry(data)
+        if key in {"invoice_number", "invoice_no", "inv_no", "bill_no", "bill_number", "tax_invoice_no", "document_no"} \
+                and entry["value"] and not _looks_like_value("invoice_number", entry["value"]):
+            entry["value"] = ""
         if not entry["value"]:
             normalized.setdefault(key, entry)
             continue
@@ -584,7 +611,7 @@ NEXT_LINE_LABELS: Dict[str, List[str]] = {
         r"tax\s*invoice\s*(?:no\.?|number|#)",
     ],
     "bill_number": [r"bill\s*(?:no\.?|number|#)"],
-    "gst_number": [r"gst(?:in|\s*no\.?)?"],
+    "gst_number": [r"gst(?:in|\s*no\.?)?", r"gstin/uin"],
     "total_amount": [
         r"grand\s*total", r"total\s*amount", r"amount\s*due",
         r"balance\s*due", r"net\s*payable", r"total",
@@ -598,9 +625,17 @@ NEXT_LINE_LABELS: Dict[str, List[str]] = {
         r"invoice\s*date", r"bill\s*date", r"document\s*date",
         r"doc\s*date", r"dated?",
     ],
-    "vendor_name": [r"vendor", r"seller", r"supplier", r"from", r"billed?\s*by"],
+    "vendor_name": [r"vendor", r"seller", r"supplier", r"from", r"billed?\s*by", r"exporter"],
     "customer_name": [r"customer", r"client", r"buyer", r"bill\s*to", r"sold\s*to", r"party\s*name"],
     "consignee_name": [r"consignee", r"ship\s*to", r"delivery\s*to", r"deliver\s*to", r"receiver"],
+    "gross_weight": [r"gross\s*weight", r"gr\.?\s*wt\.?", r"gross\s*wt"],
+    "net_weight": [r"net\s*weight", r"nt\.?\s*wt\.?", r"net\s*wt"],
+    "amount_in_words": [r"amount\s*chargeable\s*\(?in\s*words\)?", r"amount\s*in\s*words?", r"rupees?\s*in\s*words?"],
+    "port_of_loading": [r"port\s*of\s*loading", r"pol\b"],
+    "port_of_discharge": [r"port\s*of\s*discharge", r"pod\b"],
+    "mode_of_transport": [r"mode\s*of\s*transport(?:ation)?", r"vessel\s*/\s*flight\s*no"],
+    "final_destination": [r"final\s*destination", r"country\s*of\s*destination"],
+    "payment_terms": [r"payment\s*terms?", r"terms\s*of\s*(?:delivery\s*and\s*)?payment"],
     "phone": [r"phone", r"mobile", r"tel", r"contact"],
     "email": [r"email", r"e-mail"],
 }
@@ -612,17 +647,44 @@ def _looks_like_value(field: str, value: str) -> bool:
         return False
     label_only = re.sub(r"[^a-z]+", " ", value.lower()).strip()
     bad_by_field = {
-        "invoice_number": {"invoice", "export invoice", "tax invoice", "commercial invoice", "invoice no"},
+        "invoice_number": {
+            "value", "invoice", "invoice date", "date", "no", "number",
+            "export invoice", "tax invoice", "commercial invoice", "invoice no",
+        },
+        "purchase_order_number": {"value", "purchase order", "po", "po no", "order", "order no", "no", "number"},
+        "buyer_order_no": {"value", "buyer order", "buyer s order", "buyer order no", "order", "order no", "no", "number"},
         "order_number": {"group", "order", "order no"},
         "item_name": {"of goods", "description of goods"},
         "container_number": {"seal number"},
         "seal_number": {"box serial number"},
     }
-    if label_only in bad_by_field.get(field, set()):
+    number_fields = {"invoice_number", "purchase_order_number", "buyer_order_no", "order_number"}
+    if label_only in bad_by_field.get(field, set()) and not (field in number_fields and re.search(r"\d", value)):
         return False
     if field == "invoice_number":
+        currency_token = re.sub(r"[()\[\]{}\s]", "", value).upper()
+        if currency_token in {"EUR", "USD", "INR", "GBP", "AED"}:
+            return False
         if re.fullmatch(r"(?i)(?:export|tax|commercial)?\s*invoice|export|tax|commercial", value):
             return False
+    if field == "invoice_date":
+        return bool(re.fullmatch(
+            r"(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|"
+            r"\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|"
+            r"[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})",
+            value,
+        ))
+    if field in {"purchase_order_number", "buyer_order_no"}:
+        return bool(re.search(r"\d", value))
+    if field in {"gross_weight", "net_weight"}:
+        # Must contain digits (actual weight value)
+        return bool(re.search(r"\d", value))
+    if field in {"port_of_loading", "port_of_discharge", "mode_of_transport", "final_destination"}:
+        # Must be more than just a label word
+        return bool(value and len(value) >= 3 and not value.lower().startswith("port of"))
+    if field == "amount_in_words":
+        # Must be a reasonable words description
+        return bool(value and len(value) >= 8)
     if field in {"total_amount", "grand_total"}:
         return bool(re.search(r"\d", value))
     if field == "gst_number":
@@ -995,6 +1057,7 @@ def _extract_vertical_item_fields(raw_text: str, limit: int = 12) -> Dict[str, A
     sales_re = re.compile(r"^\d+$")
     idx = 0
     po_count = gls_count = sales_count = grn_count = 0
+    grn_rows: List[Dict[str, str]] = []
 
     while idx < len(lines):
         line = lines[idx]
@@ -1054,7 +1117,7 @@ def _extract_vertical_item_fields(raw_text: str, limit: int = 12) -> Dict[str, A
         if line.isdigit() and grn_count < limit and idx + 7 < len(lines):
             if re.match(r"^[A-Z]{2,}\d", lines[idx + 1]) and re.fullmatch(r"(NOS|BOX|PCS|PAIRS)", lines[idx + 3], re.I):
                 grn_count += 1
-                add_row(f"grn_item_{grn_count:02d}", {
+                grn_row = {
                     "sno": lines[idx],
                     "code": lines[idx + 1],
                     "description": lines[idx + 2],
@@ -1063,7 +1126,9 @@ def _extract_vertical_item_fields(raw_text: str, limit: int = 12) -> Dict[str, A
                     "accepted_qty": lines[idx + 5],
                     "rejected_qty": lines[idx + 6],
                     "reference": lines[idx + 7],
-                })
+                }
+                grn_rows.append(grn_row)
+                add_row(f"grn_item_{grn_count:02d}", grn_row)
                 idx += 8
                 continue
 
@@ -1071,7 +1136,115 @@ def _extract_vertical_item_fields(raw_text: str, limit: int = 12) -> Dict[str, A
 
     if out:
         out["line_item_count"] = {"value": max(po_count, gls_count, sales_count, grn_count), "confidence": 0.78}
+    if grn_rows:
+        out["item_rows"] = {
+            "value": grn_rows,
+            "confidence": 0.82,
+            "method": "grn_vertical_table",
+            "source_evidence": "GRN code/description/unit/quantity rows",
+        }
     return out
+
+
+def _extract_commercial_invoice_rows(raw_text: str, limit: int = 100) -> Dict[str, Any]:
+    """Extract vertical commercial-invoice rows after an explicit table header."""
+    lines = [_clean(line) for line in raw_text.splitlines() if _clean(line)]
+    header_terms = {
+        "order.no", "order no", "article no / fit", "article", "style / colour",
+        "style / color", "site", "hsn code", "hsn/sac", "size", "quantity",
+        "qty", "rate", "price", "amount", "total", "uom", "pairs", "pcs",
+    }
+    header_indexes = [
+        i for i, line in enumerate(lines)
+        if line.lower().strip(" .:") in header_terms
+    ]
+    if not header_indexes or not any(re.search(r"\border\s*\.?\s*no\b", lines[i], re.I) for i in header_indexes):
+        return {}
+
+    start = max(i for i in header_indexes if i < min(header_indexes) + 20) + 1
+    order_re = re.compile(r"^\d{6,12}$")
+    hsn_re = re.compile(r"^\d{6,8}$")
+    number_re = re.compile(r"^[0-9][0-9,]*(?:\.[0-9]{1,4})?$")
+    footer_re = re.compile(
+        r"^(?:total|grand total|amount chargeable|abstract|declaration|statement|"
+        r"signature|bank details|dimensions?)\b",
+        re.I,
+    )
+    rows: List[Dict[str, str]] = []
+    seen: set[Tuple[str, ...]] = set()
+    category = ""
+    i = start
+    while i < len(lines) and len(rows) < limit:
+        line = lines[i]
+        if footer_re.match(line):
+            if rows:
+                break
+            i += 1
+            continue
+        if not order_re.fullmatch(line):
+            if re.search(r"[A-Za-z]{4,}", line) and not number_re.fullmatch(line):
+                category = line
+            i += 1
+            continue
+        if i + 8 >= len(lines):
+            break
+        chunk = lines[i:i + 9]
+        order_no, article, style, site, hsn, size, qty, rate, amount = chunk
+        if (
+            order_re.fullmatch(order_no)
+            and re.search(r"[A-Za-z0-9]", article)
+            and re.search(r"[A-Za-z]", style)
+            and hsn_re.fullmatch(hsn)
+            and number_re.fullmatch(qty)
+            and number_re.fullmatch(rate)
+            and number_re.fullmatch(amount)
+        ):
+            qty_num = float(qty.replace(",", ""))
+            rate_num = float(rate.replace(",", ""))
+            amount_num = float(amount.replace(",", ""))
+            if qty_num > 0 and rate_num >= 0 and amount_num > 0:
+                expected = qty_num * rate_num
+                if abs(expected - amount_num) <= max(1.0, amount_num * 0.02):
+                    signature = tuple(chunk)
+                    if signature not in seen:
+                        seen.add(signature)
+                        rows.append({
+                            "sno": str(len(rows) + 1),
+                            "order_no": order_no,
+                            "group": site,
+                            "article": article,
+                            "colour": style,
+                            "hsn_sac": hsn,
+                            "type": category,
+                            "size": size,
+                            "uom": "PAIRS",
+                            "qty": qty.replace(",", ""),
+                            "price": rate.replace(",", ""),
+                            "amount": amount.replace(",", ""),
+                            "total": amount.replace(",", ""),
+                            "act": "",
+                        })
+                    i += 9
+                    continue
+        i += 1
+
+    if not rows:
+        return {}
+    return {
+        "item_rows": {
+            "value": rows,
+            "confidence": 0.90,
+            "method": "commercial_vertical_table",
+            "source": "regex",
+            "source_evidence": "commercial invoice vertical item table",
+        },
+        "line_item_count": {
+            "value": len(rows),
+            "confidence": 0.90,
+            "method": "commercial_vertical_table",
+            "source_evidence": "validated qty x rate = amount rows",
+        },
+    }
 
 
 def extract_fields(raw_text: str) -> Dict[str, Any]:
@@ -1089,12 +1262,29 @@ def extract_fields(raw_text: str) -> Dict[str, Any]:
             m = re.search(pat, raw_text, flags)
             if m:
                 val = _clean(m.group(1))
-                if val and (field != "invoice_number" or _looks_like_value(field, val)):
+                if val and (field not in {"invoice_number", "invoice_date", "purchase_order_number", "buyer_order_no"} or _looks_like_value(field, val)):
                     conf = round(min(0.95, 0.60 + len(val) * 0.01 + (0.15 if patterns.index((pat, flags)) == 0 else 0)), 2)
                     # Capture short evidence snippet (safe: never full OCR text)
                     evidence = _clean(m.group(0))[:80]
                     result[field] = {"value": val, "confidence": conf, "method": "regex", "source_evidence": evidence}
                     break
+
+    summary_match = re.search(
+        r"^Total\s*\n\s*[0-9,]+\s*\n\s*([0-9,]+(?:\.[0-9]{1,2})?)$",
+        raw_text,
+        re.I | re.M,
+    )
+    if summary_match:
+        amount = _clean(summary_match.group(1))
+        evidence = _clean(summary_match.group(0))[:80]
+        summary_entry = {
+            "value": amount,
+            "confidence": 0.92,
+            "method": "regex",
+            "source_evidence": evidence,
+        }
+        result["total_amount"] = dict(summary_entry)
+        result["grand_total"] = dict(summary_entry)
 
     for field, data in _extract_next_line_fields(raw_text).items():
         result.setdefault(field, data)
@@ -1124,8 +1314,22 @@ def extract_fields(raw_text: str) -> Dict[str, Any]:
         result.setdefault(field, data)
     for field, data in _extract_vertical_item_fields(raw_text).items():
         result.setdefault(field, data)
+    for field, data in _extract_commercial_invoice_rows(raw_text).items():
+        result[field] = data
     for field, data in _extract_clause_blocks(raw_text).items():
         result[field] = data
+
+    buyer_order = _field_value(result.get("buyer_order_no"))
+    if buyer_order:
+        order_numbers = re.findall(r"[A-Z0-9][A-Z0-9_\-/]*\d[A-Z0-9_\-/]*", buyer_order, re.I)
+        if len(order_numbers) > 1:
+            result["buyer_order_nos"] = {
+                "value": ", ".join(order_numbers),
+                "confidence": result["buyer_order_no"].get("confidence", 0.7),
+                "method": "regex",
+                "source_evidence": buyer_order[:80],
+            }
+            result["buyer_order_no"]["value"] = order_numbers[0]
 
     # item_description: reuse item_name value or first long line
     if "item_description" not in result and "item_name" in result:
@@ -1394,6 +1598,8 @@ def map_sales_invoice_fields(raw_text: str) -> Dict[str, Any]:
             return False
         if field in {"invoice_number", "order_number"}:
             return bool(re.search(r"\d", value)) and not re.search(r"\b(invoice|dated|group|order no)\b", low)
+        if field == "invoice_date":
+            return _looks_like_value(field, value)
         if field.endswith("_address"):
             return len(value) > 8 and not low.startswith(("buyer if", "delivery at", "invoice no"))
         return True
@@ -1456,6 +1662,20 @@ def map_sales_invoice_fields(raw_text: str) -> Dict[str, Any]:
         "COUNTRY OF ORIGIN OF GOODS": "country_of_origin", "EXPORT CATEGORY": "export_category",
         "TAXATION": "taxation",
     }
+
+    # PDF text layers often emit two visual-column labels first, followed by
+    # their two values: Invoice No, Invoice Date, INV-001, 31-05-2026.
+    invoice_no_idx = find_label("INVOICE NO")
+    if (
+        invoice_no_idx >= 0
+        and invoice_no_idx + 3 < len(lines)
+        and has_label(lines[invoice_no_idx + 1], "INVOICE DATE")
+    ):
+        paired_number = lines[invoice_no_idx + 2]
+        paired_date = lines[invoice_no_idx + 3]
+        if valid_value("invoice_number", paired_number) and valid_value("invoice_date", paired_date):
+            set_field("invoice_number", paired_number, 0.94)
+            set_field("invoice_date", paired_date, 0.94)
 
     sorted_labels = sorted(label_to_field, key=len, reverse=True)
     kv_hits: List[Dict[str, str]] = []
@@ -1740,8 +1960,19 @@ def flatten_item_rows_for_legacy_fields(mapped_result: Dict[str, Any], document_
     # 2. Extract general/vertical fields from raw_text and merge without overwriting
     if raw_text:
         gen_fields = extract_fields(raw_text)
+        if not mapped_fields.get("item_rows") and isinstance(gen_fields.get("item_rows"), dict):
+            mapped_fields["item_rows"] = gen_fields["item_rows"]
+            mapped_fields["items"] = gen_fields["item_rows"]
+            rows = gen_fields["item_rows"].get("value", [])
+            if isinstance(rows, list):
+                mapped_fields["line_item_count"] = {
+                    "value": len(rows),
+                    "confidence": gen_fields["item_rows"].get("confidence", 0.90),
+                    "method": gen_fields["item_rows"].get("method", "regex"),
+                    "source_evidence": gen_fields["item_rows"].get("source_evidence", ""),
+                }
         for key, data in gen_fields.items():
-            if key == "item_rows":
+            if key in {"item_rows", "items"}:
                 continue
             existing = mapped_fields.get(key)
             if not existing or (isinstance(existing, dict) and not existing.get("value")):
@@ -1756,6 +1987,22 @@ def flatten_item_rows_for_legacy_fields(mapped_result: Dict[str, Any], document_
                     "value": str(val),
                     "confidence": conf
                 }
+
+        # Flatten rows adopted from the generic commercial parser.
+        item_rows_data = mapped_fields.get("item_rows")
+        rows = item_rows_data.get("value", []) if isinstance(item_rows_data, dict) else []
+        if isinstance(rows, list):
+            prefix = "gls_item_" if document_type in ("COMMERCIAL_INVOICE", "commercial_invoice") else "sales_item_"
+            for index, row in enumerate(rows, start=1):
+                if not isinstance(row, dict):
+                    continue
+                for key, value in row.items():
+                    flat_key = f"{prefix}{index:02d}_{key}"
+                    mapped_fields.setdefault(flat_key, {
+                        "value": str(value or ""),
+                        "confidence": item_rows_data.get("confidence", 0.90),
+                        "method": item_rows_data.get("method", "regex"),
+                    })
 
     mapped_fields = normalize_mapped_fields(mapped_fields)
 

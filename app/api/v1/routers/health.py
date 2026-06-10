@@ -9,13 +9,14 @@ router = APIRouter(tags=["Health"])
 settings = get_settings()
 
 
-def _ocr_engine_status() -> dict:
+async def _ocr_engine_status() -> dict:
     """Task 5: Detect real vs mock OCR engine at runtime."""
     try:
         from app.services.ocr_service import get_engine
-        engine_info = get_engine()
-        is_mock = getattr(engine_info, "is_mock", False) or str(engine_info).lower().startswith("mock")
-        return {"engine": str(engine_info), "mock": is_mock, "status": "warn" if is_mock else "ok"}
+        engine_info = await get_engine()
+        engine_name = str(getattr(engine_info, "name", engine_info))
+        is_mock = getattr(engine_info, "is_mock", False) or engine_name.lower().startswith("mock")
+        return {"engine": engine_name, "mock": is_mock, "status": "warn" if is_mock else "ok"}
     except Exception as e:
         return {"engine": "unknown", "mock": True, "status": "warn", "detail": str(e)}
 
@@ -38,7 +39,7 @@ async def readiness(db: AsyncSession = Depends(get_db)) -> HealthResponse:
     except Exception as exc:
         checks["database"] = f"error: {exc}"
 
-    ocr = _ocr_engine_status()
+    ocr = await _ocr_engine_status()
     checks["ocr_engine"] = ocr["engine"]
     checks["ocr_mock"]   = str(ocr["mock"])
 

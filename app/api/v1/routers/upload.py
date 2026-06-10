@@ -90,7 +90,7 @@ WINDOWS_RESERVED_NAMES = {
     *(f"lpt{i}" for i in range(1, 10)),
 }
 MAX_IMAGE_PIXELS = 25_000_000
-MAX_UPLOAD_PDF_PAGES = 100
+MAX_UPLOAD_PDF_PAGES = settings.MAX_PDF_PAGES
 MAX_BATCH_FILES = DEFAULT_MAX_BATCH_FILES
 MAX_BATCH_TOTAL_BYTES = DEFAULT_MAX_BATCH_TOTAL_MB * 1024 * 1024
 MAGIC_BYTES = {
@@ -790,7 +790,10 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
                 "export_allowed":         conf_summary.export_allowed,
                 "overall_confidence":     conf_summary.overall_confidence,
             }
-            final_ocr_decision = build_final_ocr_decision(p2_field_response)
+            final_ocr_decision = build_final_ocr_decision(
+                p2_field_response,
+                document_type=mapped_result.get("document_type", document_type),
+            )
         except Exception as _p2_exc:
             logger.warning("Phase 2 enrichment failed (non-fatal): job_id={} err={}", job_id, _p2_exc)
         # ── End Phase 2 ───────────────────────────────────────────────────────
@@ -844,6 +847,32 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             except Exception as _memory_exc:
                 memory_warnings.append(f"Correction memory apply failed: {_memory_exc}")
                 logger.warning("Correction memory apply failed (non-fatal): job_id={} err={}", job_id, _memory_exc)
+        # ── P10: Propagate memory-applied canonical fields into mapped_fields & validated_fields ──
+        _memory_canonical = memory_apply_result.get("canonical_fields", {})
+        for _mf_name in memory_apply_result.get("memory_applied_fields", []):
+            _mf_entry = _memory_canonical.get(_mf_name)
+            if not isinstance(_mf_entry, dict) or not _mf_entry.get("value"):
+                continue
+            _patched = {
+                "value": _mf_entry["value"],
+                "confidence": _mf_entry.get("confidence", 0.85),
+                "method": _mf_entry.get("method", "memory_auto_apply"),
+                "source": _mf_entry.get("source", "correction_memory"),
+                "source_evidence": _mf_entry.get("evidence", ""),
+                "status": _mf_entry.get("status", "AUTO_FILLED"),
+            }
+            # Patch mapped_result["mapped_fields"]
+            _existing_mf = mapped_result.get("mapped_fields", {}).get(_mf_name)
+            if isinstance(_existing_mf, dict):
+                mapped_result["mapped_fields"][_mf_name] = {**_existing_mf, **_patched}
+            else:
+                mapped_result.setdefault("mapped_fields", {})[_mf_name] = _patched
+            # Patch validation["validated_fields"]
+            _existing_vf = validation["validated_fields"].get(_mf_name)
+            if isinstance(_existing_vf, dict):
+                validation["validated_fields"][_mf_name] = {**_existing_vf, **_patched}
+            else:
+                validation["validated_fields"][_mf_name] = _patched
         ai_audit_metadata = _ai_fallback_audit_metadata(mapped_result, validation["warnings"])
         ocr_warnings = list(ocr_response.get("warnings", []))
         ocr_warnings.extend(validation["warnings"])
@@ -871,11 +900,18 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
                 raw_ocr_json=result,
                 raw_text=text,
                 page_count=int(result.get("page_count", 0) or 0),
-                extracted_fields=fields,
+                extracted_fields={
+                    k: ({"value": v.get("value"), "confidence": v.get("confidence", 0.0), "method": v.get("method", "regex"), "source": v.get("source", "")} if isinstance(v, dict) else {"value": v, "confidence": 0.0, "method": "unknown"})
+                    for k, v in mapped_result.get("mapped_fields", {}).items()
+                } or fields,
                 validated_fields=validation["validated_fields"],
                 mapped_output={k: v["value"] if isinstance(v, dict) else v
                                for k, v in validation["validated_fields"].items()},
-                line_items=mapped_for_validation.get("item_rows", []) or [],
+                line_items=(
+                    mapped_for_validation.get("item_rows", {}).get("value", [])
+                    if isinstance(mapped_for_validation.get("item_rows"), dict)
+                    else mapped_for_validation.get("item_rows", []) or []
+                ),
                 overall_confidence=float(result.get("avg_confidence", 0.0) or 0.0),
                 validation_errors=[{"error": e} for e in validation["errors"]]
                                  + [{"warning": w} for w in validation["warnings"]],
@@ -893,6 +929,7 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             if uploaded_file:
                 uploaded_file.status = FileStatus.DONE.value
                 uploaded_file.page_count = int(result.get("page_count", 0) or 0)
+                uploaded_file.document_type = effective_doc_type or None
 
             job.status = JobStatus.COMPLETED.value
             job.started_at = job.started_at or completed_at
@@ -971,6 +1008,7 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             "weak_ocr": bool(result.get("weak_ocr", len(text.strip()) < 20)),
             "weak_ocr_message": result.get("weak_ocr_message", ""),
             "mapped_fields": mapped_result.get("mapped_fields", {}),
+            "validated_fields": validation["validated_fields"],
             "regex_fields": regex_fields,
             "gemini_fields": mapped_result.get("gemini_fields", {}),
             "weak_mapping": bool(mapped_result.get("weak_mapping", False)),
@@ -1784,7 +1822,7 @@ async def get_upload_job(
         extracted = result.scalar_one_or_none()
 
     text = (extracted.raw_text or "") if extracted else ""
-    mapped_fields = {}
+    mapped_fields: dict[str, Any] = {}
     if extracted and extracted.validated_fields:
         # validated_fields shape: {field: {value, confidence}} or {field: raw_value}
         for k, v in extracted.validated_fields.items():
@@ -1792,6 +1830,32 @@ async def get_upload_job(
                 mapped_fields[k] = v
             else:
                 mapped_fields[k] = {"value": str(v), "confidence": 0.5}
+    extracted_fields = extracted.extracted_fields if extracted and isinstance(extracted.extracted_fields, dict) else {}
+    canonical_fields = mapped_fields or extracted_fields
+    line_items = extracted.line_items if extracted and isinstance(extracted.line_items, list) else []
+    validation_items = extracted.validation_errors if extracted and isinstance(extracted.validation_errors, list) else []
+    validation_errors = [e.get("error", "") for e in validation_items if isinstance(e, dict) and "error" in e]
+    validation_warnings = [e.get("warning", "") for e in validation_items if isinstance(e, dict) and "warning" in e]
+    low_confidence_fields = [
+        key for key, value in canonical_fields.items()
+        if isinstance(value, dict) and value.get("confidence") is not None and float(value.get("confidence") or 0) < 0.5
+    ]
+    missing_fields = [
+        key for key, value in canonical_fields.items()
+        if isinstance(value, dict) and not str(value.get("value") or "").strip()
+    ]
+    review_fields = [
+        {"field_name": key, **value} if isinstance(value, dict) else {"field_name": key, "value": value}
+        for key, value in canonical_fields.items()
+    ]
+    export_allowed = bool(extracted and extracted.status == ExtractionStatus.VALIDATED.value and not validation_errors)
+    document_type = "general"
+    if extracted and extracted.raw_ocr_json and isinstance(extracted.raw_ocr_json, dict):
+        document_type = (
+            extracted.raw_ocr_json.get("document_type")
+            or extracted.raw_ocr_json.get("doc_type")
+            or document_type
+        )
 
     return {
         "job_id": job_id,
@@ -1808,17 +1872,45 @@ async def get_upload_job(
         "raw_text_preview": text[:300],
         "detected_line_count": len([l for l in text.splitlines() if l.strip()]),
         "mapped_fields": mapped_fields,
-        "missing_fields": [],
-        "fields": {},
-        "confidence": {},
-        "warnings": ["Job state restored from database (server was restarted)"],
+        "canonical_fields": canonical_fields,
+        "review_fields": review_fields,
+        "missing_fields": missing_fields,
+        "low_confidence_fields": low_confidence_fields,
+        "fields": {
+            key: (value.get("value", "") if isinstance(value, dict) else value)
+            for key, value in canonical_fields.items()
+        },
+        "confidence": {
+            key: float(value.get("confidence", 0.0) or 0.0)
+            for key, value in canonical_fields.items()
+            if isinstance(value, dict)
+        },
+        "warnings": ["Job state restored from database (server was restarted)", *validation_warnings],
         "extraction_status": extracted.status if extracted else None,
-        "validation_errors": [e.get("error", "") for e in (extracted.validation_errors or [])
-                              if "error" in e] if extracted else [],
-        "validation_warnings": [e.get("warning", "") for e in (extracted.validation_errors or [])
-                                if "warning" in e] if extracted else [],
-        "document_type": "general",
-        "ocr_response": {"text": text, "fields": {}, "confidence": {}, "warnings": []},
+        "validation_errors": validation_errors,
+        "validation_warnings": validation_warnings,
+        "document_type": document_type,
+        "items": line_items,
+        "line_items": line_items,
+        "export_allowed": export_allowed,
+        "blocked_fields": [] if export_allowed else [*missing_fields, *validation_errors],
+        "export_block_reasons": [] if export_allowed else [*missing_fields, *validation_errors],
+        "ocr_response": {
+            "text": text,
+            "fields": {
+                key: (value.get("value", "") if isinstance(value, dict) else value)
+                for key, value in canonical_fields.items()
+            },
+            "confidence": {
+                key: float(value.get("confidence", 0.0) or 0.0)
+                for key, value in canonical_fields.items()
+                if isinstance(value, dict)
+            },
+            "warnings": validation_warnings,
+            "missing_fields": missing_fields,
+            "low_confidence_fields": low_confidence_fields,
+            "items": line_items,
+        },
         "memory_applied_count": 0,
         "memory_suggestion_count": 0,
         "memory_applied_fields": [],
