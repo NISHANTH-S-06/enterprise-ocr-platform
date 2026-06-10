@@ -745,6 +745,33 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
 
 /* ── PAGE SECTIONS ── */
 .page-kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-md);padding:18px 22px;}
+
+/* ── FIX: Force ERP form fields to render as normal text inputs ── */
+[data-main-form-panel] .fg > div {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+[data-main-form-panel] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+[data-main-form-panel] textarea {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background: #0f172a !important;
+  border: 1px solid #25324a !important;
+  border-radius: 8px !important;
+  color: #e5eefc !important;
+  min-height: 38px !important;
+  width: 100% !important;
+  padding: 9px 11px !important;
+}
+[data-main-form-panel] select {
+  background: #0f172a !important;
+  border: 1px solid #25324a !important;
+  border-radius: 8px !important;
+  color: #e5eefc !important;
+  min-height: 38px !important;
+}
 </style>
 </head>
 <body>
@@ -5308,6 +5335,7 @@ function isMainMasterField(elOrSuffix){
 function previewMainAiFillMatches(result){
   const module = MAIN_AI_FILL.module;
   const stats = {filled:0, skipped:0, masterSelection:0};
+  const _debugSkipped = [];
   const debug = result.debug || (result.debug = {normalizedKeys:[], matchedTargets:[], skippedKeys:[]});
   debug.matchedTargets = [];
   debug.skippedKeys = [];
@@ -5320,8 +5348,12 @@ function previewMainAiFillMatches(result){
     }else{
       stats.skipped++;
       debug.skippedKeys.push(`${key}: no matching ${module} field`);
+      _debugSkipped.push({key, value: result.fields[key], normalized: mainAiKey(key)});
     }
   });
+  if(_debugSkipped.length){
+    console.warn(`[AI Fill] ${_debugSkipped.length} skipped key(s) for ${module}:`, _debugSkipped);
+  }
   return stats;
 }
 
@@ -5862,29 +5894,53 @@ async function validateMainWorkbenchForm(module){
 
 async function downloadMainWorkbenchExport(module, fmt){
   const payload = collectMainWorkbenchPayload(module);
-  const res = await fetch(`${apiBase()}/api/v1/forms/workbench/export/${fmt}`, {
-    method:"POST",
-    headers:{"Content-Type":"application/json","Authorization":`Bearer ${S.token}`},
-    body:JSON.stringify(payload)
-  });
+  console.log(`[Export] ${fmt} for ${module}`, payload);
+  let res;
+  try {
+    res = await fetch(`${apiBase()}/api/v1/forms/workbench/export/${fmt}`, {
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":`Bearer ${S.token}`},
+      body:JSON.stringify(payload)
+    });
+  } catch(networkErr) {
+    const err = new Error(`Network error: ${networkErr.message}`);
+    err.isBlocked = false;
+    toast(`Export network error: ${networkErr.message}`, "error", 8000);
+    throw err;
+  }
+  console.log(`[Export] Response status: ${res.status}`);
   if(!res.ok){
-    let message = `${res.status}`;
+    let message = `HTTP ${res.status}`;
     let isBlocked = false;
+    let rawText = "";
     try{
-      const error = await res.json();
+      rawText = await res.text();
+      console.error(`[Export] Error response (${res.status}):`, rawText);
+      const error = JSON.parse(rawText);
       const detail = error.detail || error;
-      message = detail.message || JSON.stringify(detail);
-      if(detail.blocked) isBlocked = true;
-      const blockers = detail.blocker_reasons || [];
-      const blockerMsgs = blockers.map(b => `Blocked: ${b.field_key || b.field} - ${b.reason}`);
-      const simpleBlocked = (detail.blocked_fields || []).filter(f => !blockers.some(b => b.field_key === f || b.field === f)).map(f => `Blocked field: ${f}`);
-      updateMainExportReview(module, ["Export status: blocked", ...blockerMsgs, ...simpleBlocked, ...(detail.warnings || []).map(w => `Warning: ${w}`)]);
-    }catch{ message += " - Export request failed"; }
+      if(res.status === 422){
+        isBlocked = true;
+        const blockers = detail.blocker_reasons || [];
+        const blockerMsgs = blockers.map(b => `Blocked: ${b.field_key || b.field} — ${b.reason || b.message}`);
+        const simpleBlocked = (detail.blocked_fields || []).filter(f => !blockers.some(b => b.field_key === f || b.field === f)).map(f => `Blocked field: ${f}`);
+        const warnings = (detail.warnings || []).map(w => `Warning: ${w}`);
+        message = detail.message || `Export blocked (${(detail.blocked_fields || []).join(", ") || "validation failed"})`;
+        updateMainExportReview(module, ["Export status: blocked", ...blockerMsgs, ...simpleBlocked, ...warnings]);
+        toast(`Export blocked: ${message}`, "warn", 8000);
+      } else {
+        message = detail.message || detail.detail || JSON.stringify(detail);
+        toast(`Export failed (${res.status}): ${message}`, "error", 8000);
+      }
+    } catch(_) {
+      message = `HTTP ${res.status} — ${rawText || "Export request failed"}`;
+      toast(`Export failed: ${message}`, "error", 8000);
+    }
     const err = new Error(message);
     err.isBlocked = isBlocked;
     throw err;
   }
   const blob = await res.blob();
+  console.log(`[Export] Blob received: ${blob.size} bytes, type=${blob.type}`);
   const dispo = res.headers.get("content-disposition") || "";
   const match = dispo.match(/filename="?([^"]+)"?/);
   const ext = fmt === "excel" ? "xlsx" : fmt;
