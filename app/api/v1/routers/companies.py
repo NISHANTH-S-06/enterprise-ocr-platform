@@ -11,12 +11,13 @@ Endpoints:
 """
 from __future__ import annotations
 
+import io
 import json
 import uuid
 from datetime import datetime, timezone
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -83,6 +84,17 @@ class ERPMasterMappingRequest(BaseModel):
     erp_id: str
     erp_code: str | None = None
     erp_name: str | None = None
+    display_name: str | None = None
+    legal_name: str | None = None
+    alias_names: str | None = None
+    gst_number: str | None = None
+    pan_number: str | None = None
+    hsn_code: str | None = None
+    part_number: str | None = None
+    product_description: str | None = None
+    uom: str | None = None
+    tax_rate: float | None = None
+    currency_code: str | None = None
     module: str | None = None
     company_name: str | None = None
     vendor_name: str | None = None
@@ -142,7 +154,11 @@ def _normalized_dataset_text(value: Any) -> str:
     return " ".join(_clean_dataset_text(value).casefold().split())
 
 
-ERP_MASTER_TYPES = {"customer", "supplier", "product", "tax_group", "customer_site", "supplier_site"}
+ERP_MASTER_TYPES = {
+    "customer", "supplier", "product", "tax_group", "customer_site", "supplier_site",
+    "payment_term", "delivery_term", "freight_term", "currency", "branch", "project",
+    "salesperson", "carrier",
+}
 
 
 def normalize_erp_master_text(value: Any) -> str:
@@ -161,6 +177,17 @@ def _master_to_dict(mapping: ERPMasterMapping) -> dict[str, Any]:
         "id": str(mapping.id), "master_type": mapping.master_type,
         "detected_text": mapping.detected_text, "normalized_text": mapping.normalized_text,
         "erp_id": mapping.erp_id, "erp_code": mapping.erp_code, "erp_name": mapping.erp_name,
+        "display_name": getattr(mapping, "display_name", None),
+        "legal_name": getattr(mapping, "legal_name", None),
+        "alias_names": getattr(mapping, "alias_names", None),
+        "gst_number": getattr(mapping, "gst_number", None),
+        "pan_number": getattr(mapping, "pan_number", None),
+        "hsn_code": getattr(mapping, "hsn_code", None),
+        "part_number": getattr(mapping, "part_number", None),
+        "product_description": getattr(mapping, "product_description", None),
+        "uom": getattr(mapping, "uom", None),
+        "tax_rate": getattr(mapping, "tax_rate", None),
+        "currency_code": getattr(mapping, "currency_code", None),
         "module": mapping.module, "company_name": mapping.company_name,
         "vendor_name": mapping.vendor_name, "customer_name": mapping.customer_name,
         "is_active": mapping.is_active, "confidence": mapping.confidence,
@@ -218,6 +245,220 @@ def resolve_erp_master_values(
     return {"resolved_fields": resolved_fields, "resolved_rows": resolved_rows, "resolved_count": resolved_count, "unresolved": unique}
 
 
+# ── Scored resolver (Task 4) ─────────────────────────────────────────────────
+
+def _score_master_match(detected: str, context: dict[str, Any], mapping: Any) -> tuple[int, str]:
+    """Return (score 0-100, match_reason) for a single mapping candidate."""
+    def attr(m: Any, k: str, d: Any = None) -> Any:
+        return m.get(k, d) if isinstance(m, dict) else getattr(m, k, d)
+
+    norm_detected = normalize_erp_master_text(detected)
+
+    # Score 100: exact erp_id / erp_code match
+    if context.get("erp_id") and _clean_dataset_text(context["erp_id"]) == attr(mapping, "erp_id"):
+        return 100, "exact_erp_id"
+    if context.get("erp_code") and _clean_dataset_text(context["erp_code"]) == attr(mapping, "erp_code"):
+        return 100, "exact_erp_code"
+
+    # Score 98: GST exact match
+    gst_ctx = normalize_erp_master_text(context.get("gst_number") or "")
+    gst_map = normalize_erp_master_text(attr(mapping, "gst_number") or "")
+    if gst_ctx and gst_map and gst_ctx == gst_map:
+        return 98, "exact_gst"
+
+    # Score 95: exact part number
+    pn_ctx = normalize_erp_master_text(context.get("part_number") or "")
+    pn_map = normalize_erp_master_text(attr(mapping, "part_number") or "")
+    if pn_ctx and pn_map and pn_ctx == pn_map:
+        return 95, "exact_part_number"
+
+    # Score 90: exact normalized display name / detected_text
+    norm_map = attr(mapping, "normalized_text") or normalize_erp_master_text(attr(mapping, "detected_text") or "")
+    if norm_detected and norm_map and norm_detected == norm_map:
+        return 90, "exact_normalized_name"
+
+    # Score 85: alias exact match
+    aliases_raw = attr(mapping, "alias_names") or ""
+    alias_list = [normalize_erp_master_text(a) for a in str(aliases_raw).split("|") if a.strip()]
+    if norm_detected and norm_detected in alias_list:
+        return 85, "alias_exact"
+
+    # Score 75: HSN + product description overlap
+    hsn_ctx = normalize_erp_master_text(context.get("hsn_code") or "")
+    hsn_map = normalize_erp_master_text(attr(mapping, "hsn_code") or "")
+    if hsn_ctx and hsn_map and hsn_ctx == hsn_map:
+        return 75, "exact_hsn"
+
+    # Score 70+: fuzzy token overlap
+    if norm_detected and norm_map:
+        tokens_det = set(norm_detected.split())
+        tokens_map = set(norm_map.split())
+        if tokens_det and tokens_map:
+            overlap = len(tokens_det & tokens_map) / max(len(tokens_det | tokens_map), 1)
+            if overlap >= 0.8:
+                return 70 + int(overlap * 20), "strong_fuzzy"
+            if overlap >= 0.5:
+                return 60 + int(overlap * 20), "token_overlap"
+
+    return 0, "no_match"
+
+
+CRITICAL_MASTER_TYPES = {"customer", "supplier", "product", "tax_group"}
+MIN_SCORE = 70
+MIN_SCORE_NON_CRITICAL = 60
+
+
+def resolve_erp_master_scored(
+    master_type: str, detected: str, context: dict[str, Any],
+    mappings: list[Any], module: str,
+) -> dict[str, Any]:
+    """Score all candidates and return best match with reason."""
+    def attr(m: Any, k: str, d: Any = None) -> Any:
+        return m.get(k, d) if isinstance(m, dict) else getattr(m, k, d)
+
+    candidates = [m for m in mappings
+                  if attr(m, "master_type") == master_type and attr(m, "is_active", True)
+                  and (not attr(m, "module") or attr(m, "module") == module)]
+
+    if not candidates:
+        return {"resolved": False, "erp_id": "", "erp_code": "", "display_name": "",
+                "score": 0, "match_reason": "", "candidates": [],
+                "unresolved_reason": "no_master_data"}
+
+    scored = []
+    for m in candidates:
+        score, reason = _score_master_match(detected, context, m)
+        if score > 0:
+            scored.append((score, reason, m))
+    scored.sort(key=lambda x: -x[0])
+
+    threshold = MIN_SCORE if master_type in CRITICAL_MASTER_TYPES else MIN_SCORE_NON_CRITICAL
+    if not scored:
+        return {"resolved": False, "erp_id": "", "erp_code": "", "display_name": "",
+                "score": 0, "match_reason": "", "candidates": [],
+                "unresolved_reason": "no_match"}
+
+    best_score, best_reason, best = scored[0]
+    if best_score < threshold and not (len(scored) == 1 and master_type not in CRITICAL_MASTER_TYPES):
+        return {"resolved": False, "erp_id": "", "erp_code": "", "display_name": "",
+                "score": best_score, "match_reason": best_reason, "candidates": [
+                    {"erp_id": attr(m, "erp_id"), "display_name": attr(m, "detected_text"), "score": s}
+                    for s, _, m in scored[:5]],
+                "unresolved_reason": "low_score"}
+
+    return {
+        "resolved": True,
+        "erp_id": attr(best, "erp_id"),
+        "erp_code": attr(best, "erp_code") or "",
+        "display_name": attr(best, "display_name") or attr(best, "erp_name") or attr(best, "detected_text") or "",
+        "score": best_score, "match_reason": best_reason,
+        "candidates": [{"erp_id": attr(m, "erp_id"), "display_name": attr(m, "detected_text"), "score": s}
+                       for s, _, m in scored[:5]],
+        "unresolved_reason": "",
+    }
+
+
+# ── CSV/Excel/JSON column auto-detection (Task 4) ───────────────────────────
+
+_COLUMN_ALIAS_MAP: dict[str, dict[str, list[str]]] = {
+    "customer": {
+        "erp_id": ["customer_id", "erp_id", "customer_code", "code"],
+        "detected_text": ["customer_name", "name", "display_name"],
+        "legal_name": ["legal_name"],
+        "gst_number": ["gstin", "gst_number", "gst"],
+        "pan_number": ["pan"],
+        "alias_names": ["alias"],
+    },
+    "supplier": {
+        "erp_id": ["supplier_id", "vendor_id", "erp_id", "supplier_code", "vendor_code", "code"],
+        "detected_text": ["supplier_name", "vendor_name", "name", "display_name"],
+        "legal_name": ["legal_name"],
+        "gst_number": ["gstin", "gst_number", "gst"],
+        "pan_number": ["pan"],
+        "alias_names": ["alias"],
+    },
+    "product": {
+        "erp_id": ["product_id", "item_id", "erp_id", "product_code", "item_code", "sku"],
+        "detected_text": ["product_name", "description", "name", "display_name"],
+        "part_number": ["part_no", "part_number", "article"],
+        "hsn_code": ["hsn", "hsn_code"],
+        "uom": ["uom"],
+    },
+    "tax_group": {
+        "erp_id": ["tax_group_id", "tax_id", "erp_id"],
+        "detected_text": ["tax_group", "tax_name", "name", "display_name"],
+        "tax_rate": ["tax_rate", "gst_rate", "igst", "cgst", "sgst"],
+        "hsn_code": ["hsn_code"],
+    },
+    "payment_term": {
+        "erp_id": ["payment_term_id", "erp_id"],
+        "detected_text": ["payment_terms", "payment_term", "terms_name", "name", "display_name"],
+    },
+    "currency": {
+        "erp_id": ["currency_id", "currency_code_id", "erp_id"],
+        "detected_text": ["currency", "name", "display_name"],
+        "currency_code": ["currency_code", "code", "symbol"],
+    },
+}
+# Default fallback for unknown master types
+_DEFAULT_ALIAS_MAP = {
+    "erp_id": ["erp_id", "id", "code"],
+    "detected_text": ["name", "display_name", "description"],
+}
+
+
+def _detect_column_mapping(headers: list[str], master_type: str) -> dict[str, str]:
+    """Map CSV/Excel headers to canonical ERPMasterMappingRequest fields."""
+    alias_map = _COLUMN_ALIAS_MAP.get(master_type, _DEFAULT_ALIAS_MAP)
+    normalized_headers = {h.strip().lower().replace(" ", "_"): h for h in headers}
+    result: dict[str, str] = {}
+    for field, aliases in alias_map.items():
+        for alias in aliases:
+            if alias in normalized_headers:
+                result[field] = normalized_headers[alias]
+                break
+    return result
+
+
+def _parse_import_rows(
+    rows: list[dict[str, Any]], master_type: str, module: str | None,
+) -> tuple[list[ERPMasterMappingRequest], list[str]]:
+    """Convert raw rows to ERPMasterMappingRequests with column detection."""
+    if not rows:
+        return [], ["No rows found"]
+    col_map = _detect_column_mapping(list(rows[0].keys()), master_type)
+    requests: list[ERPMasterMappingRequest] = []
+    errors: list[str] = []
+
+    def get(row: dict, field: str) -> str:
+        col = col_map.get(field)
+        return _clean_dataset_text(row.get(col) if col else "")
+
+    for i, row in enumerate(rows):
+        erp_id = get(row, "erp_id")
+        detected = get(row, "detected_text")
+        if not erp_id or not detected:
+            errors.append(f"Row {i + 1}: missing erp_id or name (got erp_id={erp_id!r}, name={detected!r})")
+            continue
+        extra: dict[str, Any] = {}
+        for field in ("legal_name", "alias_names", "gst_number", "pan_number", "hsn_code",
+                      "part_number", "uom", "currency_code", "display_name"):
+            v = get(row, field)
+            if v:
+                extra[field] = v
+        tax_raw = get(row, "tax_rate")
+        if tax_raw:
+            try:
+                extra["tax_rate"] = float(tax_raw)
+            except ValueError:
+                pass
+        requests.append(ERPMasterMappingRequest(
+            master_type=master_type, detected_text=detected, erp_id=erp_id,
+            module=module, source="imported", **extra,
+        ))
+    return requests, errors
+
+
 def _master_scope_clause(current_user: dict):
     org_id = _dataset_org_id(current_user)
     return ERPMasterMapping.org_id == org_id if org_id else ERPMasterMapping.org_id.is_(None)
@@ -261,6 +502,12 @@ async def _upsert_master_mapping(body: ERPMasterMappingRequest, db: AsyncSession
     mapping.confidence = body.confidence
     mapping.source = body.source
     mapping.metadata_json = body.metadata_json
+    # Extended fields (safe — nullable)
+    for field in ("display_name", "legal_name", "alias_names", "gst_number", "pan_number",
+                  "hsn_code", "part_number", "product_description", "uom", "tax_rate", "currency_code"):
+        val = getattr(body, field, None)
+        if hasattr(mapping, field):
+            setattr(mapping, field, val)
     return mapping, created
 
 
@@ -554,6 +801,89 @@ async def deactivate_training_dataset(
     await db.commit()
     await db.refresh(dataset)
     return {"success": True, "dataset": _dataset_to_dict(dataset)}
+
+
+@router.post("/erp-master-mappings/import")
+async def import_erp_master_file(
+    master_type: str = Query(..., description="Master type: customer, supplier, product, etc."),
+    module: str | None = Query(None),
+    overwrite: bool = Query(False),
+    dry_run: bool = Query(False),
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+) -> dict:
+    """Import ERP master records from CSV, Excel (.xlsx), or JSON file."""
+    if master_type not in ERP_MASTER_TYPES:
+        raise HTTPException(status_code=422, detail=f"Unsupported master_type: {master_type}")
+
+    filename = (file.filename or "").lower()
+    content = await file.read()
+    rows: list[dict[str, Any]] = []
+
+    try:
+        if filename.endswith(".json"):
+            parsed = json.loads(content)
+            rows = parsed if isinstance(parsed, list) else parsed.get("records", parsed.get("data", []))
+        elif filename.endswith(".csv"):
+            import csv
+            text = content.decode("utf-8-sig", errors="replace")
+            reader = csv.DictReader(io.StringIO(text))
+            rows = [dict(r) for r in reader]
+        elif filename.endswith((".xlsx", ".xls")):
+            try:
+                from openpyxl import load_workbook
+                wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+                ws = wb.active
+                headers = [str(cell.value or "").strip() for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+                for excel_row in ws.iter_rows(min_row=2, values_only=True):
+                    rows.append({headers[i]: (v if v is not None else "") for i, v in enumerate(excel_row) if i < len(headers)})
+            except ImportError:
+                raise HTTPException(status_code=422, detail="openpyxl not installed; cannot parse .xlsx files")
+        else:
+            raise HTTPException(status_code=422, detail="Unsupported file format. Use .csv, .xlsx, or .json")
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise HTTPException(status_code=422, detail=f"File parse error: {exc}") from exc
+
+    requests, parse_errors = _parse_import_rows(rows, master_type, module)
+    detected_columns = list(rows[0].keys()) if rows else []
+    col_map = _detect_column_mapping(detected_columns, master_type)
+
+    if dry_run:
+        return {
+            "imported_count": 0, "updated_count": 0, "skipped_count": len(parse_errors),
+            "error_count": len(parse_errors), "dry_run": True,
+            "detected_columns": detected_columns, "column_mapping": col_map,
+            "skipped_rows": parse_errors, "errors": parse_errors,
+            "would_import": len(requests),
+        }
+
+    imported_count = updated_count = error_count = 0
+    errors: list[str] = list(parse_errors)
+    error_count = len(parse_errors)
+
+    for req in requests:
+        if not overwrite:
+            req.source = "imported"
+        try:
+            _, created = await _upsert_master_mapping(req, db, current_user)
+            if created:
+                imported_count += 1
+            else:
+                updated_count += 1
+        except HTTPException as exc:
+            errors.append(str(exc.detail))
+            error_count += 1
+
+    if imported_count + updated_count > 0:
+        await db.commit()
+
+    return {
+        "imported_count": imported_count, "updated_count": updated_count,
+        "skipped_count": len(parse_errors), "error_count": error_count,
+        "dry_run": False, "detected_columns": detected_columns, "column_mapping": col_map,
+        "skipped_rows": parse_errors, "errors": errors,
+    }
 
 
 @router.post("/erp-master-mappings", status_code=status.HTTP_201_CREATED)

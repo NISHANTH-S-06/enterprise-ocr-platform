@@ -1,8 +1,10 @@
 from __future__ import annotations
 import uuid
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import get_settings, safe_join_output_path
 from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.enums import ExportFormat, UserRole
@@ -12,6 +14,16 @@ from app.services.ownership_service import get_owned_fill_job
 from app.services.form_fill_engine import form_fill_engine
 
 router = APIRouter(prefix="/fill", tags=["Form Fill"])
+settings = get_settings()
+
+
+def _safe_fill_output_path(raw_path: str):
+    if not raw_path:
+        raise HTTPException(status_code=409, detail="Output not ready")
+    try:
+        return safe_join_output_path(settings.output_path, raw_path)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Unsafe output path")
 
 
 @router.post("/", response_model=FillResult, status_code=202,
@@ -57,8 +69,9 @@ async def download_output(
     if job.status != "completed" or not job.output_path:
         raise HTTPException(status_code=409, detail="Output not ready")
 
-    from pathlib import Path
-    p = Path(job.output_path)
+    # TASK 7.1 PATH SECURITY: Validate path is inside output directory before serving
+    p = _safe_fill_output_path(job.output_path)
+
     if not p.exists():
         raise HTTPException(status_code=410, detail="Output file no longer available")
 
@@ -76,17 +89,31 @@ async def get_fill_job(
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     job = await get_owned_fill_job(db, job_id, current_user)
+    # TASK 7.1 PATH SECURITY: Never expose raw absolute output_path.
+    # Return safe filename and download URL only.
+    has_output = bool(job.output_path and job.status == "completed")
+    output_filename: str | None = None
+    download_url: str | None = None
+    if has_output:
+        try:
+            p = _safe_fill_output_path(job.output_path)
+            output_filename = p.name
+            download_url = f"/api/v1/fill/jobs/{job_id}/download"
+        except HTTPException:
+            has_output = False
     return {
-        "job_id":        str(job.id),
-        "status":        job.status,
-        "export_format": job.export_format,
-        "output_path":   job.output_path,
-        "output_size":   job.output_size,
-        "fill_result":   job.fill_result,
-        "processing_ms": job.processing_ms,
-        "error_message": job.error_message,
-        "created_at":    job.created_at.isoformat(),
-        "completed_at":  job.completed_at.isoformat() if job.completed_at else None,
+        "job_id":          str(job.id),
+        "status":          job.status,
+        "export_format":   job.export_format,
+        "has_output":      has_output,
+        "output_filename": output_filename,
+        "download_url":    download_url,
+        "output_size":     job.output_size,
+        "fill_result":     job.fill_result,
+        "processing_ms":   job.processing_ms,
+        "error_message":   job.error_message,
+        "created_at":      job.created_at.isoformat(),
+        "completed_at":    job.completed_at.isoformat() if job.completed_at else None,
     }
 
 

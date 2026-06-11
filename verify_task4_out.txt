@@ -1,0 +1,479 @@
+=== JS CHECK ===
+scripts count: 1
+script 1 parse PASS
+ids count: 512 duplicates: 0
+ALL CHECKS PASSED
+=== COMPILE APP ===
+=== COMPILE ALEMBIC ===
+=== PYTEST FULL ===
+D:\OCR_MASTER\ocr-platform-complete\.venv311\Lib\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts =============================
+platform win32 -- Python 3.12.13, pytest-8.3.3, pluggy-1.6.0 -- D:\OCR_MASTER\ocr-platform-complete\.venv311\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\OCR_MASTER\ocr-platform-complete
+configfile: pytest.ini
+plugins: anyio-4.13.0, asyncio-0.24.0
+asyncio: mode=Mode.STRICT, default_loop_scope=None
+collecting ... collected 283 items
+
+tests/test_platform.py::TestEnums::test_user_roles PASSED                [  0%]
+tests/test_platform.py::TestEnums::test_job_statuses PASSED              [  0%]
+tests/test_platform.py::TestEnums::test_batch_statuses PASSED            [  1%]
+tests/test_platform.py::TestEnums::test_export_formats PASSED            [  1%]
+tests/test_platform.py::TestEnums::test_fill_job_status PASSED           [  1%]
+tests/test_platform.py::TestEnums::test_document_types_complete PASSED   [  2%]
+tests/test_platform.py::TestModelImports::test_all_models_importable PASSED [  2%]
+tests/test_platform.py::TestModelImports::test_mixins_present PASSED     [  2%]
+tests/test_platform.py::TestModelImports::test_relationships_defined PASSED [  3%]
+tests/test_platform.py::TestModelImports::test_db_columns_user PASSED    [  3%]
+tests/test_platform.py::TestModelImports::test_db_columns_extracted_data PASSED [  3%]
+tests/test_platform.py::TestModelImports::test_db_columns_fill_job PASSED [  4%]
+tests/test_platform.py::TestModelImports::test_db_columns_ocr_batch PASSED [  4%]
+tests/test_platform.py::TestModelImports::test_nullable_batch_id_links_exist PASSED [  4%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_ocr_batch_model_creation PASSED [  5%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_batch_ownership_blocks_other_user PASSED [  5%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_read_only_batch_status_endpoint_returns_summary PASSED [  6%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_empty_batch_rejected PASSED [  6%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_too_many_files_rejected PASSED [  6%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_valid_batch_creates_batch_and_child_links PASSED [  7%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_batch_validation_failure_creates_no_rows PASSED [  7%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_zip_export_requires_ownership PASSED [  7%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_zip_export_fails_without_completed_results PASSED [  8%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_zip_export_creates_manifest_and_validated_json PASSED [  8%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_safe_zip_stem_blocks_path_traversal PASSED [  8%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_zip_download_returns_existing_file PASSED [  9%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_batch_status_refresh_reconciles_stale_counters PASSED [  9%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_atomic_zip_preserves_existing_on_generation_failure PASSED [  9%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_retention_config_exists PASSED [ 10%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_cleanup_helper_deletes_expired_zip PASSED [ 10%]
+tests/test_platform.py::TestBatchStatusPlumbing::test_zip_download_missing_file_returns_410 PASSED [ 10%]
+tests/test_platform.py::TestAdminSummary::test_admin_router_registered PASSED [ 11%]
+tests/test_platform.py::TestAdminSummary::test_admin_and_superadmin_roles_allowed PASSED [ 11%]
+tests/test_platform.py::TestAdminSummary::test_operator_and_reviewer_roles_denied PASSED [ 12%]
+tests/test_platform.py::TestAdminSummary::test_summary_response_shape_and_redaction PASSED [ 12%]
+tests/test_platform.py::TestAdminSummary::test_counts_by_status_work_with_sample_rows PASSED [ 12%]
+tests/test_platform.py::TestAdminSummary::test_recent_admin_routes_registered PASSED [ 13%]
+tests/test_platform.py::TestAdminSummary::test_recent_pagination_limit_capped PASSED [ 13%]
+tests/test_platform.py::TestAdminSummary::test_audit_metadata_redacts_sensitive_keys PASSED [ 13%]
+tests/test_platform.py::TestAdminSummary::test_recent_upload_payload_has_no_path_or_raw_text PASSED [ 14%]
+tests/test_platform.py::TestAdminSummary::test_recent_job_payload_has_no_ocr_text PASSED [ 14%]
+tests/test_platform.py::TestAdminSummary::test_recent_batch_payload_has_no_zip_path_or_raw_data PASSED [ 14%]
+tests/test_platform.py::TestAdminSummary::test_admin_org_scoping_and_superadmin_global PASSED [ 15%]
+tests/test_platform.py::TestAdminSummary::test_recent_endpoint_uses_capped_limit PASSED [ 15%]
+tests/test_platform.py::TestAdminSummary::test_admin_storage_route_registered PASSED [ 15%]
+tests/test_platform.py::TestAdminSummary::test_storage_admin_and_superadmin_roles_allowed PASSED [ 16%]
+tests/test_platform.py::TestAdminSummary::test_storage_operator_and_reviewer_roles_denied PASSED [ 16%]
+tests/test_platform.py::TestAdminSummary::test_storage_metrics_count_bytes_and_hide_paths PASSED [ 16%]
+tests/test_platform.py::TestAdminSummary::test_missing_zip_path_does_not_crash PASSED [ 17%]
+tests/test_platform.py::TestAdminSummary::test_export_summary_counts_include_batch_zip PASSED [ 17%]
+tests/test_platform.py::TestTenantFoundation::test_organisation_model_and_user_relation_exist PASSED [ 18%]
+tests/test_platform.py::TestTenantFoundation::test_tenant_owned_models_have_org_id PASSED [ 18%]
+tests/test_platform.py::TestTenantFoundation::test_role_helpers PASSED   [ 18%]
+tests/test_platform.py::TestTenantFoundation::test_apply_org_scope_superadmin_global_and_admin_scoped PASSED [ 19%]
+tests/test_platform.py::TestTenantFoundation::test_assert_same_org_blocks_cross_org PASSED [ 19%]
+tests/test_platform.py::TestTenantFoundation::test_assert_same_org_allows_superadmin_and_own_org PASSED [ 19%]
+tests/test_platform.py::TestTenantFoundation::test_orgless_admin_only_legacy_orgless_rows PASSED [ 20%]
+tests/test_platform.py::TestTenantFoundation::test_cross_org_job_batch_extraction_fill_blocked PASSED [ 20%]
+tests/test_platform.py::TestFieldMapper::test_maps_from_mapped_output PASSED [ 20%]
+tests/test_platform.py::TestFieldMapper::test_override_takes_priority PASSED [ 21%]
+tests/test_platform.py::TestFieldMapper::test_default_applied_for_missing_optional PASSED [ 21%]
+tests/test_platform.py::TestFieldMapper::test_required_missing_generates_warning PASSED [ 21%]
+tests/test_platform.py::TestFieldMapper::test_alias_resolution PASSED    [ 22%]
+tests/test_platform.py::TestFieldMapper::test_custom_mapping_config PASSED [ 22%]
+tests/test_platform.py::TestFieldMapper::test_extra_fields_pass_through PASSED [ 22%]
+tests/test_platform.py::TestJSONExporter::test_export_creates_file PASSED [ 23%]
+tests/test_platform.py::TestJSONExporter::test_export_valid_json PASSED  [ 23%]
+tests/test_platform.py::TestJSONExporter::test_export_all_fields_present PASSED [ 24%]
+tests/test_platform.py::TestExcelExporter::test_export_creates_file PASSED [ 24%]
+tests/test_platform.py::TestExcelExporter::test_export_readable_workbook PASSED [ 24%]
+tests/test_platform.py::TestExcelExporter::test_export_with_fill_config PASSED [ 25%]
+tests/test_platform.py::TestExcelExporter::test_line_items_in_workbook PASSED [ 25%]
+tests/test_platform.py::TestPDFExporter::test_export_creates_file PASSED [ 25%]
+tests/test_platform.py::TestPDFExporter::test_export_valid_pdf_header PASSED [ 26%]
+tests/test_platform.py::TestPDFExporter::test_export_nonzero_size PASSED [ 26%]
+tests/test_platform.py::TestPDFExporter::test_export_empty_line_items PASSED [ 26%]
+tests/test_platform.py::TestPDFExporter::test_export_with_line_items_and_totals PASSED [ 27%]
+tests/test_platform.py::TestSecurity::test_hash_verify PASSED            [ 27%]
+tests/test_platform.py::TestSecurity::test_token_roundtrip PASSED        [ 27%]
+tests/test_platform.py::TestSecurity::test_invalid_token_raises PASSED   [ 28%]
+tests/test_platform.py::TestConfig::test_settings_defaults PASSED        [ 28%]
+tests/test_platform.py::TestConfig::test_output_path_created PASSED      [ 28%]
+tests/test_platform.py::TestFieldSynonymDetection::test_bill_number_maps_to_invoice_number PASSED [ 29%]
+tests/test_platform.py::TestFieldSynonymDetection::test_tax_invoice_no_maps_to_invoice_number PASSED [ 29%]
+tests/test_platform.py::TestFieldSynonymDetection::test_document_no_maps_to_invoice_number PASSED [ 30%]
+tests/test_platform.py::TestFieldSynonymDetection::test_voucher_no_maps_to_invoice_number PASSED [ 30%]
+tests/test_platform.py::TestFieldSynonymDetection::test_document_date_maps_to_invoice_date PASSED [ 30%]
+tests/test_platform.py::TestFieldSynonymDetection::test_bill_date_maps_to_invoice_date PASSED [ 31%]
+tests/test_platform.py::TestFieldSynonymDetection::test_dated_maps_to_invoice_date PASSED [ 31%]
+tests/test_platform.py::TestFieldSynonymDetection::test_invoice_number_rejects_value_label PASSED [ 31%]
+tests/test_platform.py::TestFieldSynonymDetection::test_invoice_number_rejects_currency_tokens PASSED [ 32%]
+tests/test_platform.py::TestFieldSynonymDetection::test_invoice_number_rejects_parenthesized_currency_tokens PASSED [ 32%]
+tests/test_platform.py::TestFieldSynonymDetection::test_invoice_alias_cannot_reintroduce_currency_token PASSED [ 32%]
+tests/test_platform.py::TestFieldSynonymDetection::test_invoice_date_rejects_invoice_date_label PASSED [ 33%]
+tests/test_platform.py::TestFieldSynonymDetection::test_invoice_and_po_numbers_keep_document_punctuation PASSED [ 33%]
+tests/test_platform.py::TestFieldSynonymDetection::test_multiple_buyer_order_numbers_emit_exact_plural_key PASSED [ 33%]
+tests/test_platform.py::TestFieldSynonymDetection::test_gstin_uin_maps_to_gst_number PASSED [ 34%]
+tests/test_platform.py::TestFieldSynonymDetection::test_amount_chargeable_in_words_maps_to_amount_in_words PASSED [ 34%]
+tests/test_platform.py::TestFieldSynonymDetection::test_total_quantity_amount_summary_maps_amount_to_grand_total PASSED [ 34%]
+tests/test_platform.py::TestFieldSynonymDetection::test_unicode_buyers_order_no_maps_to_buyer_order_no PASSED [ 35%]
+tests/test_platform.py::TestFieldSynonymDetection::test_goods_to_be_despatched_maps_delivery_name_and_address PASSED [ 35%]
+tests/test_platform.py::TestFieldSynonymDetection::test_gr_wt_maps_to_gross_weight PASSED [ 36%]
+tests/test_platform.py::TestFieldSynonymDetection::test_nt_wt_maps_to_net_weight PASSED [ 36%]
+tests/test_platform.py::TestFieldSynonymDetection::test_ports_map_to_loading_and_discharge PASSED [ 36%]
+tests/test_platform.py::TestFieldSynonymDetection::test_gst_supplier_and_gstin_uin_aliases_normalize_to_gst_number PASSED [ 37%]
+tests/test_platform.py::TestFieldSynonymDetection::test_bill_to_maps_to_customer_name PASSED [ 37%]
+tests/test_platform.py::TestFieldSynonymDetection::test_sold_to_maps_to_customer_name PASSED [ 37%]
+tests/test_platform.py::TestFieldSynonymDetection::test_ship_to_maps_to_consignee_name PASSED [ 38%]
+tests/test_platform.py::TestFieldSynonymDetection::test_delivery_to_maps_to_consignee_name PASSED [ 38%]
+tests/test_platform.py::TestFieldSynonymDetection::test_net_amount_maps_to_total PASSED [ 38%]
+tests/test_platform.py::TestFieldSynonymDetection::test_amount_payable_maps_to_total PASSED [ 39%]
+tests/test_platform.py::TestFieldSynonymDetection::test_invoice_value_maps_to_total PASSED [ 39%]
+tests/test_platform.py::TestFieldSynonymDetection::test_transporter_name_extracted PASSED [ 39%]
+tests/test_platform.py::TestFieldSynonymDetection::test_vehicle_number_extracted PASSED [ 40%]
+tests/test_platform.py::TestFieldSynonymDetection::test_lr_number_extracted PASSED [ 40%]
+tests/test_platform.py::TestFieldSynonymDetection::test_eway_bill_extracted PASSED [ 40%]
+tests/test_platform.py::TestFieldSynonymDetection::test_hsn_code_extracted PASSED [ 41%]
+tests/test_platform.py::TestFieldSynonymDetection::test_e2e_count_does_not_regress PASSED [ 41%]
+tests/test_platform.py::TestValidationPreservesMethod::test_gemini_method_preserved_through_validation PASSED [ 42%]
+tests/test_platform.py::TestValidationPreservesMethod::test_regex_method_not_stored PASSED [ 42%]
+tests/test_platform.py::TestValidationPreservesMethod::test_invalid_gst_produces_warning_not_error PASSED [ 42%]
+tests/test_platform.py::TestValidationPreservesMethod::test_invalid_date_produces_warning PASSED [ 43%]
+tests/test_platform.py::TestValidationPreservesMethod::test_label_trash_cleared PASSED [ 43%]
+tests/test_platform.py::TestPartAGapFixes::test_tax_invoice_no_maps_to_invoice_number PASSED [ 43%]
+tests/test_platform.py::TestPartAGapFixes::test_grand_total_next_line_extracted PASSED [ 44%]
+tests/test_platform.py::TestPartAGapFixes::test_challan_no_maps_to_invoice_number_next_line PASSED [ 44%]
+tests/test_platform.py::TestPartAGapFixes::test_detection_report_structure PASSED [ 44%]
+tests/test_platform.py::TestAutoFillAliases::test_grand_total_aliases_to_total_amount PASSED [ 45%]
+tests/test_platform.py::TestAutoFillAliases::test_total_amount_aliases_to_grand_total PASSED [ 45%]
+tests/test_platform.py::TestAutoFillAliases::test_consignee_aliases_to_consignee_name PASSED [ 45%]
+tests/test_platform.py::TestAutoFillAliases::test_po_number_aliases_to_purchase_order_number PASSED [ 46%]
+tests/test_platform.py::TestAutoFillAliases::test_empty_does_not_overwrite_good_value PASSED [ 46%]
+tests/test_platform.py::TestAutoFillAliases::test_gst_aliases_to_gstin PASSED [ 46%]
+tests/test_platform.py::TestAutoFillReliability::test_missing_fields_filtered_by_doc_type_sales PASSED [ 47%]
+tests/test_platform.py::TestAutoFillReliability::test_missing_fields_filtered_by_doc_type_grn PASSED [ 47%]
+tests/test_platform.py::TestAutoFillReliability::test_source_evidence_present_in_regex_extraction PASSED [ 48%]
+tests/test_platform.py::TestAutoFillReliability::test_alias_source_evidence_present PASSED [ 48%]
+tests/test_platform.py::TestAutoFillReliability::test_blank_alias_does_not_overwrite_good_value PASSED [ 48%]
+tests/test_platform.py::TestAutoFillReliability::test_two_company_formats_same_canonical_field PASSED [ 49%]
+tests/test_platform.py::TestAutoFillReliability::test_non_sales_doc_uses_mapped_fields_directly PASSED [ 49%]
+tests/test_platform.py::TestAutoFillReliability::test_alias_covered_fields_are_not_missing PASSED [ 49%]
+tests/test_platform.py::TestAutoFillReliability::test_normalize_mapped_fields_does_not_blank_overwrite PASSED [ 50%]
+tests/test_platform.py::TestAutoFillReliability::test_detection_metadata_present_after_alias_merge PASSED [ 50%]
+tests/test_platform.py::TestAutoFillReliability::test_company_label_variants_map_to_same_canonical_fields PASSED [ 50%]
+tests/test_platform.py::TestManualFrontendAutoFillBinding::test_frontend_has_single_alias_resolver_for_visible_fields PASSED [ 51%]
+tests/test_platform.py::TestManualFrontendAutoFillBinding::test_commercial_invoice_binds_sales_form_only_and_opens_sales_tab PASSED [ 51%]
+tests/test_platform.py::TestManualFrontendAutoFillBinding::test_general_document_binds_ai_form_only_not_sales_form PASSED [ 51%]
+tests/test_platform.py::TestManualFrontendAutoFillBinding::test_frontend_missing_fields_are_normalized_against_mapped_aliases PASSED [ 52%]
+tests/test_platform.py::TestManualFrontendAutoFillBinding::test_no_duplicate_common_field_binding_across_ai_and_sales_forms PASSED [ 52%]
+tests/test_platform.py::TestManualFrontendAutoFillBinding::test_detection_report_still_remains_available_in_frontend PASSED [ 53%]
+tests/test_platform.py::TestManualFrontendAutoFillBinding::test_debug_unbound_field_list_function_exists PASSED [ 53%]
+tests/test_platform.py::TestManualFrontendAutoFillBinding::test_debug_field_audit_function_exists PASSED [ 53%]
+tests/test_platform.py::TestManualFrontendAutoFillBinding::test_detection_report_contains_method_confidence_and_evidence PASSED [ 54%]
+tests/test_platform.py::TestFrontendSuspiciousSalesValueLogic::test_frontend_is_suspicious_sales_value_logic PASSED [ 54%]
+tests/test_platform.py::TestBackendExtractionFixes::test_dynamic_correction_memory_applies_on_exact_old_value_match PASSED [ 54%]
+tests/test_platform.py::TestBackendExtractionFixes::test_dynamic_correction_memory_remains_suggestion_when_value_changes PASSED [ 55%]
+tests/test_platform.py::TestBackendExtractionFixes::test_dynamic_correction_memory_applies_when_field_remains_missing PASSED [ 55%]
+tests/test_platform.py::TestBackendExtractionFixes::test_pdf_text_extraction_preserves_all_copy_pages PASSED [ 55%]
+tests/test_platform.py::TestBackendExtractionFixes::test_invoice_number_rejects_label_only PASSED [ 56%]
+tests/test_platform.py::TestBackendExtractionFixes::test_declaration_text_extracts_block PASSED [ 56%]
+tests/test_platform.py::TestBackendExtractionFixes::test_statement_of_origin_extracts_block PASSED [ 56%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_workbench_validation_blocks_missing_required_sales_fields PASSED [ 57%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_workbench_validation_allows_complete_purchase_payload PASSED [ 57%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_workbench_export_payload_rejects_blocked_data PASSED [ 57%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_training_mapping_backend_file_save_and_load PASSED [ 58%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_create_training_dataset PASSED [ 58%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_list_training_datasets PASSED [ 59%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_best_match_exact_company PASSED [ 59%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_best_match_module_document_type_fallback PASSED [ 59%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_deactivate_training_dataset PASSED [ 60%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_training_dataset_endpoint_shape PASSED [ 60%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_workbench_save_draft_sales PASSED [ 60%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_workbench_save_draft_purchase PASSED [ 61%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_export_json_sales_allowed PASSED [ 61%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_export_json_purchase_allowed PASSED [ 61%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_export_blocked_when_required_fields_missing PASSED [ 62%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_export_blocked_when_required_erp_master_ids_missing PASSED [ 62%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_excel_export_returns_valid_binary_response PASSED [ 62%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_pdf_export_returns_valid_binary_response PASSED [ 63%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_export_response_includes_dataset_metadata PASSED [ 63%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_workbench_json_endpoint_returns_erp_shape PASSED [ 63%]
+tests/test_platform.py::TestWorkbenchProductionEndpoints::test_upload_db_fallback_returns_consistent_shape PASSED [ 64%]
+tests/test_platform.py::TestTask7RowCanonical::test_commercial_invoice_vertical_table_produces_item_rows PASSED [ 64%]
+tests/test_platform.py::TestTask7RowCanonical::test_salesinvoice_real_row_count_stays_at_least_two PASSED [ 65%]
+tests/test_platform.py::TestTask7RowCanonical::test_poprint_real_row_count_stays_at_least_thirty_five PASSED [ 65%]
+tests/test_platform.py::TestTask7RowCanonical::test_grn_real_rows_are_structured_without_invoice_date_alias PASSED [ 65%]
+tests/test_platform.py::TestTask7RowCanonical::test_final_normalizer_unwraps_nested_mapped_value_objects PASSED [ 66%]
+tests/test_platform.py::TestTask7RowCanonical::test_optional_fields_do_not_block_final_export_decision PASSED [ 66%]
+tests/test_platform.py::TestTask7RowCanonical::test_missing_erp_master_ids_have_master_selection_reason_code PASSED [ 66%]
+tests/test_platform.py::TestTask7RowCanonical::test_dataset_row_mapping_overrides_generic_row_value PASSED [ 67%]
+tests/test_platform.py::TestTask7RowCanonical::test_final_export_blockers_include_reason_codes PASSED [ 67%]
+tests/test_platform.py::TestTask8DatasetEndToEnd::test_create_dataset_contract_has_header_and_row_mappings PASSED [ 67%]
+tests/test_platform.py::TestTask8DatasetEndToEnd::test_best_match_dataset_shape_returns_both_mapping_sets PASSED [ 68%]
+tests/test_platform.py::TestTask8DatasetEndToEnd::test_workbench_frontend_payload_includes_dataset_contract PASSED [ 68%]
+tests/test_platform.py::TestTask8DatasetEndToEnd::test_dataset_header_mapping_overrides_generic_and_unwraps_object PASSED [ 68%]
+tests/test_platform.py::TestTask8DatasetEndToEnd::test_dataset_row_mapping_overrides_generic_row_mapping PASSED [ 69%]
+tests/test_platform.py::TestTask8DatasetEndToEnd::test_validate_and_export_use_dataset_enriched_fields_and_metadata PASSED [ 69%]
+tests/test_platform.py::TestTask8DatasetEndToEnd::test_localstorage_dataset_fallback_remains_visible PASSED [ 69%]
+tests/test_platform.py::TestTask8DatasetEndToEnd::test_frontend_has_no_duplicate_ids_and_dataset_js_paths PASSED [ 70%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_workbench_auto_fill_endpoint_returns_form_data_and_item_rows PASSED [ 70%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_old_dataset_mapping_shapes_normalize PASSED [ 71%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_sales_alias_mapping_and_unicode_apostrophe PASSED [ 71%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_purchase_alias_mapping PASSED [ 71%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_skipped_key_reason_generation PASSED [ 72%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_selected_dataset_mapping_count_is_positive PASSED [ 72%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_fallback_mapping_count_is_positive PASSED [ 72%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_nested_object_value_unwrap_never_stringifies_object PASSED [ 73%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_item_rows_are_preserved_and_mapped PASSED [ 73%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_wrong_module_guard PASSED [ 73%]
+tests/test_platform.py::TestTask1MainWorkbenchAutoFillMapping::test_frontend_uses_backend_auto_fill_and_debug_download PASSED [ 74%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_create_erp_master_mapping PASSED [ 74%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_resolve_customer_to_customer_id PASSED [ 74%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_resolve_supplier_to_supplier_id PASSED [ 75%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_resolve_product_row_to_product_id PASSED [ 75%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_resolve_tax_group_to_tax_group_id PASSED [ 75%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_unresolved_master_has_reason_code PASSED [ 76%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_export_blocked_when_master_missing PASSED [ 76%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_export_allowed_after_required_master_ids_resolved PASSED [ 77%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_bulk_save_master_mappings PASSED [ 77%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_dataset_mapping_then_master_resolution_order PASSED [ 77%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_localstorage_master_mapping_fallback_exists PASSED [ 78%]
+tests/test_platform.py::TestTask9ERPMasterMapping::test_master_model_and_migration_registered PASSED [ 78%]
+tests/test_platform.py::TestTask10ProductionQA::test_training_dataset_id_matches_varchar_migration PASSED [ 78%]
+tests/test_platform.py::TestCorrectionLearning::test_normalize_correction_value_whitespace_collapse PASSED [ 79%]
+tests/test_platform.py::TestCorrectionLearning::test_build_workbench_correction_memory_sales PASSED [ 79%]
+tests/test_platform.py::TestCorrectionLearning::test_build_workbench_correction_memory_purchase PASSED [ 79%]
+tests/test_platform.py::TestCorrectionLearning::test_build_workbench_correction_memory_unknown_target PASSED [ 80%]
+tests/test_platform.py::TestCorrectionLearning::test_skip_reason_inactive PASSED [ 80%]
+tests/test_platform.py::TestCorrectionLearning::test_skip_reason_wrong_module PASSED [ 80%]
+tests/test_platform.py::TestCorrectionLearning::test_skip_reason_source_key_not_found PASSED [ 81%]
+tests/test_platform.py::TestCorrectionLearning::test_skip_reason_empty_value_no_source_key PASSED [ 81%]
+tests/test_platform.py::TestCorrectionLearning::test_skip_reason_identity_mismatch PASSED [ 81%]
+tests/test_platform.py::TestCorrectionLearning::test_skip_reason_identity_match_success PASSED [ 82%]
+tests/test_platform.py::TestCorrectionLearning::test_skip_reason_document_type_mismatch PASSED [ 82%]
+tests/test_platform.py::TestCorrectionLearning::test_skip_reason_document_type_match PASSED [ 83%]
+tests/test_platform.py::TestCorrectionLearning::test_skip_reason_no_document_type_on_correction PASSED [ 83%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_strong_match PASSED [ 83%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_already_filled PASSED [ 84%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_identity_specificity PASSED [ 84%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_inactive_skip PASSED [ 84%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_empty_value PASSED [ 85%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_target_field_not_found PASSED [ 85%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_purchase_alias_resolution PASSED [ 85%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_no_object_object_value PASSED [ 86%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_vendor_identity PASSED [ 86%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_customer_identity PASSED [ 86%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_workbench_corrections_return_shape PASSED [ 87%]
+tests/test_platform.py::TestCorrectionLearning::test_apply_row_corrections_basic PASSED [ 87%]
+tests/test_platform.py::TestCorrectionLearning::test_correction_memory_model_has_new_columns PASSED [ 87%]
+tests/test_platform.py::TestCorrectionLearning::test_correction_migration_exists PASSED [ 88%]
+tests/test_platform.py::TestCorrectionLearning::test_save_workbench_correction_endpoint_shape PASSED [ 88%]
+tests/test_platform.py::TestCorrectionLearning::test_list_workbench_corrections_endpoint_shape PASSED [ 89%]
+tests/test_platform.py::TestCorrectionLearning::test_correction_migration_column_details PASSED [ 89%]
+tests/test_gemini.py::test_gemini_enrich_disabled_by_default PASSED      [ 89%]
+tests/test_gemini.py::test_gemini_enrich_no_missing_fields PASSED        [ 90%]
+tests/test_gemini.py::test_gemini_enrich_missing_fields_with_synonyms PASSED [ 90%]
+tests/test_gemini.py::test_gemini_enrich_low_confidence PASSED           [ 90%]
+tests/test_gemini.py::test_gemini_enrich_missing_evidence PASSED         [ 91%]
+tests/test_gemini.py::test_prompt_builder PASSED                         [ 91%]
+tests/test_gemini.py::test_parser_accepts_valid_json PASSED              [ 91%]
+tests/test_gemini.py::test_parser_strips_markdown PASSED                 [ 92%]
+tests/test_gemini.py::test_parser_rejects_missing_evidence PASSED        [ 92%]
+tests/test_gemini.py::test_parser_handles_invalid_json_safely PASSED     [ 92%]
+tests/test_gemini.py::test_stub_disabled PASSED                          [ 93%]
+tests/test_gemini.py::test_stub_missing_api_key PASSED                   [ 93%]
+tests/test_gemini.py::test_stub_client_unavailable PASSED                [ 93%]
+tests/test_gemini.py::test_live_call_mocked_success PASSED               [ 94%]
+tests/test_gemini.py::test_live_call_api_exception PASSED                [ 94%]
+tests/test_gemini.py::test_upload_ai_disabled_path_unchanged PASSED      [ 95%]
+tests/test_gemini.py::test_missing_field_recovered_and_tagged PASSED     [ 95%]
+tests/test_gemini.py::test_high_confidence_regex_protected PASSED        [ 95%]
+tests/test_gemini.py::test_validation_rejects_bad_ai_output PASSED       [ 96%]
+tests/test_gemini.py::test_audit_metadata_generated PASSED               [ 96%]
+tests/test_dataset_normalization.py::test_normalize_canonical_schema PASSED [ 96%]
+tests/test_dataset_normalization.py::test_normalize_old_local_storage_format PASSED [ 97%]
+tests/test_dataset_normalization.py::test_normalize_object_map_format PASSED [ 97%]
+tests/test_dataset_normalization.py::test_normalize_row_mapping_format PASSED [ 97%]
+tests/test_dataset_normalization.py::test_normalize_empty_mapping_ignored PASSED [ 98%]
+tests/test_dataset_normalization.py::test_score_best_match_100 PASSED    [ 98%]
+tests/test_dataset_normalization.py::test_score_best_match_multiple_exact PASSED [ 98%]
+tests/test_dataset_normalization.py::test_score_doc_type_match_70 PASSED [ 99%]
+tests/test_dataset_normalization.py::test_score_module_only_30 PASSED    [ 99%]
+tests/test_dataset_normalization.py::test_best_match_response_structure PASSED [100%]
+
+============================== warnings summary ===============================
+.venv311\Lib\site-packages\reportlab\lib\rl_safe_eval.py:12
+  D:\OCR_MASTER\ocr-platform-complete\.venv311\Lib\site-packages\reportlab\lib\rl_safe_eval.py:12: DeprecationWarning: ast.NameConstant is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    haveNameConstant = hasattr(ast,'NameConstant')
+
+tests/test_platform.py::TestBatchStatusPlumbing::test_read_only_batch_status_endpoint_returns_summary
+  D:\OCR_MASTER\ocr-platform-complete\tests\test_platform.py:214: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow(),
+
+tests/test_platform.py::TestBatchStatusPlumbing::test_read_only_batch_status_endpoint_returns_summary
+  D:\OCR_MASTER\ocr-platform-complete\tests\test_platform.py:221: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    completed_at=datetime.utcnow(),
+
+tests/test_platform.py::TestBatchStatusPlumbing::test_valid_batch_creates_batch_and_child_links
+  D:\OCR_MASTER\ocr-platform-complete\app\api\v1\routers\upload.py:1334: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    started_at=datetime.utcnow(),
+
+tests/test_platform.py::TestBatchStatusPlumbing::test_valid_batch_creates_batch_and_child_links
+tests/test_platform.py::TestBatchStatusPlumbing::test_valid_batch_creates_batch_and_child_links
+  D:\OCR_MASTER\ocr-platform-complete\app\api\v1\routers\upload.py:1381: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    queued_at=datetime.utcnow(),
+
+tests/test_platform.py::TestBatchStatusPlumbing::test_valid_batch_creates_batch_and_child_links
+tests/test_platform.py::TestBatchStatusPlumbing::test_valid_batch_creates_batch_and_child_links
+  D:\OCR_MASTER\ocr-platform-complete\app\api\v1\routers\upload.py:1382: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    started_at=datetime.utcnow(),
+
+tests/test_platform.py::TestBatchStatusPlumbing::test_batch_status_refresh_reconciles_stale_counters
+  D:\OCR_MASTER\ocr-platform-complete\app\api\v1\routers\upload.py:555: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    batch.completed_at = batch.completed_at or datetime.utcnow()
+
+tests/test_platform.py::TestSecurity::test_token_roundtrip
+  D:\OCR_MASTER\ocr-platform-complete\.venv311\Lib\site-packages\jose\jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = timegm(datetime.utcnow().utctimetuple())
+
+tests/test_platform.py::TestCorrectionLearning::test_save_workbench_correction_endpoint_shape
+  D:\OCR_MASTER\ocr-platform-complete\app\api\v1\routers\forms.py:1063: RuntimeWarning: coroutine 'TestCorrectionLearning.test_save_workbench_correction_endpoint_shape.<locals>.fake_add' was never awaited
+    db.add(corr)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 283 passed, 11 warnings in 5.10s =======================
+=== PYTEST TASK4 ===
+D:\OCR_MASTER\ocr-platform-complete\.venv311\Lib\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts =============================
+platform win32 -- Python 3.12.13, pytest-8.3.3, pluggy-1.6.0 -- D:\OCR_MASTER\ocr-platform-complete\.venv311\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: D:\OCR_MASTER\ocr-platform-complete
+configfile: pytest.ini
+plugins: anyio-4.13.0, asyncio-0.24.0
+asyncio: mode=Mode.STRICT, default_loop_scope=None
+collecting ... collected 27 items
+
+tests/test_task4_erp_master.py::TestTask4ERPMasterModelFields::test_model_has_new_columns PASSED [  3%]
+tests/test_task4_erp_master.py::TestTask4ERPMasterModelFields::test_master_type_expansion_model PASSED [  7%]
+tests/test_task4_erp_master.py::TestTask4ERPMasterModelFields::test_migration_0008_exists PASSED [ 11%]
+tests/test_task4_erp_master.py::TestTask4ColumnAliasDetection::test_customer_csv_column_detection PASSED [ 14%]
+tests/test_task4_erp_master.py::TestTask4ColumnAliasDetection::test_supplier_csv_column_detection PASSED [ 18%]
+tests/test_task4_erp_master.py::TestTask4ColumnAliasDetection::test_product_csv_column_detection PASSED [ 22%]
+tests/test_task4_erp_master.py::TestTask4ImportParsing::test_csv_import_parses_customer PASSED [ 25%]
+tests/test_task4_erp_master.py::TestTask4ImportParsing::test_csv_import_parses_supplier PASSED [ 29%]
+tests/test_task4_erp_master.py::TestTask4ImportParsing::test_csv_import_parses_product PASSED [ 33%]
+tests/test_task4_erp_master.py::TestTask4ImportParsing::test_json_import_parses_records PASSED [ 37%]
+tests/test_task4_erp_master.py::TestTask4ImportParsing::test_missing_erp_id_produces_error PASSED [ 40%]
+tests/test_task4_erp_master.py::TestTask4ScoredResolver::test_exact_erp_code_score_100 PASSED [ 44%]
+tests/test_task4_erp_master.py::TestTask4ScoredResolver::test_gst_exact_score_98 PASSED [ 48%]
+tests/test_task4_erp_master.py::TestTask4ScoredResolver::test_part_number_score_95 PASSED [ 51%]
+tests/test_task4_erp_master.py::TestTask4ScoredResolver::test_alias_exact_score_85 PASSED [ 55%]
+tests/test_task4_erp_master.py::TestTask4ScoredResolver::test_normalized_name_score_90 PASSED [ 59%]
+tests/test_task4_erp_master.py::TestTask4ScoredResolver::test_fuzzy_low_score_unresolved PASSED [ 62%]
+tests/test_task4_erp_master.py::TestTask4ScoredResolver::test_no_master_data_unresolved PASSED [ 66%]
+tests/test_task4_erp_master.py::TestTask4BulkResolve::test_bulk_resolve_fills_customer_id PASSED [ 70%]
+tests/test_task4_erp_master.py::TestTask4BulkResolve::test_bulk_resolve_fills_supplier_id PASSED [ 74%]
+tests/test_task4_erp_master.py::TestTask4BulkResolve::test_bulk_resolve_fills_product_id_in_rows PASSED [ 77%]
+tests/test_task4_erp_master.py::TestTask4ExportGate::test_missing_product_id_blocks_sales_export PASSED [ 81%]
+tests/test_task4_erp_master.py::TestTask4ExportGate::test_missing_supplier_id_blocks_purchase_export PASSED [ 85%]
+tests/test_task4_erp_master.py::TestTask4Frontend::test_localstorage_fallback_still_visible PASSED [ 88%]
+tests/test_task4_erp_master.py::TestTask4Frontend::test_auto_fill_response_includes_resolved_and_unresolved_masters PASSED [ 92%]
+tests/test_task4_erp_master.py::TestTask4Frontend::test_erp_import_panel_in_frontend PASSED [ 96%]
+tests/test_task4_erp_master.py::TestTask4Frontend::test_erp_import_nav_item_in_frontend PASSED [100%]
+
+============================== warnings summary ===============================
+tests/test_task4_erp_master.py::TestTask4ERPMasterModelFields::test_master_type_expansion_model
+  D:\OCR_MASTER\ocr-platform-complete\.venv311\Lib\site-packages\reportlab\lib\rl_safe_eval.py:12: DeprecationWarning: ast.NameConstant is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    haveNameConstant = hasattr(ast,'NameConstant')
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 27 passed, 1 warning in 1.39s ========================
+=== E2E ===
+>> Starting backend...
+>> Backend ready
+>> Auth OK
+
+============================================================
+>> [salesinvoice.pdf] min_fields=85
+============================================================
+   [PASS] Upload: job_id=3d4b8719…
+   [PASS] OCR+Poll: completed in 3031ms
+   [PASS] Classifier: type=EXPORT_INVOICE rule=EXPORT_INVOICE
+   [PASS] Validation: fields=278 >= 85 status=needs_review
+   [PASS] PDF Export: size=20679B
+   [PASS] Excel Export: size=11185B
+
+============================================================
+>> [Glsprint.pdf] min_fields=148
+============================================================
+   [PASS] Upload: job_id=658a8fd8…
+   [PASS] OCR+Poll: completed in 3047ms
+   [PASS] Classifier: type=COMMERCIAL_INVOICE rule=COMMERCIAL_INVOICE
+   [PASS] Validation: fields=330 >= 148 status=needs_review
+   [PASS] PDF Export: size=29462B
+   [PASS] Excel Export: size=14374B
+
+============================================================
+>> [POPRINT.pdf] min_fields=156
+============================================================
+   [PASS] Upload: job_id=8276d3f5…
+   [PASS] OCR+Poll: completed in 3031ms
+   [PASS] Classifier: type=PURCHASE_ORDER rule=PURCHASE_ORDER
+   [PASS] Validation: fields=218 >= 156 status=needs_review
+   [PASS] PDF Export: size=18228B
+   [PASS] Excel Export: size=11582B
+
+============================================================
+>> [GRN.pdf] min_fields=62
+============================================================
+   [PASS] Upload: job_id=8b4be9cf…
+   [PASS] OCR+Poll: completed in 3031ms
+   [PASS] Classifier: type=GRN rule=GRN
+   [PASS] Validation: fields=99 >= 62 status=needs_review
+   [PASS] PDF Export: size=7964B
+   [PASS] Excel Export: size=7707B
+
+============================================================
+E2E SUMMARY
+============================================================
+  [PASS] salesinvoice.pdf       fields=278/85        type=EXPORT_INVOICE
+         [PASS] Upload: job_id=3d4b8719…
+         [PASS] OCR+Poll: completed in 3031ms
+         [PASS] Classifier: type=EXPORT_INVOICE rule=EXPORT_INVOICE
+         [PASS] Validation: fields=278 >= 85 status=needs_review
+         [PASS] PDF Export: size=20679B
+         [PASS] Excel Export: size=11185B
+  [PASS] Glsprint.pdf           fields=330/148       type=COMMERCIAL_INVOICE
+         [PASS] Upload: job_id=658a8fd8…
+         [PASS] OCR+Poll: completed in 3047ms
+         [PASS] Classifier: type=COMMERCIAL_INVOICE rule=COMMERCIAL_INVOICE
+         [PASS] Validation: fields=330 >= 148 status=needs_review
+         [PASS] PDF Export: size=29462B
+         [PASS] Excel Export: size=14374B
+  [PASS] POPRINT.pdf            fields=218/156       type=PURCHASE_ORDER
+         [PASS] Upload: job_id=8276d3f5…
+         [PASS] OCR+Poll: completed in 3031ms
+         [PASS] Classifier: type=PURCHASE_ORDER rule=PURCHASE_ORDER
+         [PASS] Validation: fields=218 >= 156 status=needs_review
+         [PASS] PDF Export: size=18228B
+         [PASS] Excel Export: size=11582B
+  [PASS] GRN.pdf                fields=99/62         type=GRN
+         [PASS] Upload: job_id=8b4be9cf…
+         [PASS] OCR+Poll: completed in 3031ms
+         [PASS] Classifier: type=GRN rule=GRN
+         [PASS] Validation: fields=99 >= 62 status=needs_review
+         [PASS] PDF Export: size=7964B
+         [PASS] Excel Export: size=7707B
+
+============================================================
+RESULT: 4/4 documents passed
+OVERALL: PASS
+============================================================
+=== DONE ===

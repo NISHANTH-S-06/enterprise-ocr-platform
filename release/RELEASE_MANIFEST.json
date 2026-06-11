@@ -1,0 +1,34 @@
+{
+  "project": "OCR ERP Auto Fill Platform",
+  "release_stage": "production-ready-candidate",
+  "alembic_head": "0008",
+  "supported_inputs": ["pdf", "image", "xlsx", "csv"],
+  "supported_exports": ["json", "excel", "pdf"],
+  "verification": {
+    "javascript_parse": "PASS",
+    "duplicate_ids": 0,
+    "compile_app": "PASS",
+    "compile_alembic": "PASS",
+    "alembic_heads": "0008 (head)",
+    "alembic_current": "0008 (head)",
+    "pytest": "395 passed",
+    "e2e": "4/4 PASS"
+  },
+  "known_limitations": [
+    "Fill compatibility flow uses the general export-precheck module.",
+    "Legacy export endpoints remain for compatibility.",
+    "Operational log and browser-profile retention requires separate approval."
+  ],
+  "reports": [
+    "docs/RELEASE_SNAPSHOT.md",
+    "docs/FINAL_DEMO_RUNBOOK.md",
+    "docs/FINAL_RELEASE_CHECKLIST.md",
+    "docs/TASK8_SAFE_CLEANUP_RELEASE_REPORT.md",
+    "tests/artifacts/task8_safe_cleanup_release_report.json"
+  ],
+  "do_not_package": [
+    ".git", ".env", ".venv*", "venv", "node_modules", "__pycache__",
+    ".pytest_cache", "uploads", "output", "logs", "database files",
+    "customer artifacts", "browser profiles", "scripts/e2e_smoke_runner.py"
+  ]
+}

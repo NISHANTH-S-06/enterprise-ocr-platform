@@ -22,7 +22,26 @@ def upgrade() -> None:
                     nullable=True,
                     existing_server_default=None,
                     existing_postgresql_server_default=None)
-    op.drop_constraint("correction_memory_company_id_fkey", "correction_memory", type_="foreignkey")
+    # Safely drop FK constraint by discovering actual name (avoids hardcoded name failures)
+    op.execute("""
+        DO $$
+        DECLARE constraint_name text;
+        BEGIN
+            SELECT tc.constraint_name INTO constraint_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+                AND tc.table_schema = kcu.table_schema
+            WHERE tc.table_name = 'correction_memory'
+              AND tc.constraint_type = 'FOREIGN KEY'
+              AND kcu.column_name = 'company_id'
+            LIMIT 1;
+
+            IF constraint_name IS NOT NULL THEN
+                EXECUTE format('ALTER TABLE correction_memory DROP CONSTRAINT %I', constraint_name);
+            END IF;
+        END $$;
+    """)
     op.create_foreign_key("correction_memory_company_id_fkey", "correction_memory", "companies",
                           ["company_id"], ["id"], ondelete="SET NULL")
 

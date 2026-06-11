@@ -1,0 +1,70 @@
+{
+  "task": "Task 4.1 — Wire ERP Master Resolver into Main Workbench Auto Fill",
+  "generated": "2026-06-11",
+  "db_resolver_wiring_status": "COMPLETE — auto_fill_workbench loads ERPMasterMapping rows from DB (scoped by org_id + is_active) and passes as erp_mappings to build_workbench_auto_fill",
+  "apply_order": [
+    "1. OCR fields normalized",
+    "2. Dataset mapping",
+    "3. Correction memory",
+    "4. Fallback aliases",
+    "5. Direct ERP key match",
+    "6. Row mapping",
+    "7. ERP Master Resolver (DB-backed scored resolution) — NEW",
+    "8. Validation / export gate"
+  ],
+  "sales_header_resolve_examples": [
+    {"source_fields": ["customer_name","buyer_name"], "target": "customer_id", "master_type": "customer"},
+    {"source_fields": ["ship_to_customer_name","consignee_name"], "target": "ship_to_customer_id", "master_type": "customer"},
+    {"source_fields": ["payment_terms","payment_term"], "target": "ar_payment_term_id", "master_type": "payment_term"},
+    {"source_fields": ["delivery_terms","delivery_term"], "target": "ar_delivery_terms_id", "master_type": "delivery_term"},
+    {"source_fields": ["freight_terms","freight_term"], "target": "ar_frieghtterm_id", "master_type": "freight_term"},
+    {"source_fields": ["currency","invoice_currency"], "target": "currency_code_id", "master_type": "currency"},
+    {"source_fields": ["salesperson","sales_person"], "target": "salesperson_id", "master_type": "salesperson"},
+    {"source_fields": ["carrier","transporter_name"], "target": "ar_frieghtcarriers_hdr_id", "master_type": "carrier"},
+    {"source_fields": ["project"], "target": "project_id", "master_type": "project"}
+  ],
+  "purchase_header_resolve_examples": [
+    {"source_fields": ["supplier_name","vendor_name","supplier"], "target": "supplier_id", "master_type": "supplier"},
+    {"source_fields": ["payment_terms","payment_term"], "target": "payment_term_id", "master_type": "payment_term"},
+    {"source_fields": ["delivery_terms","delivery_term"], "target": "delivery_terms_id", "master_type": "delivery_term"},
+    {"source_fields": ["freight_terms","freight_term"], "target": "freight_terms_id", "master_type": "freight_term"},
+    {"source_fields": ["currency","currency_code"], "target": "currency", "master_type": "currency"},
+    {"source_fields": ["project"], "target": "project_id", "master_type": "project"},
+    {"source_fields": ["carrier","transporter_name"], "target": "freight_carrier_id", "master_type": "carrier"}
+  ],
+  "row_product_resolve_examples": [
+    {"source_fields": ["product","description","article","part_no"], "target": "product_id", "master_type": "product", "context_enrichment": "hsn_code, part_number from row"},
+    {"source_fields": ["tax_group","igst","cgst","gst"], "target": "tax_group_id", "master_type": "tax_group", "context_enrichment": "hsn_code from row"}
+  ],
+  "unresolved_reason_examples": {
+    "no_master_data": "No active mappings exist for this master_type in DB",
+    "no_match": "Candidates exist but none scored above 0",
+    "low_score": "Best candidate scored below threshold (70 for critical, 60 for non-critical)",
+    "multiple_candidates": "Multiple candidates with similar close scores — not auto-resolved",
+    "missing_source_value": "All source fields for this master_type are empty in OCR/form data",
+    "already_filled": "Target ID field was already populated before resolver ran"
+  },
+  "export_gate_effect": {
+    "before_resolution": "customer_id/supplier_id/product_id missing → export blocked with ERP_master_id_missing",
+    "after_resolution": "resolved IDs are written to form_data/item_rows → export gate checks pass for those fields",
+    "unresolved_critical": "unresolved customer/supplier/product still block export — gate is strict"
+  },
+  "localstorage_fallback_status": {
+    "key": "ocr_erp_master_mappings_cache",
+    "trigger": "backend /resolve endpoint unavailable or applySavedMasterMappings fallback path",
+    "warning": "Using local master mapping cache",
+    "note": "DB resolver in auto-fill runs before localStorage — local cache only used by applySavedMasterMappings on error"
+  },
+  "frontend_additions": {
+    "kpi_erp_pending": "mainAiFill_masterCount (renamed label to ERP Pending)",
+    "kpi_erp_resolved": "mainAiFill_masterResolvedCount (new element — ERP Resolved)",
+    "debug_payload": "downloadMainAiFillDebug now includes resolved_masters, unresolved_masters, resolved_master_count, unresolved_master_count",
+    "reset_on_clear": "mainAiFill_masterResolvedCount reset to 0 on resetMainAiFill()"
+  },
+  "risks": [
+    "erp_mappings DB load uses try/except — silently falls back to [] on DB error; add monitoring",
+    "auto_fill build_workbench_auto_fill is sync — lazy import of resolve_erp_master_scored inside inner functions to avoid circular import",
+    "missing_source_value entries inflate unresolved_master_count for non-critical types like project/carrier when fields not in OCR output",
+    "GST context enrichment only uses form_data fields — row-level GST not yet propagated to customer resolver context"
+  ]
+}

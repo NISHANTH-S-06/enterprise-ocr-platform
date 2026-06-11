@@ -1,0 +1,61 @@
+{
+  "audit_summary": {
+    "previous_upload_types": ["pdf", "png", "jpg", "jpeg", "tif", "tiff", "bmp", "webp"],
+    "ocr_result_shape": ["raw_text", "mapped_fields", "canonical_fields", "items", "document_type", "warnings"],
+    "production_points": {
+      "raw_text": "upload.py OCR response builders and OCR service results",
+      "mapped_fields": "company_form_mapper.py and final normalization",
+      "item_rows": "company_form_mapper.py table extraction and workbench row extraction",
+      "workbench_upload": "frontend multipart upload to /api/v1/upload followed by job polling",
+      "workbench_auto_fill": "POST /api/v1/forms/workbench/auto-fill with job_id and/or ocr_result"
+    },
+    "openpyxl": "3.1.5 already installed",
+    "existing_exporters": ["JSONExporter", "ExcelExporter", "PDFExporter"],
+    "regression_suites": ["test_platform.py", "test_gemini.py", "test_dataset_normalization.py", "test_task4_erp_master.py", "e2e_runner.py"]
+  },
+  "files_changed": [
+    "app/services/tabular_document_parser.py",
+    "app/api/v1/routers/forms.py",
+    "frontend/index.html",
+    "tests/test_task5_excel_csv.py",
+    "tests/artifacts/task5_excel_csv_upload_report.json"
+  ],
+  "supported_formats": [".xlsx", ".csv"],
+  "endpoint_chosen": "POST /api/v1/forms/workbench/parse-tabular",
+  "parser_behavior": {
+    "excel": "Reads all visible sheets up to 10 with openpyxl data_only mode, detects adjacent key/value fields and item tables, merges rows in source order, and caps total parsed rows at 5000.",
+    "csv": "Decodes UTF-8 BOM first with Latin-1 fallback, sniffs comma/semicolon/tab/pipe delimiters, and detects key/value, table, or mixed layouts.",
+    "empty_files": "Rejected with HTTP 400 or parser ValueError.",
+    "legacy_xls": "Rejected with: Legacy .xls is not supported. Please upload .xlsx or .csv."
+  },
+  "column_aliases": {
+    "headers": ["sales_order_no", "sales_order_date", "customer_name", "consignee_name", "po_number", "po_date", "supplier_name", "payment_terms", "delivery_terms", "currency", "remarks"],
+    "rows": ["product", "part_no", "description", "hsn_code", "qty", "uom", "unit_price", "discount_amount", "tax_amount", "tax_group", "line_total"]
+  },
+  "classification_logic": "GRN terms take precedence; supplier/vendor/purchase fields score purchase_order; customer/buyer/sales fields score sales_order; ties and no evidence return GENERAL_TABULAR/unknown.",
+  "sample_sales_excel_result": {
+    "module": "sales_order",
+    "document_type": "SALES_ORDER",
+    "mapped_fields": {"customer_name": "Acme Buyer", "sales_order_no": "SO-100", "sales_order_date": "2026-06-11"},
+    "item_rows": [{"product": "Widget", "part_no": "W-1", "qty": "2", "uom": "EA", "unit_price": "50", "line_total": "100"}]
+  },
+  "sample_purchase_excel_result": {
+    "module": "purchase_order",
+    "document_type": "PURCHASE_ORDER",
+    "mapped_fields": {"supplier_name": "Supply Co", "po_number": "PO-900", "po_date": "2026-06-10"},
+    "item_rows": [{"description": "Steel Bolt", "hsn_code": "7318", "qty": "10", "unit_price": "5", "tax_group": "18%", "line_total": "50"}]
+  },
+  "sample_csv_row_result": {"product": "Bolt", "qty": "3", "unit_price": "5", "line_total": "15"},
+  "integration": {
+    "dataset_mapping": "Parsed mapped_fields and item_rows are submitted unchanged to the existing workbench auto-fill endpoint.",
+    "correction_learning": "Existing correction memory runs after dataset mappings and before fallback aliases.",
+    "master_resolver": "Existing live DB resolver receives parsed customer/supplier/product/tax values.",
+    "validation_export_gate": "Existing WorkbenchRequest validation remains unchanged and still requires ERP IDs and critical fields."
+  },
+  "limitations_risks": [
+    "Formula cells without a cached calculated value may be empty because workbooks are opened with data_only=true.",
+    "Heuristic header detection requires at least two recognized item columns.",
+    "Legacy .xls is intentionally unsupported because xlrd is not installed.",
+    "Only the first 10 visible sheets and first 5000 non-empty rows are parsed."
+  ]
+}

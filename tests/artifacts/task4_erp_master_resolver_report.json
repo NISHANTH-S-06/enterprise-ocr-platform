@@ -1,0 +1,96 @@
+{
+  "task": "Task 4 — ERP Master Import + Resolver Hardening",
+  "generated": "2026-06-11",
+  "existing_implementation_audit": {
+    "erp_master_mappings_table": "exists — migration 0006",
+    "existing_endpoints": [
+      "POST /api/v1/companies/erp-master-mappings",
+      "GET  /api/v1/companies/erp-master-mappings",
+      "POST /api/v1/companies/erp-master-mappings/resolve",
+      "POST /api/v1/companies/erp-master-mappings/bulk"
+    ],
+    "existing_resolver": "exact normalized-text lookup only",
+    "existing_frontend": "ERP_MASTER_CACHE_KEY, applySavedMasterMappings, renderMainMasterSelection, localErpMasterResolve",
+    "existing_tests": "TestTask9ERPMasterMapping — 11 tests (all passing)"
+  },
+  "task4_additions": {
+    "migration_0008": "alembic/versions/0008_harden_erp_master_mappings.py — adds 11 extended fields, expands master_type constraint to 14 types",
+    "model_fields_added": ["display_name","legal_name","alias_names","gst_number","pan_number","hsn_code","part_number","product_description","uom","tax_rate","currency_code"],
+    "master_types_added": ["payment_term","delivery_term","freight_term","currency","branch","project","salesperson","carrier"]
+  },
+  "endpoints_added": [
+    {
+      "method": "POST",
+      "path": "/api/v1/companies/erp-master-mappings/import",
+      "params": "master_type, module, overwrite, dry_run (query); file (multipart)",
+      "formats": ["CSV", "XLSX", "JSON"],
+      "response": "imported_count, updated_count, skipped_count, error_count, dry_run, detected_columns, column_mapping, skipped_rows, errors"
+    }
+  ],
+  "resolver_scoring_table": [
+    {"score": 100, "reason": "exact_erp_id or exact_erp_code"},
+    {"score": 98,  "reason": "exact_gst — GST number exact match"},
+    {"score": 95,  "reason": "exact_part_number"},
+    {"score": 90,  "reason": "exact_normalized_name"},
+    {"score": 85,  "reason": "alias_exact — pipe-separated alias_names"},
+    {"score": 75,  "reason": "exact_hsn"},
+    {"score": "70-89", "reason": "strong_fuzzy — token overlap >= 80%"},
+    {"score": "60-79", "reason": "token_overlap — token overlap >= 50%"},
+    {"score": 0,   "reason": "no_match"}
+  ],
+  "threshold_rules": {
+    "critical_types": ["customer","supplier","product","tax_group"],
+    "critical_min_score": 70,
+    "non_critical_min_score": 60
+  },
+  "column_alias_support": {
+    "customer": {"erp_id": ["customer_id","erp_id","customer_code","code"], "detected_text": ["customer_name","name","display_name"], "gst_number": ["gstin","gst_number","gst"]},
+    "supplier": {"erp_id": ["supplier_id","vendor_id","erp_id","supplier_code","vendor_code"], "detected_text": ["supplier_name","vendor_name","name"]},
+    "product":  {"erp_id": ["product_id","item_id","erp_id","product_code","sku"], "detected_text": ["product_name","description","name"], "part_number": ["part_no","part_number","article"], "hsn_code": ["hsn","hsn_code"]},
+    "tax_group": {"erp_id": ["tax_group_id","tax_id","erp_id"], "detected_text": ["tax_group","tax_name","name"], "tax_rate": ["tax_rate","gst_rate","igst"]},
+    "payment_term": {"erp_id": ["payment_term_id","erp_id"], "detected_text": ["payment_terms","payment_term","name"]},
+    "currency": {"erp_id": ["currency_id","currency_code_id","erp_id"], "detected_text": ["currency","name"], "currency_code": ["currency_code","code","symbol"]}
+  },
+  "synthetic_examples": {
+    "customer_resolve": {
+      "input": {"master_type": "customer", "detected": "ABC Exports Pvt Ltd", "context": {"gst_number": "29ABCDE1234F1Z5"}},
+      "master_record": {"erp_id": "CUST-1001", "gst_number": "29ABCDE1234F1Z5"},
+      "result": {"resolved": true, "erp_id": "CUST-1001", "score": 98, "match_reason": "exact_gst"}
+    },
+    "supplier_resolve": {
+      "input": {"master_type": "supplier", "detected": "Global Supply Co", "context": {}},
+      "master_record": {"erp_id": "SUP-200", "detected_text": "Global Supply Co"},
+      "result": {"resolved": true, "erp_id": "SUP-200", "score": 90, "match_reason": "exact_normalized_name"}
+    },
+    "product_resolve": {
+      "input": {"master_type": "product", "detected": "Widget A", "context": {"part_number": "WGT-A"}},
+      "master_record": {"erp_id": "PROD-500", "part_number": "WGT-A"},
+      "result": {"resolved": true, "erp_id": "PROD-500", "score": 95, "match_reason": "exact_part_number"}
+    }
+  },
+  "export_blocker_examples": {
+    "missing_customer_id_sales": {"reason_code": "ERP_master_id_missing", "field": "customer_id"},
+    "missing_supplier_id_purchase": {"reason_code": "ERP_master_id_missing", "field": "supplier_id"},
+    "missing_product_id_row": {"reason_code": "ERP_master_id_missing", "field": "rows[0].product_id"}
+  },
+  "localstorage_fallback": {
+    "key": "ocr_erp_master_mappings_cache",
+    "status": "active",
+    "warning_shown": "Using local master mapping cache",
+    "preference": "backend always preferred when available"
+  },
+  "auto_fill_integration": {
+    "response_keys": ["resolved_masters", "unresolved_masters"]
+  },
+  "frontend_additions": {
+    "panel_id": "secErpMasterImport",
+    "nav_id": "navErpImport",
+    "functions": ["showErpMasterImportPage", "runErpMasterImport", "downloadErpImportReport"]
+  },
+  "risks": [
+    "fuzzy resolver uses simple token overlap — may produce false positives for short names",
+    "alias_names is pipe-separated string — normalize on import in future",
+    "resolved_masters list is always [] in auto-fill — needs DB access wiring in future",
+    "large XLSX files may cause memory pressure — streaming not implemented"
+  ]
+}

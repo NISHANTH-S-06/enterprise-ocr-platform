@@ -1,6 +1,43 @@
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
+from urllib.parse import unquote
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def safe_join_output_path(base_dir: Path, filename_or_path: str) -> Path:
+    """Return a resolved Path guaranteed to be inside base_dir.
+
+    Rejects:
+    - ../  and ..\\ traversal sequences
+    - %2e%2e URL-encoded traversal
+    - Absolute path injection
+    - Null bytes
+
+    Raises ValueError on any violation.
+    """
+    decoded = unquote(str(filename_or_path or ""))
+    # Reject null bytes
+    if "\x00" in decoded:
+        raise ValueError("Path contains null byte")
+    normalized = decoded.replace("\\", "/")
+    if ".." in PurePosixPath(normalized).parts:
+        raise ValueError("Path traversal detected: '..' not allowed")
+    if PurePosixPath(normalized).is_absolute() or PureWindowsPath(decoded).is_absolute():
+        raise ValueError("Absolute path injection rejected")
+
+    candidate = Path(decoded)
+    resolved_base = base_dir.resolve()
+    direct_candidate = candidate.resolve()
+    try:
+        direct_candidate.relative_to(resolved_base)
+        resolved_final = direct_candidate
+    except ValueError:
+        resolved_final = (resolved_base / candidate).resolve()
+    try:
+        resolved_final.relative_to(resolved_base)
+    except ValueError:
+        raise ValueError("Path escapes output directory")
+    return resolved_final
 
 PLACEHOLDER_SECRET_KEYS = {
     "",

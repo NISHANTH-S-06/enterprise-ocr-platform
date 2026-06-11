@@ -1,0 +1,51 @@
+2227:        assert "customer_id" in result["required_missing"]
+2238:                "supplier_id": "Acme Supplier",
+2444:                "customer_id": "CUST-1",
+2472:                "po_number": "PO-100", "po_date": "2026-06-10", "supplier_id": "SUP-1",
+2544:        assert payload["header"]["customer_id"] == "CUST-1"
+2554:        assert payload["header"]["supplier_id"] == "SUP-1"
+2565:    def test_export_blocked_when_required_erp_master_ids_missing(self):
+2744:    def test_missing_erp_master_ids_have_master_selection_reason_code(self):
+2760:        assert reasons["customer_id"]["reason_code"] == "ERP_master_id_missing"
+2761:        assert reasons["rows[0].product_id"]["reason_code"] == "ERP_master_id_missing"
+2762:        assert "Needs ERP master selection" in reasons["customer_id"]["message"]
+2770:                "po_number": "PO-7", "po_date": "2026-06-10", "supplier_id": "SUP-1",
+2860:            form_data={"sales_order_date": "2026-06-10", "customer_id": "CUST-1", "bill_to_address": "Bill",
+3001:class TestTask9ERPMasterMapping:
+3010:        async def execute(self, _statement): return TestTask9ERPMasterMapping._Result(self.rows)
+3020:    def _mapping(master_type, text, erp_id, module="sales_order"):
+3022:        from app.api.v1.routers.companies import normalize_erp_master_text
+3023:        return SimpleNamespace(master_type=master_type, detected_text=text, normalized_text=normalize_erp_master_text(text),
+3024:                               erp_id=erp_id, module=module, is_active=True)
+3026:    def test_create_erp_master_mapping(self):
+3028:        from app.api.v1.routers.companies import ERPMasterMappingRequest, save_erp_master_mapping
+3030:        result=asyncio.run(save_erp_master_mapping(ERPMasterMappingRequest(master_type="customer",detected_text="Acme Ltd.",erp_id="CUST-1"),db=db,current_user={"org_id":"org-1"}))
+3031:        assert result["created"] is True and result["mapping"]["erp_id"] == "CUST-1"
+3033:    def test_resolve_customer_to_customer_id(self):
+3034:        from app.api.v1.routers.companies import resolve_erp_master_values
+3035:        result=resolve_erp_master_values({"customer_name":"Acme Ltd."},[],[self._mapping("customer","ACME LTD","CUST-1")],"sales_order")
+3036:        assert result["resolved_fields"]["customer_id"] == "CUST-1"
+3038:    def test_resolve_supplier_to_supplier_id(self):
+3039:        from app.api.v1.routers.companies import resolve_erp_master_values
+3040:        result=resolve_erp_master_values({"supplier_name":"Global Supply"},[],[self._mapping("supplier","Global Supply","SUP-1","purchase_order")],"purchase_order")
+3041:        assert result["resolved_fields"]["supplier_id"] == "SUP-1"
+3044:        from app.api.v1.routers.companies import resolve_erp_master_values
+3045:        result=resolve_erp_master_values({},[{"product":"Widget A"}],[self._mapping("product","Widget A","PROD-1")],"sales_order")
+3049:        from app.api.v1.routers.companies import resolve_erp_master_values
+3050:        result=resolve_erp_master_values({},[{"bulk_tax_group":"GST 18%"}],[self._mapping("tax_group","GST 18%","TAX-18")],"sales_order")
+3054:        from app.api.v1.routers.companies import resolve_erp_master_values
+3055:        result=resolve_erp_master_values({"customer_name":"Unknown Buyer"},[],[],"sales_order")
+3056:        assert any(item["reason_code"] == "ERP_master_id_missing" and item["reason"] == "Needs ERP master selection" for item in result["unresolved"])
+3062:        assert any(item["reason_code"] == "ERP_master_id_missing" for item in result["blocker_reasons"])
+3066:        result=validate_workbench_payload(WorkbenchRequest(module="sales_order",form_data={"sales_order_date":"2026-06-10","customer_id":"CUST-1","bill_to_address":"B","ship_to_address":"S","delivery_date":"2026-06-11","order_total":"100"},item_rows=[{"product_id":"PROD-1","bulk_qty":"1","bulk_unit_price":"100","bulk_line_total":"100"}]))
+3071:        from app.api.v1.routers.companies import ERPMasterBulkRequest, ERPMasterMappingRequest, bulk_save_erp_master_mappings
+3073:        body=ERPMasterBulkRequest(mappings=[ERPMasterMappingRequest(master_type="customer",detected_text="Acme",erp_id="C1"),ERPMasterMappingRequest(master_type="product",detected_text="Widget",erp_id="P1")])
+3074:        result=asyncio.run(bulk_save_erp_master_mappings(body,db=db,current_user={"org_id":"org-1"}))
+3079:        from app.api.v1.routers.companies import resolve_erp_master_values
+3082:        resolved=resolve_erp_master_values(fields,rows,[self._mapping("customer","Acme Ltd","CUST-9")],"sales_order")
+3083:        assert fields["customer_name"] == "Acme Ltd" and resolved["resolved_fields"]["customer_id"] == "CUST-9"
+3088:        assert "ocr_erp_master_mappings_cache" in source
+3094:        assert ERPMasterMapping.__tablename__ == "erp_master_mappings"
+3095:        migration=Path("alembic/versions/0006_add_erp_master_mappings.py").read_text(encoding="utf-8")
+3096:        assert 'down_revision = "0005_training_workbench"' in migration and "drop_table(\"erp_master_mappings\")" in migration
+3457:    def test_apply_workbench_corrections_customer_identity(self):

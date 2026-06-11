@@ -1,0 +1,85 @@
+{
+  "audit_summary": {
+    "current_export_endpoints": [
+      "POST /api/v1/forms/workbench/export/json",
+      "POST /api/v1/forms/workbench/export/excel",
+      "POST /api/v1/forms/workbench/export/pdf"
+    ],
+    "current_validation_endpoint": "POST /api/v1/forms/workbench/validate",
+    "previous_export_allowed_logic": "validate_workbench_payload allowed export when blocked_fields was empty; all three formats shared _workbench_export_payload.",
+    "previous_required_checks": {
+      "sales": ["sales_order_date", "customer_id", "bill_to_address", "ship_to_address", "delivery_date", "order_total", "item_rows"],
+      "purchase": ["po_number", "po_date", "supplier_id", "delivery_date", "po_grand_total", "item_rows"]
+    },
+    "unresolved_master_behavior": "Auto-fill returned resolved_masters and unresolved_masters; validation separately required header and row ERP IDs.",
+    "previous_confidence_behavior": "Only req.fields objects below 0.5 generated warnings; confidence did not produce a quality score.",
+    "frontend_behavior": "Validation and export errors were shown in the existing review panel, but no backend quality score or explicit preflight call existed.",
+    "export_behavior": "JSON, Excel, and PDF already used one validation helper and returned streaming responses only after validation.",
+    "regression_suites": ["test_platform.py", "test_gemini.py", "test_dataset_normalization.py", "test_task4_erp_master.py", "test_task5_excel_csv.py", "e2e_runner.py"]
+  },
+  "files_changed": [
+    "app/services/export_precheck_engine.py",
+    "app/api/v1/routers/forms.py",
+    "frontend/index.html",
+    "tests/test_task6_export_precheck.py",
+    "tests/artifacts/task6_export_precheck_report.json"
+  ],
+  "endpoint_details": {
+    "method": "POST",
+    "path": "/api/v1/forms/workbench/export-precheck",
+    "side_effects": "none",
+    "response": ["export_allowed", "review_required", "quality_score", "quality_grade", "required_fields", "missing_required_fields", "low_confidence_fields", "unresolved_masters", "row_issues", "blockers", "warnings", "export_formats"]
+  },
+  "required_field_matrix": {
+    "sales_order": {
+      "header": ["customer_name or customer_id", "sales_order_date or order_date", "customer_po_number or sales_order_no or order_no", "currency when amount exists"],
+      "rows": ["product/product_id/description", "qty > 0", "unit_price or line_total", "product_id"]
+    },
+    "purchase_order": {
+      "header": ["supplier_name or supplier_id", "po_number or purchase_order_number", "po_date or order_date", "currency when amount exists"],
+      "rows": ["product/product_id/description", "qty > 0", "unit_price or line_total", "product_id"]
+    },
+    "general": ["at least one detected field"]
+  },
+  "quality_scoring_rules": {
+    "start": 100,
+    "missing_required_header_or_row": -15,
+    "missing_critical_master_id": -20,
+    "missing_product_id": -10,
+    "missing_tax_group_id_with_tax": -8,
+    "low_confidence_required": -8,
+    "suspicious_value": -10,
+    "empty_rows": -15,
+    "unresolved_critical_master": -20,
+    "warning": -3,
+    "clamp": "0-100",
+    "grades": {"A": "90-100", "B": "75-89", "C": "60-74", "D": "40-59", "BLOCKED": "below 40 or hard blocker"}
+  },
+  "hard_blocker_rules": [
+    "missing customer_id or supplier_id",
+    "missing product_id",
+    "missing required order number/date",
+    "unresolved customer/supplier/product master",
+    "negative amount",
+    "all item rows empty",
+    "suspicious object/null/label-only/raw-OCR value",
+    "invalid required row values"
+  ],
+  "sample_sales_pass": {"quality_score": 100, "quality_grade": "A", "export_allowed": true},
+  "sample_sales_blocked": {"missing": ["customer_id"], "quality_grade": "BLOCKED", "export_allowed": false},
+  "sample_purchase_pass": {"quality_score": 100, "quality_grade": "A", "export_allowed": true},
+  "sample_purchase_blocked": {"missing": ["supplier_id"], "quality_grade": "BLOCKED", "export_allowed": false},
+  "frontend_review_gate_behavior": {
+    "shows": ["quality score", "grade", "export status", "missing required fields", "unresolved masters", "low-confidence fields", "row issues", "blockers", "review-required warning"],
+    "blocked": "Export buttons remain visible and are disabled after a blocked precheck.",
+    "review_required": "Export remains enabled with a visible warning.",
+    "ready": "Grade A exports directly after precheck."
+  },
+  "export_endpoint_gate_behavior": "All JSON, Excel, and PDF exports run the same export precheck after legacy normalization and return HTTP 422 with score, blockers, missing fields, and unresolved masters when blocked.",
+  "risks": [
+    "The legacy /workbench/validate response remains backward-compatible and can be less strict than the export precheck.",
+    "ERP product IDs are required for sales and purchase exports.",
+    "Unrecognized date formats are treated as suspicious and require correction.",
+    "Optional low-confidence values trigger review but do not independently block export."
+  ]
+}

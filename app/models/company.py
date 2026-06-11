@@ -166,7 +166,8 @@ class ERPMasterMapping(Base, TimestampMixin):
         Index("ix_erp_master_mappings_active", "is_active"),
         UniqueConstraint("org_id", "master_type", "normalized_text", "module", "company_name", name="uq_erp_master_mapping_scope"),
         CheckConstraint(
-            "master_type IN ('customer','supplier','product','tax_group','customer_site','supplier_site')",
+            "master_type IN ('customer','supplier','product','tax_group','customer_site','supplier_site',"
+            "'payment_term','delivery_term','freight_term','currency','branch','project','salesperson','carrier')",
             name="ck_erp_master_mappings_type",
         ),
     )
@@ -183,10 +184,22 @@ class ERPMasterMapping(Base, TimestampMixin):
     company_name:    Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     vendor_name:     Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     customer_name:   Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    is_active:       Mapped[bool]          = mapped_column(Boolean, nullable=False, default=True)
-    confidence:      Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    source:          Mapped[str]           = mapped_column(String(32), nullable=False, default="manual")
-    metadata_json:   Mapped[dict]          = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
+    is_active:          Mapped[bool]           = mapped_column(Boolean, nullable=False, default=True)
+    confidence:         Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    source:             Mapped[str]            = mapped_column(String(32), nullable=False, default="manual")
+    metadata_json:      Mapped[dict]           = mapped_column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict)
+    # Extended fields (migration 0008)
+    display_name:       Mapped[Optional[str]]  = mapped_column(String(500), nullable=True)
+    legal_name:         Mapped[Optional[str]]  = mapped_column(String(500), nullable=True)
+    alias_names:        Mapped[Optional[str]]  = mapped_column(Text, nullable=True)
+    gst_number:         Mapped[Optional[str]]  = mapped_column(String(20), nullable=True)
+    pan_number:         Mapped[Optional[str]]  = mapped_column(String(12), nullable=True)
+    hsn_code:           Mapped[Optional[str]]  = mapped_column(String(20), nullable=True)
+    part_number:        Mapped[Optional[str]]  = mapped_column(String(100), nullable=True)
+    product_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    uom:                Mapped[Optional[str]]  = mapped_column(String(30), nullable=True)
+    tax_rate:           Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    currency_code:      Mapped[Optional[str]]  = mapped_column(String(10), nullable=True)
 
 
 # ---------------------------------------------------------------------------

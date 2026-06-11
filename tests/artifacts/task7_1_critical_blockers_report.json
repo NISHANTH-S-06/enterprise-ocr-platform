@@ -1,0 +1,147 @@
+{
+  "task": "7.1 Critical Production Blockers Fix",
+  "generated_at": "2026-06-11T00:00:00Z",
+  "audit_findings": {
+    "export_bypass": [
+      {
+        "file": "app/api/v1/routers/forms.py",
+        "function": "export_pdf",
+        "endpoint": "POST /api/v1/forms/export/pdf",
+        "format": "pdf",
+        "called_export_precheck_before_fix": false,
+        "risk": "EXPORT_BYPASS",
+        "status": "FIXED"
+      },
+      {
+        "file": "app/api/v1/routers/forms.py",
+        "function": "export_excel",
+        "endpoint": "POST /api/v1/forms/export/excel",
+        "format": "excel",
+        "called_export_precheck_before_fix": false,
+        "risk": "EXPORT_BYPASS",
+        "status": "FIXED"
+      },
+      {
+        "file": "app/api/v1/routers/forms.py",
+        "function": "export_workbench_json",
+        "endpoint": "POST /api/v1/forms/workbench/export/json",
+        "format": "json",
+        "called_export_precheck_before_fix": true,
+        "risk": "NONE",
+        "status": "SAFE — no change needed"
+      },
+      {
+        "file": "app/api/v1/routers/forms.py",
+        "function": "export_workbench_excel",
+        "endpoint": "POST /api/v1/forms/workbench/export/excel",
+        "format": "excel",
+        "called_export_precheck_before_fix": true,
+        "risk": "NONE",
+        "status": "SAFE — no change needed"
+      },
+      {
+        "file": "app/api/v1/routers/forms.py",
+        "function": "export_workbench_pdf",
+        "endpoint": "POST /api/v1/forms/workbench/export/pdf",
+        "format": "pdf",
+        "called_export_precheck_before_fix": true,
+        "risk": "NONE",
+        "status": "SAFE — no change needed"
+      }
+    ],
+    "fill_bypass": [
+      {
+        "file": "app/api/v1/routers/fill.py",
+        "function": "fill_form",
+        "endpoint": "POST /api/v1/fill/",
+        "called_export_precheck_before_fix": false,
+        "risk": "FILL_BYPASS",
+        "status": "FIXED — form_fill_engine.py now runs build_export_precheck before export step"
+      },
+      {
+        "file": "app/api/v1/routers/forms.py",
+        "function": "auto_fill_workbench",
+        "endpoint": "POST /api/v1/forms/workbench/auto-fill",
+        "called_export_precheck_before_fix": true,
+        "risk": "NONE",
+        "status": "SAFE — no change needed"
+      }
+    ],
+    "path_risks": [
+      {
+        "file": "app/api/v1/routers/fill.py",
+        "function": "download_output",
+        "risk_type": "raw_file_path_served",
+        "detail": "FileResponse used job.output_path from DB without containment check",
+        "status": "FIXED — safe_join_output_path validates containment inside settings.output_path"
+      },
+      {
+        "file": "app/api/v1/routers/fill.py",
+        "function": "get_fill_job",
+        "risk_type": "absolute_path_exposed",
+        "detail": "API response returned raw output_path absolute local path",
+        "status": "FIXED — response now returns output_filename and download_url only"
+      },
+      {
+        "file": "app/api/v1/routers/upload.py",
+        "function": "download_batch_zip",
+        "risk_type": "path_from_db",
+        "detail": "FileResponse uses batch.output_zip_path from DB; path is built from settings.output_path/batches/{id}/ at generation time",
+        "status": "LOW RISK — generated under settings.output_path and not exposed in JSON; no change needed"
+      }
+    ]
+  },
+  "export_bypass_fix": {
+    "status": "DONE",
+    "files_changed": ["app/api/v1/routers/forms.py"],
+    "method": "_resolve_export_fields now calls build_export_precheck; raises HTTP 422 with standard shape if export_allowed=False"
+  },
+  "fill_bypass_fix": {
+    "status": "DONE",
+    "files_changed": ["app/services/form_fill_engine.py"],
+    "method": "form_fill_engine.fill() runs build_export_precheck after field mapping, before export step; raises HTTP 422 with standard shape if export_allowed=False"
+  },
+  "path_hardening_fix": {
+    "status": "DONE",
+    "files_changed": ["app/core/config.py", "app/api/v1/routers/fill.py"],
+    "method": "safe_join_output_path() URL-decodes input, rejects traversal and absolute paths, and enforces containment; fill downloads use it; get_fill_job no longer returns raw paths"
+  },
+  "absolute_path_exposure_fix": {
+    "status": "DONE",
+    "detail": "get_fill_job response no longer contains output_path field; returns has_output, output_filename, download_url"
+  },
+  "release_snapshot": {
+    "status": "DONE",
+    "file": "docs/RELEASE_SNAPSHOT.md"
+  },
+  "tests_added": {
+    "file": "tests/test_task7_1_critical_blockers.py",
+    "test_count": 27
+  },
+  "backups_created": [
+    "app/api/v1/routers/forms.before-task7-1-critical-blockers.py",
+    "app/api/v1/routers/fill.before-task7-1-critical-blockers.py",
+    "app/services/form_fill_engine.before-task7-1-critical-blockers.py"
+  ],
+  "remaining_blockers": [],
+  "remaining_risks": [
+    "fill engine export_precheck uses module=general — less strict than workbench precheck",
+    "Fill job output_path values stored before Task 7.1 may point outside output/ if OUTPUT_DIR changed"
+  ],
+  "readiness_after_fix": {
+    "score": "100% of Task 7.1 success criteria",
+    "status": "READY",
+    "blockers_fixed": 4,
+    "blockers_remaining": 0
+  },
+  "verification": {
+    "javascript_parse": "PASS",
+    "duplicate_ids": 0,
+    "compile_app": "PASS",
+    "compile_alembic": "PASS",
+    "alembic_heads": "0008 (head)",
+    "alembic_current": "0008 (head)",
+    "pytest": "395 passed",
+    "e2e": "4/4 PASS"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "task": "Task 8 Safe Cleanup Execution and Release Package",
+  "timestamp": "2026-06-11T12:40:00+05:30",
+  "baseline_verification": {
+    "javascript_parse": "PASS",
+    "duplicate_ids": 0,
+    "compile_app": "PASS",
+    "compile_alembic": "PASS",
+    "alembic_heads": "0008 (head)",
+    "alembic_current": "0008 (head)",
+    "pytest": "395 passed",
+    "e2e": "4/4 PASS"
+  },
+  "safety_snapshot": {
+    "git_available": true,
+    "dirty_tree_preserved": true,
+    "file": "docs/PRE_CLEANUP_FILE_SNAPSHOT.md"
+  },
+  "cleanup_audit": {
+    "safe_to_move": "historical task backup files",
+    "safe_to_delete": "project Python and pytest caches",
+    "do_not_touch": "active source, migrations, tests, customer/runtime artifacts",
+    "needs_approval": "logs, browser profiles, generated exports, old scripts and reports"
+  },
+  "files_moved": {
+    "backend_backups": 52,
+    "frontend_backups": 11,
+    "alembic_backups": 2,
+    "total": 65,
+    "destination": "backups/"
+  },
+  "cache_deleted": {
+    "project_python_cache_directories": 16,
+    "pytest_cache": true,
+    "virtual_environment_caches_touched": false
+  },
+  "files_not_touched": [
+    "active application source",
+    "migrations 0001 through 0008",
+    "frontend/index.html",
+    "tests and test artifacts",
+    "e2e_runner.py",
+    "environment and database files",
+    "uploads, outputs, templates, datasets and customer artifacts"
+  ],
+  "needs_approval": [
+    "review credential-like default in excluded Python smoke runner",
+    "decide retention for root logs and verification outputs",
+    "decide retention for browser profiles and generated exports"
+  ],
+  "release_docs_created": [
+    "docs/API_ENDPOINT_SUMMARY.md",
+    "docs/FINAL_RELEASE_CHECKLIST.md",
+    "docs/CLEANUP_LOG.md",
+    "docs/PRE_CLEANUP_FILE_SNAPSHOT.md",
+    "docs/TASK8_ROLLBACK_PLAN.md",
+    "docs/TASK8_SAFE_CLEANUP_RELEASE_REPORT.md"
+  ],
+  "release_docs_updated": [
+    "docs/RELEASE_SNAPSHOT.md",
+    "docs/FINAL_DEMO_RUNBOOK.md",
+    "docs/PRODUCTION_CLEANUP_PLAN.md"
+  ],
+  "scripts_created": [
+    "scripts/start_backend.ps1",
+    "scripts/start_frontend.ps1",
+    "scripts/run_verify.ps1",
+    "scripts/run_e2e.ps1",
+    "scripts/demo_start.ps1"
+  ],
+  "rollback_plan": "CREATED",
+  "secret_scan": "PASS for Task 8 release files; one excluded existing script requires approval",
+  "final_verification": {
+    "javascript_parse": "PASS",
+    "duplicate_ids": 0,
+    "compile_app": "PASS",
+    "compile_alembic": "PASS",
+    "alembic_heads": "0008 (head)",
+    "alembic_current": "0008 (head)",
+    "pytest": "395 passed",
+    "e2e": "4/4 PASS"
+  },
+  "package_safety": {
+    "package_created": false,
+    "status": "SKIPPED_FOR_SAFETY",
+    "reason": "Workspace contains excluded runtime, customer, environment and browser artifacts; manifest-only release package is safer without explicit packaging approval."
+  },
+  "remaining_risks": [
+    "Excluded smoke runner credential default requires review.",
+    "Operational artifact retention remains approval-dependent.",
+    "Working tree contains pre-existing uncommitted Task 4-7.1 changes."
+  ],
+  "readiness_rating": "READY WITH WARNINGS"
+}

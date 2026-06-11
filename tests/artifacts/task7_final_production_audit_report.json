@@ -1,0 +1,131 @@
+{
+  "task": "Task 7 - Final Production Audit and Cleanup Plan",
+  "audit_only": true,
+  "audit_date": "2026-06-11",
+  "rating": "NOT READY",
+  "readiness_percent": 78,
+  "summary": "Core PDF, image, Excel, CSV, mapping, ERP resolution, and quality-gate tests pass. Production release is blocked by validation bypasses in legacy export/fill routes, unsafe download-path handling, and an uncommitted release state.",
+  "verification": {
+    "js_parse": "PASS",
+    "duplicate_ids": 0,
+    "compile_app": "PASS",
+    "compile_alembic": "PASS",
+    "alembic_heads": "0008 (head)",
+    "alembic_current": "0008 (head)",
+    "pytest": "368 passed, 11 warnings",
+    "e2e": "4/4 PASS"
+  },
+  "critical_blockers": [
+    "Legacy /api/v1/forms/export/pdf and /api/v1/forms/export/excel accept client-controlled skip_validation and can bypass the Task 6 export pre-check.",
+    "/api/v1/fill/ maps and exports without the Task 6 export pre-check, creating a second gate bypass.",
+    "The working tree contains modified and untracked production source, migration, test, and report files; the tested release is not reproducible from a committed revision.",
+    "Fill job responses expose server output_path values and download trusts the stored path without proving containment beneath the configured export directory."
+  ],
+  "non_critical_risks": [
+    "Backup files remain in app, frontend, tests, and alembic/versions.",
+    "0007 and 0008 downgrade paths need staging restore/downgrade testing before production use.",
+    "OCR_RESULT_CACHE is unbounded and OCR/native processing can block the single application worker.",
+    "CSV and XLSX parsers materialize input rows before applying the normalized 5000-row limit.",
+    "Uploads and generated exports have no verified general retention job and are accumulating.",
+    "The 7227-line frontend/index.html has high maintenance and regression risk.",
+    "Business/OCR data is persisted in browser localStorage without a documented expiry policy.",
+    "E2E covers four PDFs and legacy exports, but not image, XLSX, CSV, workbench pre-check, JSON export, or browser UI flows.",
+    "Test warnings include an un-awaited mock coroutine and pytest-asyncio loop-scope deprecation.",
+    "Docker Compose contains a weak development database password and must not be used unchanged in production.",
+    "README/API guidance still emphasizes legacy fill/export routes instead of the gated workbench flow."
+  ],
+  "project_structure": {
+    "audited": ["app", "app/api/v1/routers", "app/services", "app/models", "app/schemas", "alembic/versions", "frontend", "tests", "tests/artifacts", "scripts", "docs"],
+    "large_or_generated_storage": {
+      "uploads": "601 files, 55,719,880 bytes",
+      "output": "1683 files, 8,524,988 bytes",
+      "chrome_profile": "931 files, 149,903,607 bytes",
+      "scratch": "145 files, 12,169,738 bytes"
+    },
+    "active_virtualenvs_found": [".venv", ".venv311", ".venv_new"],
+    "frontend_index": "393,388 bytes, 7,227 lines"
+  },
+  "endpoint_summary": {
+    "registered_api_endpoints": 73,
+    "duplicate_method_path_routes": 0,
+    "router_groups": ["auth", "admin", "companies", "document quality", "fill", "forms", "health", "upload"],
+    "gated_workbench_exports": ["/api/v1/forms/workbench/export/json", "/api/v1/forms/workbench/export/excel", "/api/v1/forms/workbench/export/pdf"],
+    "legacy_gate_exceptions": ["/api/v1/forms/export/pdf", "/api/v1/forms/export/excel", "/api/v1/fill/"]
+  },
+  "service_audit": {
+    "responsibilities": {
+      "ocr": "File validation, OCR extraction, classification, and job processing.",
+      "company_form_mapper": "Document classification and ERP form field/row mapping.",
+      "final_field_normalizer": "Canonical field selection and normalization.",
+      "correction_learning": "Correction memory persistence and application.",
+      "erp_master_resolver": "Scoped customer, supplier, and product resolution.",
+      "tabular_parser": "XLSX/CSV parsing and OCR-like normalization.",
+      "export_precheck": "Required-field, confidence, master, row, and quality gate evaluation.",
+      "exporters": "JSON, Excel, and PDF artifact generation."
+    },
+    "risks": [
+      "workbench_correction_apply imports router helpers from forms.py, reversing the intended dependency direction.",
+      "Broad exception fallbacks can hide correction, template, validation, and resolver failures.",
+      "Normalization and alias helpers are duplicated across forms, mapper, normalizers, parser, and pre-check modules.",
+      "company_form_mapper.py and forms.py contain large functions and broad responsibilities."
+    ]
+  },
+  "database_alembic": {
+    "chain": "0001 -> 0002_reviewer_role -> 0003_ocr_batches -> 0004_company_tables -> 0005_training_workbench -> 0006 -> 0007 -> 0008",
+    "backup_in_versions": "0007_add_correction_memory_columns.before-safe-fk-fix.py.bak",
+    "compatibility": "Current database is at the sole head and passed the required test suite.",
+    "downgrade_risk": "0007 does not fully restore prior company_id constraints; 0008 may fail when reverting data that uses newly allowed master types."
+  },
+  "frontend_health": {
+    "js_parse": "PASS",
+    "duplicate_ids": 0,
+    "missing_onclick_functions": 0,
+    "supported_main_ai_uploads": ["pdf", "png", "jpg", "jpeg", "webp", "xlsx", "csv"],
+    "panels_present": ["Main AI Auto Fill", "Training", "ERP Master Import", "Quality Gate", "Export"],
+    "risks": ["One legacy upload accept list omits XLSX/CSV", "Single large inline HTML/JS/CSS file", "Sensitive business data may persist in localStorage"]
+  },
+  "test_coverage": {
+    "pytest_result": "368 passed",
+    "covered": ["PDF/image upload validation", "mapping and normalization", "correction learning", "ERP resolver", "XLSX/CSV parsing", "export pre-check", "admin scoping"],
+    "e2e_documents": ["salesinvoice.pdf", "Glsprint.pdf", "POPRINT.pdf", "GRN.pdf"],
+    "gaps": ["real image E2E", "XLSX/CSV E2E", "workbench auto-fill/pre-check E2E", "JSON export E2E", "blocked-export E2E", "browser UI E2E", "multi-tenant concurrent isolation", "large-file/load tests"]
+  },
+  "security_notes": [
+    "Production settings reject weak JWT secrets and wildcard CORS.",
+    "Uploads enforce extension/MIME/signature, size, image-dimension, and PDF-page checks.",
+    "Do not expose or commit .env; it is currently ignored.",
+    "Add rate limiting/login abuse controls, path containment, retention policies, and sensitive-log review before release.",
+    "Raw OCR is available to authorized review endpoints and therefore requires explicit access and retention policy."
+  ],
+  "performance_notes": [
+    "A single worker executes blocking OCR/native workloads.",
+    "Timeout cancellation may not stop underlying native OCR work.",
+    "Whole uploads and tabular inputs can be materialized in memory.",
+    "ERP matching is in-memory O(rows multiplied by candidate mappings).",
+    "Unbounded cache and accumulated upload/output files increase memory and disk risk."
+  ],
+  "safe_cleanup_candidates": [
+    "Move *.before-* and other backup copies from app, frontend, tests, and alembic/versions into a dated backups archive after checksums.",
+    "Remove __pycache__ and .pytest_cache folders.",
+    "Archive or remove obsolete logs, verification outputs, browser profiles, downloads, and scratch files after ownership review.",
+    "Retire duplicate virtual environments only after confirming .venv311 is the supported environment.",
+    "Apply a documented retention policy to uploads and output; do not blanket-delete them.",
+    "Move historical task reports to docs/reports after preserving links."
+  ],
+  "do_not_delete": [
+    "Active app source, including export_precheck_engine.py and tabular_document_parser.py.",
+    "Alembic migrations 0001 through 0008.",
+    "Task 4, 5, and 6 tests and their active fixtures.",
+    "e2e_runner.py, even though current ignore rules may exclude it.",
+    ".env from deployed hosts; keep it secret and uncommitted.",
+    "templates_store, current database files/data, uploads, or output before retention/legal review.",
+    "Docker, environment examples, start scripts, and current operational documentation."
+  ],
+  "release_gates": [
+    "Remove all client-controlled validation bypasses and route every export path through one pre-check contract.",
+    "Constrain downloads to the configured output directory and stop exposing absolute server paths.",
+    "Commit/review the exact tested source and migration set, then build from a clean checkout.",
+    "Add integration/E2E coverage for workbench blocked and allowed exports across JSON, Excel, and PDF.",
+    "Define upload/export retention, production secrets, worker sizing, and rollback procedure."
+  ]
+}

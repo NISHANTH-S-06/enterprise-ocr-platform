@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -27,13 +27,15 @@ from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.enums import LogEventType, LogLevel, UserRole
 from app.models.extracted_data import ExtractedData
-from app.models.company import Company, CorrectionMemory, TrainingDataset
+from app.models.company import Company, CorrectionMemory, ERPMasterMapping, TrainingDataset
 from app.models.workbench import WorkbenchDraft
 from app.services.company_form_mapper import auto_fill, classify_document, flatten_item_rows_for_legacy_fields, map_sales_invoice_fields, missing_fields_for_doc, normalize_mapped_fields
 from app.services.ownership_service import get_owned_extracted_data, get_owned_ocr_job
 from app.services.audit_service import write_audit_log
 from app.services.gemini_service import gemini_enrich_missing_fields
 from app.services.validation_service import validate_mapped_fields
+from app.services.tabular_document_parser import parse_csv_document, parse_excel_document
+from app.services.export_precheck_engine import build_export_precheck
 # workbench_correction_apply imports are done inside functions to avoid circular import
 
 router = APIRouter(prefix="/forms", tags=["Company Form Fill"])
@@ -71,6 +73,12 @@ class WorkbenchRequest(BaseModel):
     mappings_json: List[Dict[str, Any]] = Field(default_factory=list)
     row_mappings_json: List[Dict[str, Any]] = Field(default_factory=list)
     selected_dataset: Dict[str, Any] = Field(default_factory=dict)
+    mapped_fields: Dict[str, Any] = Field(default_factory=dict)
+    resolved_masters: List[Dict[str, Any]] = Field(default_factory=list)
+    unresolved_masters: List[Dict[str, Any]] = Field(default_factory=list)
+    confidence_map: Dict[str, Any] = Field(default_factory=dict)
+    warnings: List[str] = Field(default_factory=list)
+    source_type: Optional[str] = None
     title: Optional[str] = None
 
 
@@ -84,6 +92,44 @@ class WorkbenchAutoFillRequest(BaseModel):
     ocr_result: Optional[Dict[str, Any]] = None
     dataset_id: Optional[str] = None
     overwrite: bool = True
+
+
+class ExportPrecheckRequest(BaseModel):
+    module: str
+    document_type: Optional[str] = None
+    form_data: Dict[str, Any] = Field(default_factory=dict)
+    item_rows: List[Dict[str, Any]] = Field(default_factory=list)
+    mapped_fields: Dict[str, Any] = Field(default_factory=dict)
+    resolved_masters: List[Dict[str, Any]] = Field(default_factory=list)
+    unresolved_masters: List[Dict[str, Any]] = Field(default_factory=list)
+    confidence_map: Dict[str, Any] = Field(default_factory=dict)
+    warnings: List[str] = Field(default_factory=list)
+    source_type: Optional[str] = None
+
+
+@router.post("/workbench/parse-tabular", summary="Parse Excel or CSV for the workbench")
+async def parse_workbench_tabular(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+) -> dict[str, Any]:
+    filename = file.filename or "upload"
+    extension = Path(filename).suffix.lower()
+    if extension == ".xls":
+        raise HTTPException(status_code=415, detail="Legacy .xls is not supported. Please upload .xlsx or .csv.")
+    if extension not in {".xlsx", ".csv"}:
+        raise HTTPException(status_code=415, detail="Unsupported tabular file. Please upload .xlsx or .csv.")
+    max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    data = await file.read(max_bytes + 1)
+    if not data:
+        raise HTTPException(status_code=400, detail="The uploaded Excel/CSV file is empty.")
+    if len(data) > max_bytes:
+        raise HTTPException(status_code=413, detail=f"File exceeds {settings.MAX_FILE_SIZE_MB} MB")
+    try:
+        result = parse_excel_document(data, filename) if extension == ".xlsx" else parse_csv_document(data, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    result["filename"] = filename
+    return result
 
 
 from app.schemas.correction import (
@@ -487,6 +533,7 @@ def build_workbench_auto_fill(
     ocr_result: dict[str, Any],
     dataset: Optional[dict[str, Any]] = None,
     corrections: Optional[list[dict[str, Any]]] = None,
+    erp_mappings: Optional[list[Any]] = None,
 ) -> dict[str, Any]:
     module = "purchase" if normalize_workbench_key(req.module).startswith("purchase") else "sales"
     document_type = _workbench_document_type(ocr_result)
@@ -668,36 +715,195 @@ def build_workbench_auto_fill(
         if len(clean_row) > 1:
             item_rows.append(clean_row)
 
-    # Step 7: ERP master resolver
-    unresolved_masters: list[dict[str, str]] = []
-    master_pairs = (("customer_name", "customer_id", "customer"),) if module == "sales" else (("supplier_name", "supplier_id", "supplier"),)
-    for name_key, id_key, master_type in master_pairs:
-        if form_data.get(name_key) and not form_data.get(id_key):
-            unresolved_masters.append({"master_type": master_type, "detected_text": form_data[name_key], "field_key": id_key,
-                                       "reason": "ERP_master_id_missing"})
-    for index, row in enumerate(item_rows):
-        if row.get("product") and not row.get("product_id"):
-            unresolved_masters.append({"master_type": "product", "detected_text": row["product"],
-                                       "field_key": f"item_rows.{index}.product_id", "reason": "ERP_master_id_missing"})
+    # Step 7: ERP master resolver — use DB mappings when available
+    unresolved_masters: list[dict[str, Any]] = []
+    resolved_masters: list[dict[str, Any]] = []
+
+    _mappings = erp_mappings or []
+
+    # Header field resolution map: (source_fields, target_field, master_type, context_key)
+    if module == "sales":
+        _header_resolve = [
+            (["customer_name", "buyer_name", "customer", "bill_to_customer"], "customer_id", "customer", {}),
+            (["ship_to_customer_name", "consignee_name", "delivery_name"], "ship_to_customer_id", "customer", {}),
+            (["payment_terms", "payment_term"], "ar_payment_term_id", "payment_term", {}),
+            (["delivery_terms", "delivery_term"], "ar_delivery_terms_id", "delivery_term", {}),
+            (["freight_terms", "freight_term"], "ar_frieghtterm_id", "freight_term", {}),
+            (["currency", "invoice_currency"], "currency_code_id", "currency", {}),
+            (["salesperson", "sales_person"], "salesperson_id", "salesperson", {}),
+            (["carrier", "transporter_name"], "ar_frieghtcarriers_hdr_id", "carrier", {}),
+            (["project"], "project_id", "project", {}),
+        ]
+    else:
+        _header_resolve = [
+            (["supplier_name", "vendor_name", "supplier"], "supplier_id", "supplier", {}),
+            (["payment_terms", "payment_term"], "payment_term_id", "payment_term", {}),
+            (["delivery_terms", "delivery_term"], "delivery_terms_id", "delivery_term", {}),
+            (["freight_terms", "freight_term"], "freight_terms_id", "freight_term", {}),
+            (["currency", "currency_code"], "currency", "currency", {}),
+            (["project"], "project_id", "project", {}),
+            (["carrier", "transporter_name"], "freight_carrier_id", "carrier", {}),
+        ]
+
+    def _do_resolve(source_fields, target_field, master_type, context):
+        """Try each source field in order and resolve against DB mappings."""
+        from app.api.v1.routers.companies import resolve_erp_master_scored
+        for src in source_fields:
+            val = form_data.get(src) or ""
+            if not val:
+                continue
+            if form_data.get(target_field):
+                # Already filled — skip but record as resolved
+                resolved_masters.append({
+                    "master_type": master_type, "source_field": src, "source_value": val,
+                    "target_field": target_field, "erp_id": form_data[target_field],
+                    "erp_code": form_data[target_field], "display_name": val,
+                    "score": 100, "match_reason": "already_filled",
+                })
+                return
+            ctx = dict(context)
+            # Enrich context: GST
+            for gst_key in ("gst_number", "gstin", "buyer_gst", "supplier_gst"):
+                if form_data.get(gst_key):
+                    ctx["gst_number"] = form_data[gst_key]; break
+            result = resolve_erp_master_scored(master_type, val, ctx, _mappings, f"{module}_order")
+            if result["resolved"]:
+                form_data[target_field] = result["erp_id"]
+                resolved_masters.append({
+                    "master_type": master_type, "source_field": src, "source_value": val,
+                    "target_field": target_field, "erp_id": result["erp_id"],
+                    "erp_code": result.get("erp_code") or result["erp_id"],
+                    "display_name": result.get("display_name") or val,
+                    "score": result["score"], "match_reason": result["match_reason"],
+                })
+            else:
+                unresolved_masters.append({
+                    "master_type": master_type, "source_field": src, "source_value": val,
+                    "target_field": target_field,
+                    "reason": result.get("unresolved_reason") or "no_match",
+                    "score": result.get("score", 0),
+                    "candidates": result.get("candidates") or [],
+                })
+            return  # only attempt first non-empty source field
+        # No source value found
+        if not form_data.get(target_field):
+            unresolved_masters.append({
+                "master_type": master_type, "source_field": source_fields[0],
+                "source_value": "", "target_field": target_field,
+                "reason": "missing_source_value", "score": 0, "candidates": [],
+            })
+
+    def _do_row_resolve(row, row_index):
+        """Resolve product_id and tax_group_id for a single item row."""
+        from app.api.v1.routers.companies import resolve_erp_master_scored
+        # Product
+        if not row.get("product_id"):
+            product_val = row.get("product") or row.get("description") or row.get("article") or row.get("part_no") or ""
+            if product_val:
+                ctx = {}
+                if row.get("hsn_code"):
+                    ctx["hsn_code"] = row["hsn_code"]
+                if row.get("part_no") or row.get("part_number"):
+                    ctx["part_number"] = row.get("part_no") or row.get("part_number")
+                result = resolve_erp_master_scored("product", product_val, ctx, _mappings, f"{module}_order")
+                if result["resolved"]:
+                    row["product_id"] = result["erp_id"]
+                    resolved_masters.append({
+                        "master_type": "product", "source_field": "product",
+                        "source_value": product_val,
+                        "target_field": f"item_rows.{row_index}.product_id",
+                        "erp_id": result["erp_id"],
+                        "erp_code": result.get("erp_code") or result["erp_id"],
+                        "display_name": result.get("display_name") or product_val,
+                        "score": result["score"], "match_reason": result["match_reason"],
+                    })
+                else:
+                    unresolved_masters.append({
+                        "master_type": "product", "source_field": "product",
+                        "source_value": product_val,
+                        "target_field": f"item_rows.{row_index}.product_id",
+                        "reason": result.get("unresolved_reason") or "no_match",
+                        "score": result.get("score", 0),
+                        "candidates": result.get("candidates") or [],
+                    })
+        # Tax group
+        if not row.get("tax_group_id"):
+            tax_val = row.get("tax_group") or row.get("igst") or row.get("cgst") or row.get("gst") or ""
+            if tax_val:
+                ctx = {}
+                if row.get("hsn_code"):
+                    ctx["hsn_code"] = row["hsn_code"]
+                result = resolve_erp_master_scored("tax_group", str(tax_val), ctx, _mappings, f"{module}_order")
+                if result["resolved"]:
+                    row["tax_group_id"] = result["erp_id"]
+                    resolved_masters.append({
+                        "master_type": "tax_group", "source_field": "tax_group",
+                        "source_value": str(tax_val),
+                        "target_field": f"item_rows.{row_index}.tax_group_id",
+                        "erp_id": result["erp_id"],
+                        "erp_code": result.get("erp_code") or result["erp_id"],
+                        "display_name": result.get("display_name") or str(tax_val),
+                        "score": result["score"], "match_reason": result["match_reason"],
+                    })
+                else:
+                    unresolved_masters.append({
+                        "master_type": "tax_group", "source_field": "tax_group",
+                        "source_value": str(tax_val),
+                        "target_field": f"item_rows.{row_index}.tax_group_id",
+                        "reason": result.get("unresolved_reason") or "no_match",
+                        "score": result.get("score", 0),
+                        "candidates": result.get("candidates") or [],
+                    })
+
+    # Run header resolution
+    for src_fields, tgt_field, mtype, ctx in _header_resolve:
+        _do_resolve(src_fields, tgt_field, mtype, ctx)
+
+    # Run row resolution
+    for idx, row in enumerate(item_rows):
+        _do_row_resolve(row, idx)
 
     detected_count = len(entries) + sum(len(_field_entries(row)) for row in rows)
     filled_count = len(matched)
     warnings: list[str] = []
     if document_type in {"", "general", "unknown"}:
         warnings.append("Document type is unknown; module guard was not applied.")
-    return {
+    response = {
         "module": f"{module}_order", "document_type": document_type, "form_data": form_data, "item_rows": item_rows,
         "detected_count": detected_count, "filled_count": filled_count, "skipped_count": len(skipped),
         "row_count": len(item_rows), "dataset_mapped_count": dataset_count, "fallback_mapped_count": fallback_count,
         "direct_mapped_count": direct_count, "correction_applied_count": correction_count,
         "missing_fields": list(ocr_result.get("missing_fields") or []),
-        "unresolved_masters": unresolved_masters, "matched_targets": matched, "skipped_keys": skipped,
+        "unresolved_masters": unresolved_masters, "resolved_masters": resolved_masters,
+        "resolved_master_count": len(resolved_masters), "unresolved_master_count": len(unresolved_masters),
+        "matched_targets": matched, "skipped_keys": skipped,
         "warnings": warnings, "dataset_mapping_used": dataset_mappings,
         "fallback_aliases_used": sorted({item["normalized_key"] for item in matched if item["source"] == "fallback"}),
         "detected_fields": [{"ocr_key": item["ocr_key"], "ocr_value": clean_workbench_value(item["ocr_value"]),
                              "normalized_key": item["normalized_key"]} for item in entries],
         "applied_corrections": corrections or [],
     }
+    precheck = build_export_precheck({
+        "module": response["module"],
+        "document_type": document_type,
+        "form_data": form_data,
+        "item_rows": item_rows,
+        "mapped_fields": ocr_result.get("mapped_fields") or ocr_result.get("canonical_fields") or {},
+        "resolved_masters": resolved_masters,
+        "unresolved_masters": unresolved_masters,
+        "confidence_map": ocr_result.get("confidence_map") or ocr_result.get("confidence") or {},
+        "warnings": list(ocr_result.get("warnings") or []) + warnings,
+        "source_type": ocr_result.get("source_type") or ocr_result.get("ocr_engine") or "",
+    })
+    response.update({
+        "export_precheck": precheck,
+        "quality_score": precheck["quality_score"],
+        "quality_grade": precheck["quality_grade"],
+        "export_allowed": precheck["export_allowed"],
+        "review_required": precheck["review_required"],
+        "blockers": precheck["blockers"],
+    })
+    return response
 
 
 def _wb_mapped_value(source: dict[str, str], key: str) -> str:
@@ -875,6 +1081,14 @@ async def validate_workbench_form(
     return validate_workbench_payload(req)
 
 
+@router.post("/workbench/export-precheck", summary="Run export readiness and quality pre-check")
+async def export_workbench_precheck(
+    req: ExportPrecheckRequest,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
+) -> dict[str, Any]:
+    return build_export_precheck(req.model_dump())
+
+
 @router.post("/workbench/auto-fill", summary="Map OCR truth into the Sales/Purchase workbench")
 async def auto_fill_workbench(
     req: WorkbenchAutoFillRequest,
@@ -950,7 +1164,20 @@ async def auto_fill_workbench(
     except Exception:
         corrections = []
 
-    response = build_workbench_auto_fill(req, ocr_result, dataset, corrections)
+    # Load ERP master mappings from DB for resolver (Task 4.1)
+    erp_mappings: list[Any] = []
+    try:
+        from app.api.v1.routers.companies import _master_scope_clause
+        stmt_erp = select(ERPMasterMapping).where(
+            _master_scope_clause(current_user),
+            ERPMasterMapping.is_active.is_(True),
+        )
+        erp_result = await db.execute(stmt_erp)
+        erp_mappings = list(erp_result.scalars().all())
+    except Exception:
+        erp_mappings = []
+
+    response = build_workbench_auto_fill(req, ocr_result, dataset, corrections, erp_mappings)
     response["dataset_id"] = dataset.get("id") if dataset else req.dataset_id
     response["dataset_name"] = dataset.get("dataset_name") if dataset else None
     response["correction_applied_count"] = response.get("correction_applied_count", 0)
@@ -1293,17 +1520,41 @@ async def deactivate_workbench_correction(
 # ── Imports for schemas (used by correction endpoints) ──
 def _workbench_export_payload(req: WorkbenchExportRequest) -> tuple[dict[str, Any], dict[str, str], list[dict[str, Any]]]:
     validation = validate_workbench_payload(req)
-    if not validation["export_allowed"]:
+    precheck = build_export_precheck({
+        "module": req.module,
+        "document_type": req.document_type or validation["document_type"],
+        "form_data": validation["normalized_fields"],
+        "item_rows": validation["line_items"],
+        "mapped_fields": req.mapped_fields or req.ocr_fields,
+        "resolved_masters": req.resolved_masters,
+        "unresolved_masters": req.unresolved_masters,
+        "confidence_map": req.confidence_map,
+        "warnings": req.warnings,
+        "source_type": req.source_type,
+    })
+    validation["export_precheck"] = precheck
+    validation.update({
+        "quality_score": precheck["quality_score"],
+        "quality_grade": precheck["quality_grade"],
+        "review_required": precheck["review_required"],
+    })
+    if not validation["export_allowed"] or not precheck["export_allowed"]:
         raise HTTPException(
             status_code=422,
             detail={
                 "export_allowed": False,
                 "blocked": True,
                 "message": "Export blocked. Please complete required fields.",
-                "blocked_fields": validation["blocked_fields"],
+                "blocked_fields": list(dict.fromkeys(validation["blocked_fields"] + [item["field"] for item in precheck["blockers"]])),
                 "blocker_reasons": validation["blocker_reasons"],
+                "blockers": precheck["blockers"],
+                "quality_score": precheck["quality_score"],
+                "quality_grade": precheck["quality_grade"],
+                "missing_required_fields": precheck["missing_required_fields"],
+                "unresolved_masters": precheck["unresolved_masters"],
+                "row_issues": precheck["row_issues"],
                 "required_missing": validation["required_missing"],
-                "warnings": validation["warnings"],
+                "warnings": list(dict.fromkeys(validation["warnings"] + precheck["warnings"])),
             },
         )
     return validation, validation["normalized_fields"], validation["line_items"]
@@ -1504,36 +1755,74 @@ async def export_excel(
 
 
 async def _resolve_export_fields(req: ExportRequest, db, current_user: dict) -> Dict[str, Any]:
-    """Task 3+4: Prefer DB validated_fields; fall back to client fields with server validation."""
+    """Task 3+4+7.1: Prefer DB validated_fields; fall back to client fields with server validation.
+    TASK 7.1 FIX: Legacy export routes now reject exports with zero valid fields (prevents empty export bypass).
+    Full export_precheck gate is enforced on workbench export routes (_workbench_export_payload).
+    """
+    flat_fields: Dict[str, Any] = {}
+
     # Prefer DB validated_fields when extracted_data_id provided
     if req.extracted_data_id and not req.skip_validation:
         try:
             ext_id = uuid.UUID(req.extracted_data_id)
             extraction = await get_owned_extracted_data(db, ext_id, current_user)
             if extraction.validated_fields:
-                # Return flat {field: value} from validated_fields
-                return {
+                flat_fields = {
                     k: (v["value"] if isinstance(v, dict) else str(v))
                     for k, v in extraction.validated_fields.items()
                 }
         except ValueError:
             pass  # fall through to client fields
 
-    # Server-side validate client-submitted fields
-    client_fields = normalize_mapped_fields({k: {"value": v, "confidence": 0.7, "source": "manual"} for k, v in req.fields.items() if v})
-    validation = validate_mapped_fields(client_fields, raw_text="", doc_type="general")
+    if not flat_fields:
+        # Server-side validate client-submitted fields
+        client_fields = normalize_mapped_fields({k: {"value": v, "confidence": 0.7, "source": "manual"} for k, v in req.fields.items() if v})
+        validation = validate_mapped_fields(client_fields, raw_text="", doc_type="general")
 
-    if not req.skip_validation and validation["errors"]:
+        if not req.skip_validation and validation["errors"]:
+            raise HTTPException(
+                status_code=422,
+                detail={"message": "Export blocked: validation errors", "errors": validation["errors"]},
+            )
+
+        flat_fields = {
+            k: (v["value"] if isinstance(v, dict) else str(v))
+            for k, v in validation["validated_fields"].items()
+        } or req.fields  # last resort: use raw client fields
+
+    # --- TASK 7.1 BLOCKER FIX: Block export if zero fields detected (prevents empty export bypass).
+    # Note: Full strict export_precheck (suspicious values, ERP master IDs, row validation) is
+    # enforced on workbench export routes via _workbench_export_payload → build_export_precheck.
+    # Legacy export uses validated_fields from DB which have already passed validation_service.
+    precheck = build_export_precheck({
+        "module": "general",
+        "document_type": "general",
+        "form_data": flat_fields,
+        "mapped_fields": flat_fields,
+        "item_rows": [],
+        "resolved_masters": [],
+        "unresolved_masters": [],
+        "confidence_map": {},
+        "warnings": [],
+        "source_type": "legacy_export",
+    })
+    if not precheck["export_allowed"]:
         raise HTTPException(
             status_code=422,
-            detail={"message": "Export blocked: validation errors", "errors": validation["errors"]},
+            detail={
+                "export_allowed": False,
+                "quality_score": precheck["quality_score"],
+                "quality_grade": precheck["quality_grade"],
+                "blockers": precheck["blockers"],
+                "missing_required_fields": precheck["missing_required_fields"],
+                "unresolved_masters": precheck["unresolved_masters"],
+                "row_issues": precheck["row_issues"],
+                "message": "Export blocked by export precheck.",
+            },
         )
+    # -------------------------------------------------------------------------
 
-    # Return validated flat fields
-    return {
-        k: (v["value"] if isinstance(v, dict) else str(v))
-        for k, v in validation["validated_fields"].items()
-    } or req.fields  # last resort: use raw client fields
+    return flat_fields
 
 
 async def write_export_audit(

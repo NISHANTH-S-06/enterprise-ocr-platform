@@ -932,6 +932,10 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
           <span class="nav-icon">◈</span>
           <span class="nav-label">OCR Training</span>
         </div>
+        <div class="nav-item" id="navErpImport" onclick="showErpMasterImportPage()">
+          <span class="nav-icon">⇪</span>
+          <span class="nav-label">ERP Master Import</span>
+        </div>
 
         <div class="sidebar-footer legacy-workbench-nav">
           <div class="nav-item" onclick="resetUpload()">
@@ -1330,7 +1334,7 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
                     <td><input id="sales_form_item_0_line_no" data-erp-name="line_no" value="1"></td><td><input id="sales_form_item_0_product" data-erp-name="product"></td><td><input id="sales_form_item_0_product_id" data-erp-name="product_id"></td><td><input id="sales_form_item_0_description" data-erp-name="product_description"></td><td><input id="sales_form_item_0_uom" data-erp-name="bulk_uom_code"></td><td><input id="sales_form_item_0_qty" data-erp-name="bulk_qty" onchange="recalculateSalesFormTotals()"></td><td><input id="sales_form_item_0_unit_price" data-erp-name="bulk_unit_price" onchange="recalculateSalesFormTotals()"></td><td><input id="sales_form_item_0_discount_percentage" data-erp-name="bulk_discount_percentage"></td><td><input id="sales_form_item_0_discount_amount" data-erp-name="bulk_discount_amount" onchange="recalculateSalesFormTotals()"></td><td><input id="sales_form_item_0_tax_excemption" data-erp-name="bulk_tax_excemption"></td><td><input id="sales_form_item_0_hsn_code" data-erp-name="bulk_hsn_code"></td><td><input id="sales_form_item_0_tax_group" data-erp-name="bulk_tax_group"></td><td><input id="sales_form_item_0_tax_group_id" data-erp-name="tax_group_id"></td><td><input id="sales_form_item_0_tax_amount" data-erp-name="bulk_tax_amount" onchange="recalculateSalesFormTotals()"></td><td><input id="sales_form_item_0_line_total" data-erp-name="bulk_line_total" onchange="recalculateSalesFormTotals()"></td><td><input id="sales_form_item_0_qoh_qty" data-erp-name="bulk_qoh_qty"></td><td><input id="sales_form_item_0_delivery_date" data-erp-name="bulk_delivery_date"></td>
                   </tr></tbody></table>
                 </div><button class="btn btn-ghost btn-xs mt8" type="button" onclick="addSalesFormRows(1)">+ Add Row</button></div>
-                <div class="flex-row mt24" style="padding-top:18px;border-top:1px solid var(--border);justify-content:space-between;flex-wrap:wrap;gap:8px;"><span class="text-sm text-muted" id="sales_form_action_status">Sales Order actions</span><div class="flex-row flex-wrap"><button class="btn btn-ghost btn-sm" type="button" onclick="saveMainWorkbenchDraft('sales')">Save Draft</button><button class="btn btn-ghost btn-sm" type="button" id="sales_form_saveCorrectionsBtn" onclick="saveWorkbenchCorrections('sales')" style="color:var(--accent-light);display:none;">Save Corrections</button><button class="btn btn-primary btn-sm" type="button" onclick="validateMainWorkbenchForm('sales')">Validate</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchJson('sales')">Export JSON</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('sales','excel')">Export Excel</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('sales','pdf')">Export PDF</button></div></div>
+                <div class="flex-row mt24" style="padding-top:18px;border-top:1px solid var(--border);justify-content:space-between;flex-wrap:wrap;gap:8px;"><span class="text-sm text-muted" id="sales_form_action_status">Sales Order actions</span><div class="flex-row flex-wrap"><button class="btn btn-ghost btn-sm" type="button" onclick="saveMainWorkbenchDraft('sales')">Save Draft</button><button class="btn btn-ghost btn-sm" type="button" id="sales_form_saveCorrectionsBtn" onclick="saveWorkbenchCorrections('sales')" style="color:var(--accent-light);display:none;">Save Corrections</button><button class="btn btn-primary btn-sm" type="button" onclick="validateMainWorkbenchForm('sales')">Validate</button><button class="btn btn-primary btn-sm" id="sales_export_json" type="button" onclick="exportMainWorkbenchJson('sales')">Export JSON</button><button class="btn btn-primary btn-sm" id="sales_export_excel" type="button" onclick="exportMainWorkbenchFile('sales','excel')">Export Excel</button><button class="btn btn-primary btn-sm" id="sales_export_pdf" type="button" onclick="exportMainWorkbenchFile('sales','pdf')">Export PDF</button></div></div>
               </section>
 
               <section id="secPurchaseForm" data-main-form-panel="purchase" style="display:none;">
@@ -1349,7 +1353,7 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
                     <td><input id="purchase_form_item_0_line_no" data-erp-name="line_no" value="1"></td><td><input id="purchase_form_item_0_product" data-erp-name="product"></td><td><input id="purchase_form_item_0_product_id" data-erp-name="product_id"></td><td><input id="purchase_form_item_0_supplier_part_no" data-erp-name="supplier_part_no"></td><td><input id="purchase_form_item_0_description" data-erp-name="product_description"></td><td><input id="purchase_form_item_0_uom" data-erp-name="bulk_uom_code"></td><td><input id="purchase_form_item_0_qty" data-erp-name="bulk_qty" onchange="recalculatePurchaseFormTotals()"></td><td><input id="purchase_form_item_0_unit_price" data-erp-name="bulk_unit_price" onchange="recalculatePurchaseFormTotals()"></td><td><input id="purchase_form_item_0_discount_percentage" data-erp-name="bulk_discount_percentage"></td><td><input id="purchase_form_item_0_discount_amount" data-erp-name="bulk_discount_amount" onchange="recalculatePurchaseFormTotals()"></td><td><input id="purchase_form_item_0_hsn_code" data-erp-name="bulk_hsn_code"></td><td><input id="purchase_form_item_0_tax_group" data-erp-name="bulk_tax_group"></td><td><input id="purchase_form_item_0_tax_group_id" data-erp-name="tax_group_id"></td><td><input id="purchase_form_item_0_tax_amount" data-erp-name="bulk_tax_amount" onchange="recalculatePurchaseFormTotals()"></td><td><input id="purchase_form_item_0_line_sub_total" data-erp-name="bulk_line_sub_total"></td><td><input id="purchase_form_item_0_conv_cost" data-erp-name="bulk_conv_cost"></td><td><input id="purchase_form_item_0_blistering_cost" data-erp-name="bulk_blistering_cost"></td><td><input id="purchase_form_item_0_line_total" data-erp-name="bulk_line_total" onchange="recalculatePurchaseFormTotals()"></td><td><input id="purchase_form_item_0_qoh_qty" data-erp-name="bulk_qoh_qty"></td><td><input id="purchase_form_item_0_promised_date" data-erp-name="promised_date"></td><td><input id="purchase_form_item_0_promised_alternate_date" data-erp-name="promised_alternate_date"></td><td><input id="purchase_form_item_0_comments" data-erp-name="comments"></td>
                   </tr></tbody></table>
                 </div><button class="btn btn-ghost btn-xs mt8" type="button" onclick="addPurchaseFormRows(1)">+ Add Row</button></div>
-                <div class="flex-row mt24" style="padding-top:18px;border-top:1px solid var(--border);justify-content:space-between;flex-wrap:wrap;gap:8px;"><span class="text-sm text-muted" id="purchase_form_action_status">Purchase Order actions</span><div class="flex-row flex-wrap"><button class="btn btn-ghost btn-sm" type="button" onclick="saveMainWorkbenchDraft('purchase')">Save Draft</button><button class="btn btn-ghost btn-sm" type="button" id="purchase_form_saveCorrectionsBtn" onclick="saveWorkbenchCorrections('purchase')" style="color:var(--accent-light);display:none;">Save Corrections</button><button class="btn btn-primary btn-sm" type="button" onclick="validateMainWorkbenchForm('purchase')">Validate</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchJson('purchase')">Export JSON</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('purchase','excel')">Export Excel</button><button class="btn btn-primary btn-sm" type="button" onclick="exportMainWorkbenchFile('purchase','pdf')">Export PDF</button></div></div>
+                <div class="flex-row mt24" style="padding-top:18px;border-top:1px solid var(--border);justify-content:space-between;flex-wrap:wrap;gap:8px;"><span class="text-sm text-muted" id="purchase_form_action_status">Purchase Order actions</span><div class="flex-row flex-wrap"><button class="btn btn-ghost btn-sm" type="button" onclick="saveMainWorkbenchDraft('purchase')">Save Draft</button><button class="btn btn-ghost btn-sm" type="button" id="purchase_form_saveCorrectionsBtn" onclick="saveWorkbenchCorrections('purchase')" style="color:var(--accent-light);display:none;">Save Corrections</button><button class="btn btn-primary btn-sm" type="button" onclick="validateMainWorkbenchForm('purchase')">Validate</button><button class="btn btn-primary btn-sm" id="purchase_export_json" type="button" onclick="exportMainWorkbenchJson('purchase')">Export JSON</button><button class="btn btn-primary btn-sm" id="purchase_export_excel" type="button" onclick="exportMainWorkbenchFile('purchase','excel')">Export Excel</button><button class="btn btn-primary btn-sm" id="purchase_export_pdf" type="button" onclick="exportMainWorkbenchFile('purchase','pdf')">Export PDF</button></div></div>
               </section>
             </div>
 
@@ -1357,7 +1361,7 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
             <aside id="mainAiFill_panel" style="display:none;position:fixed;top:0;right:0;width:min(460px,100vw);height:100vh;background:var(--surface);border-left:1px solid var(--border);box-shadow:var(--shadow-lg);z-index:9993;padding:20px;overflow:auto;">
               <div class="card-header" style="margin-bottom:14px;"><div><div class="card-title" id="mainAiFill_title">AI Auto Fill <span id="mainAiFill_warningCount" style="display:none;font-size:10px;font-weight:600;background:rgba(245,158,11,0.15);color:var(--amber);border:1px solid rgba(245,158,11,0.3);border-radius:4px;padding:2px 7px;margin-left:6px;vertical-align:middle;"></span></div><div class="text-muted" id="mainAiFill_module" style="margin-top:4px;">Sales Order</div></div><button class="btn btn-ghost btn-sm" id="mainAiFill_close" type="button" onclick="closeMainAiFillDrawer()">×</button></div>
               <div class="flex-col" style="gap:14px;">
-                <div><label class="field-label">Document</label><input id="mainAiFill_file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv" onchange="onMainAiFillFileChange()"><div class="text-muted" id="mainAiFill_fileName" style="font-size:12px;margin-top:6px;">No file selected.</div></div>
+                <div><label class="field-label">Document</label><input id="mainAiFill_file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv" onchange="onMainAiFillFileChange()"><div class="text-muted" id="mainAiFill_fileName" style="font-size:12px;margin-top:6px;">No file selected.</div></div>
                 <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);"><input id="mainAiFill_overwrite" type="checkbox"> Overwrite existing values</label>
                 <button class="btn btn-primary" id="mainAiFill_processBtn" type="button" onclick="processMainAiFillOcr()" disabled>Process OCR</button>
                 <div id="mainAiFill_progress" class="flex-col" style="gap:6px;"></div>
@@ -1375,7 +1379,20 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
                     <div class="review-kv"><div class="review-kv-label">Fallback Mapped</div><div class="review-kv-value" id="mainAiFill_fallbackMappedCount">0</div></div>
                   </div>
                 </div>
-                <div class="card" id="mainAiFill_summary" style="padding:14px;background:rgba(0,0,0,0.08);"><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;"><div class="review-kv"><div class="review-kv-label">Detected</div><div class="review-kv-value" id="mainAiFill_mappedCount">0</div></div><div class="review-kv"><div class="review-kv-label">Filled</div><div class="review-kv-value" id="mainAiFill_filledCount">0</div></div><div class="review-kv"><div class="review-kv-label">Skipped</div><div class="review-kv-value" id="mainAiFill_skippedCount">0</div></div><div class="review-kv"><div class="review-kv-label">Rows</div><div class="review-kv-value" id="mainAiFill_rowsCount">0</div></div><div class="review-kv"><div class="review-kv-label">Missing</div><div class="review-kv-value" id="mainAiFill_missingCount">0</div></div><div class="review-kv"><div class="review-kv-label">Master</div><div class="review-kv-value" id="mainAiFill_masterCount">0</div></div><div class="review-kv"><div class="review-kv-label">Correction</div><div class="review-kv-value" id="mainAiFill_correctionCount">0</div></div></div></div>
+                <div class="card" id="mainAiFill_summary" style="padding:14px;background:rgba(0,0,0,0.08);"><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;"><div class="review-kv"><div class="review-kv-label">Detected</div><div class="review-kv-value" id="mainAiFill_mappedCount">0</div></div><div class="review-kv"><div class="review-kv-label">Filled</div><div class="review-kv-value" id="mainAiFill_filledCount">0</div></div><div class="review-kv"><div class="review-kv-label">Skipped</div><div class="review-kv-value" id="mainAiFill_skippedCount">0</div></div><div class="review-kv"><div class="review-kv-label">Rows</div><div class="review-kv-value" id="mainAiFill_rowsCount">0</div></div><div class="review-kv"><div class="review-kv-label">Missing</div><div class="review-kv-value" id="mainAiFill_missingCount">0</div></div><div class="review-kv"><div class="review-kv-label">ERP Pending</div><div class="review-kv-value" id="mainAiFill_masterCount">0</div></div><div class="review-kv"><div class="review-kv-label">ERP Resolved</div><div class="review-kv-value" id="mainAiFill_masterResolvedCount">0</div></div><div class="review-kv"><div class="review-kv-label">Correction</div><div class="review-kv-value" id="mainAiFill_correctionCount">0</div></div></div></div>
+                <div class="card" id="mainAiFill_qualityPanel" style="padding:14px;background:rgba(0,0,0,0.08);">
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+                    <div class="review-kv"><div class="review-kv-label">Quality Score</div><div class="review-kv-value" id="mainAiFill_qualityScore">-</div></div>
+                    <div class="review-kv"><div class="review-kv-label">Grade</div><div class="review-kv-value" id="mainAiFill_qualityGrade">-</div></div>
+                    <div class="review-kv"><div class="review-kv-label">Export</div><div class="review-kv-value" id="mainAiFill_exportAllowed">Not checked</div></div>
+                  </div>
+                  <div id="mainAiFill_reviewRequired" class="text-sm" style="display:none;color:var(--amber);margin-top:8px;">Review required before export.</div>
+                  <div id="mainAiFill_missingRequiredList" class="review-list mt8"></div>
+                  <div id="mainAiFill_unresolvedMastersList" class="review-list mt8"></div>
+                  <div id="mainAiFill_lowConfidenceList" class="review-list mt8"></div>
+                  <div id="mainAiFill_rowIssuesList" class="review-list mt8"></div>
+                  <div id="mainAiFill_blockersList" class="review-list mt8"></div>
+                </div>
                 <div id="mainAiFill_fieldsPreview" class="debug-panel" style="display:none;"></div>
                 <details id="mainAiFill_debugDetails" class="debug-panel" style="display:none;"><summary class="text-sm">Debug summary</summary><pre id="mainAiFill_debugPre">{}</pre></details>
                 <div id="mainAiFill_missingFields" style="display:none;"></div>
@@ -1718,7 +1735,7 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
               <div style="display:grid;grid-template-columns:minmax(220px,1fr) auto;gap:12px;align-items:end;">
                 <div>
                   <label class="field-label">Upload Document</label>
-                  <input id="trainingUpload_file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv" onchange="onTrainingUploadFileChange()">
+                  <input id="trainingUpload_file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv" onchange="onTrainingUploadFileChange()">
                   <div class="text-muted" id="trainingUpload_fileName" style="font-size:12px;margin-top:6px;">No file selected.</div>
                 </div>
                 <button class="btn btn-primary" id="trainingUpload_processBtn" type="button" onclick="processTrainingUploadDocument()" disabled>Process OCR</button>
@@ -1874,7 +1891,7 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
               <div class="flex-col" style="gap:14px;">
                 <div>
                   <label class="field-label">Document</label>
-                  <input id="aiFill_file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls,.csv" onchange="aiFillFileSelected()">
+                  <input id="aiFill_file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv" onchange="aiFillFileSelected()">
                   <div class="text-muted" id="aiFill_fileInfo" style="font-size:12px;margin-top:6px;">No file selected.</div>
                 </div>
                 <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);">
@@ -1897,6 +1914,65 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
             </aside>
 
           </div><!-- end #secTraining -->
+
+          <!-- ── ERP Master Import Panel (Task 4) ── -->
+          <div id="secErpMasterImport" style="display:none;flex-direction:column;gap:20px;">
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title"><span class="card-title-icon">⇪</span> ERP Master Import</div>
+                <button class="btn btn-ghost btn-sm" onclick="showTrainingPage()">← Back to Training</button>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px;">
+                <div>
+                  <label class="field-label">Master Type</label>
+                  <select id="erpImport_masterType" class="field-input">
+                    <option value="customer">Customer</option>
+                    <option value="supplier">Supplier</option>
+                    <option value="product">Product</option>
+                    <option value="tax_group">Tax Group</option>
+                    <option value="payment_term">Payment Term</option>
+                    <option value="delivery_term">Delivery Term</option>
+                    <option value="freight_term">Freight Term</option>
+                    <option value="currency">Currency</option>
+                    <option value="branch">Branch</option>
+                    <option value="project">Project</option>
+                    <option value="salesperson">Salesperson</option>
+                    <option value="carrier">Carrier</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label">Module</label>
+                  <select id="erpImport_module" class="field-input">
+                    <option value="">Any</option>
+                    <option value="sales_order">Sales Order</option>
+                    <option value="purchase_order">Purchase Order</option>
+                  </select>
+                </div>
+                <div style="grid-column:1/-1;">
+                  <label class="field-label">File (CSV / XLSX / JSON)</label>
+                  <input id="erpImport_file" type="file" accept=".csv,.xlsx,.xls,.json" class="field-input">
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <input type="checkbox" id="erpImport_dryRun" checked>
+                  <label for="erpImport_dryRun" class="field-label" style="margin:0;">Dry Run (preview only)</label>
+                </div>
+                <div style="display:flex;gap:8px;align-items:flex-end;">
+                  <button class="btn btn-primary" type="button" onclick="runErpMasterImport()">Import</button>
+                  <button class="btn btn-ghost" type="button" onclick="downloadErpImportReport()">⇲ Download Report</button>
+                </div>
+              </div>
+              <div id="erpImport_result" style="padding:0 16px 16px;display:none;">
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;">
+                  <div class="review-kv"><div class="review-kv-label">Imported</div><div class="review-kv-value" id="erpImport_imported">0</div></div>
+                  <div class="review-kv"><div class="review-kv-label">Updated</div><div class="review-kv-value" id="erpImport_updated">0</div></div>
+                  <div class="review-kv"><div class="review-kv-label">Skipped</div><div class="review-kv-value" id="erpImport_skipped">0</div></div>
+                  <div class="review-kv"><div class="review-kv-label">Errors</div><div class="review-kv-value" id="erpImport_errors">0</div></div>
+                </div>
+                <div id="erpImport_colMap" class="text-sm text-muted" style="margin-bottom:6px;"></div>
+                <div id="erpImport_errorList" style="color:var(--color-danger);font-size:12px;"></div>
+              </div>
+            </div>
+          </div><!-- end #secErpMasterImport -->
 
         </main>
       </div><!-- end .main-content -->
@@ -5069,10 +5145,13 @@ function mainAiFieldMeta(key,val){
   return {...meta, raw_key:key, metadata:(val && typeof val === "object") ? {...val} : null};
 }
 function isUnsupportedSpreadsheetFile(file){
-  return !!(file && /\.(xlsx|xls|csv)$/i.test(file.name || ""));
+  return !!(file && /\.xls$/i.test(file.name || ""));
+}
+function isTabularUploadFile(file){
+  return !!(file && /\.(xlsx|csv)$/i.test(file.name || ""));
 }
 function isSupportedOcrUploadFile(file){
-  return !!(file && /\.(pdf|png|jpe?g|webp)$/i.test(file.name || ""));
+  return !!(file && /\.(pdf|png|jpe?g|webp|xlsx|csv)$/i.test(file.name || ""));
 }
 
 function setMainWorkbenchTab(module){
@@ -5112,7 +5191,7 @@ function openMainAiFillDrawer(module){
   mainAiText("mainAiFill_rowsCount", "0");
   mainAiText("mainAiFill_missingCount", "0");
   mainAiText("mainAiFill_masterCount", "0");
-  mainAiText("mainAiFill_warningCount", "0");
+  mainAiText("mainAiFill_masterResolvedCount", "0");
   mainAiText("mainAiFill_datasetUsed", retainedDataset ? retainedDataset.dataset_name : "Generic");
   mainAiText("mainAiFill_datasetReason", retainedMatch ? retainedMatch.match_reason : "-");
   mainAiText("mainAiFill_datasetMappedCount", "0");
@@ -5136,11 +5215,12 @@ function onMainAiFillFileChange(){
   const unsupported = isUnsupportedSpreadsheetFile(file);
   if(process){
     process.disabled = !file || unsupported || !isSupportedOcrUploadFile(file);
-    process.textContent = "Process OCR";
+    process.textContent = file && isTabularUploadFile(file) ? "Process Document" : "Process OCR";
   }
-  mainAiText("mainAiFill_fileName", file ? `${file.name} (${Math.round(file.size/1024)} KB)` : "No file selected.");
-  MAIN_AI_FILL.warnings = unsupported ? ["Excel/CSV upload is not supported by the current backend parser yet."] : [];
-  if(file && !unsupported && !isSupportedOcrUploadFile(file)) MAIN_AI_FILL.warnings = ["Unsupported file type. Upload PDF, PNG, JPG, JPEG, or WebP."];
+  const badge = file && isTabularUploadFile(file) ? (/\.xlsx$/i.test(file.name) ? "Excel" : "CSV") : "";
+  mainAiText("mainAiFill_fileName", file ? `${badge ? badge + " - " : ""}${file.name} (${Math.round(file.size/1024)} KB)` : "No file selected.");
+  MAIN_AI_FILL.warnings = unsupported ? ["Legacy .xls is not supported. Please upload .xlsx or .csv."] : [];
+  if(file && !unsupported && !isSupportedOcrUploadFile(file)) MAIN_AI_FILL.warnings = ["Unsupported file type. Upload PDF, PNG, JPG, JPEG, WebP, XLSX, or CSV."];
   setMainAiFillStep(0, file ? "done" : "", file ? "File selected" : "");
   renderMainAiFillWarnings();
 }
@@ -5238,7 +5318,7 @@ async function resolveBestMainAiDataset(result){
 async function processMainAiFillOcr(){
   const file = $("mainAiFill_file") && $("mainAiFill_file").files[0];
   if(!file){ toast("Select a file first", "warn"); return; }
-  if(isUnsupportedSpreadsheetFile(file)){ toast("Excel/CSV upload is not supported by the current backend parser yet.", "warn"); return; }
+  if(isUnsupportedSpreadsheetFile(file)){ toast("Legacy .xls is not supported. Please upload .xlsx or .csv.", "warn"); return; }
   if(!isSupportedOcrUploadFile(file)){ toast("Unsupported file type.", "error"); return; }
   const process = $("mainAiFill_processBtn"), apply = $("mainAiFill_autoFillBtn");
   if(process) process.disabled = true;
@@ -5247,21 +5327,29 @@ async function processMainAiFillOcr(){
     setMainAiFillStep(1, "active", "Uploading");
     const form = new FormData();
     form.append("file", file);
-    const uploaded = await req("/api/v1/upload/", {method:"POST", body:form});
-    const jobId = uploaded.job_id;
-    MAIN_AI_FILL.sourceJobId = jobId;
-    setMainAiFillStep(1, "done", "Uploaded");
-    setMainAiFillStep(2, "active", "OCR processing");
-    let data = uploaded;
-    let completed = false;
-    for(let i=0; i<60; i++){
-      data = await req(`/api/v1/upload/jobs/${jobId}`);
-      if(data.status === "completed" || data.status === "done" || data.status === "success"){ completed = true; break; }
-      if(data.status === "failed" || data.status === "error") throw new Error(data.error || "OCR processing failed.");
-      await new Promise(resolve => setTimeout(resolve, 1500));
+    let data;
+    if(isTabularUploadFile(file)){
+      data = await req("/api/v1/forms/workbench/parse-tabular", {method:"POST", body:form});
+      MAIN_AI_FILL.sourceJobId = null;
+      setMainAiFillStep(1, "done", "Uploaded");
+      setMainAiFillStep(2, "done", `Parsed ${data.item_rows?.length || 0} row(s)`);
+    }else{
+      const uploaded = await req("/api/v1/upload/", {method:"POST", body:form});
+      const jobId = uploaded.job_id;
+      MAIN_AI_FILL.sourceJobId = jobId;
+      setMainAiFillStep(1, "done", "Uploaded");
+      setMainAiFillStep(2, "active", "OCR processing");
+      data = uploaded;
+      let completed = false;
+      for(let i=0; i<60; i++){
+        data = await req(`/api/v1/upload/jobs/${jobId}`);
+        if(data.status === "completed" || data.status === "done" || data.status === "success"){ completed = true; break; }
+        if(data.status === "failed" || data.status === "error") throw new Error(data.error || "OCR processing failed.");
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+      if(!completed) throw new Error("TIMEOUT: OCR processing did not finish. Retry Process.");
+      setMainAiFillStep(2, "done", "OCR complete");
     }
-    if(!completed) throw new Error("TIMEOUT: OCR processing did not finish. Retry Process.");
-    setMainAiFillStep(2, "done", "OCR complete");
     setMainAiFillStep(3, "active", "Extracting fields");
     MAIN_AI_FILL.rawOcrResult = data;
     MAIN_AI_FILL.result = normalizeMainAiFillOcrResult(data);
@@ -5273,7 +5361,7 @@ async function processMainAiFillOcr(){
     renderMainAiFillSummary(MAIN_AI_FILL.result);
     renderMainAiFillWarnings(MAIN_AI_FILL.result); /* BUG3-FIX: update review accordion after OCR */
     if(apply) apply.disabled = false;
-    if(process) process.textContent = "Process OCR";
+    if(process) process.textContent = isTabularUploadFile(file) ? "Process Document" : "Process OCR";
   }catch(err){
     setMainAiFillStep(2, "failed", err.message || "OCR failed");
     MAIN_AI_FILL.warnings.push(err.message || "OCR failed.");
@@ -5316,7 +5404,8 @@ async function requestMainWorkbenchAutoFill(){
     mainAiText("mainAiFill_skippedCount", String(result.skipped_count || 0));
     mainAiText("mainAiFill_rowsCount", String(result.row_count || 0));
     mainAiText("mainAiFill_missingCount", String((result.missing_fields || []).length));
-    mainAiText("mainAiFill_masterCount", String((result.unresolved_masters || []).length));
+    mainAiText("mainAiFill_masterCount", String(result.unresolved_master_count ?? (result.unresolved_masters || []).length));
+    mainAiText("mainAiFill_masterResolvedCount", String(result.resolved_master_count ?? (result.resolved_masters || []).length));
     mainAiText("mainAiFill_correctionCount", String(result.correction_applied_count || 0));
     mainAiText("mainAiFill_datasetMappedCount", String(result.dataset_mapped_count || 0));
     mainAiText("mainAiFill_fallbackMappedCount", String(result.fallback_mapped_count || 0));
@@ -5424,6 +5513,10 @@ function downloadMainAiFillDebug(){
     detected_fields: result.detected_fields || [],
     all_matched_targets: result.matched_targets || [],
     all_skipped_keys: result.skipped_keys || [],
+    resolved_masters: result.resolved_masters || [],
+    unresolved_masters: result.unresolved_masters || [],
+    resolved_master_count: result.resolved_master_count ?? (result.resolved_masters || []).length,
+    unresolved_master_count: result.unresolved_master_count ?? (result.unresolved_masters || []).length,
     counts: {
       detected: result.detected_count,
       filled: result.filled_count,
@@ -5498,7 +5591,7 @@ function normalizeMainAiFillOcrResult(data){
       addRows(src.rows);
     }
   };
-  [data.items,data.line_items,data.table_rows,data.tables,data.mapped_fields?.items,data.canonical_fields?.items,data.review_fields?.items].forEach(addRows);
+  [data.items,data.item_rows,data.line_items,data.table_rows,data.tables,data.mapped_fields?.items,data.mapped_fields?.item_rows,data.canonical_fields?.items,data.canonical_fields?.item_rows,data.review_fields?.items].forEach(addRows);
   nested.forEach(src => [src.items,src.line_items,src.table_rows,src.tables,src.mapped_fields?.items,src.canonical_fields?.items,src.review_fields?.items].forEach(addRows));
   (data.missing_fields || []).forEach(field => out.missing.push(field));
   (data.low_confidence_fields || []).forEach(field => out.lowConfidence.push(field));
@@ -5523,7 +5616,8 @@ function renderMainAiFillSummary(result){
   mainAiText("mainAiFill_skippedCount", String(stats.skipped || 0));
   mainAiText("mainAiFill_rowsCount", String(backend ? backend.row_count || 0 : (result.rows || []).length));
   mainAiText("mainAiFill_missingCount", String((result.missing || []).length));
-  mainAiText("mainAiFill_masterCount", String(backend ? (backend.unresolved_masters || []).length : stats.masterSelection || 0));
+  mainAiText("mainAiFill_masterCount", String(backend ? (backend.unresolved_master_count ?? (backend.unresolved_masters || []).length) : stats.masterSelection || 0));
+  mainAiText("mainAiFill_masterResolvedCount", String(backend ? (backend.resolved_master_count ?? (backend.resolved_masters || []).length) : 0));
   const correctionCount = backend ? (backend.correction_applied_count || 0) : 0;
   mainAiText("mainAiFill_correctionCount", String(correctionCount));
   mainAiText("mainAiFill_datasetMappedCount", String(backend ? backend.dataset_mapped_count || 0 : 0));
@@ -5532,6 +5626,44 @@ function renderMainAiFillSummary(result){
   renderMainAiFillFieldsPreview(result.fields || {});
   renderMainAiFillDebug(result);
   renderMainAiFillWarnings(result);
+  renderMainExportPrecheck(backend && backend.export_precheck ? backend.export_precheck : null, MAIN_AI_FILL.module);
+}
+
+function renderMainExportPrecheck(precheck, module=MAIN_AI_FILL.module){
+  if(!precheck) return;
+  mainAiText("mainAiFill_qualityScore", String(precheck.quality_score ?? "-"));
+  mainAiText("mainAiFill_qualityGrade", precheck.quality_grade || "-");
+  mainAiText("mainAiFill_exportAllowed", precheck.export_allowed ? "Allowed" : "Blocked");
+  const review = $("mainAiFill_reviewRequired");
+  if(review) review.style.display = precheck.review_required ? "block" : "none";
+  const renderList = (id, title, items, format) => {
+    const box = $(id);
+    if(!box) return;
+    box.replaceChildren();
+    if(!items || !items.length) return;
+    const heading = document.createElement("div");
+    heading.className = "review-kv-label";
+    heading.textContent = title;
+    box.appendChild(heading);
+    items.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "text-sm";
+      row.textContent = format(item);
+      box.appendChild(row);
+    });
+  };
+  renderList("mainAiFill_missingRequiredList", "Missing required", precheck.missing_required_fields, item => String(item));
+  renderList("mainAiFill_unresolvedMastersList", "Unresolved ERP masters", precheck.unresolved_masters, item => `${item.master_type || "master"}: ${item.source_value || item.target_field || "unresolved"}`);
+  renderList("mainAiFill_lowConfidenceList", "Low confidence", precheck.low_confidence_fields, item => `${item.field}: ${Math.round(Number(item.confidence || 0) * 100)}%`);
+  renderList("mainAiFill_rowIssuesList", "Row issues", precheck.row_issues, item => item.message || item.code || String(item));
+  renderList("mainAiFill_blockersList", "Export blockers", precheck.blockers, item => item.message || item.field || String(item));
+  ["json","excel","pdf"].forEach(fmt => {
+    const button = $(`${module}_export_${fmt}`);
+    if(button){
+      button.disabled = !precheck.export_allowed;
+      button.title = precheck.export_allowed ? (precheck.review_required ? "Review required; export is allowed" : "Ready to export") : (precheck.blockers || []).map(item => item.message).join("; ");
+    }
+  });
 }
 
 function renderMainAiFillFieldsPreview(fields){
@@ -6286,6 +6418,12 @@ function collectMainWorkbenchPayload(module){
     dataset_id: selectedDataset ? selectedDataset.id : null,
     source_job_id: MAIN_AI_FILL.sourceJobId || null,
     form_data:{}, item_rows:[],
+    mapped_fields: MAIN_AI_FILL.rawOcrResult?.mapped_fields || MAIN_AI_FILL.rawOcrResult?.canonical_fields || {},
+    resolved_masters: MAIN_AI_FILL.backendResult?.resolved_masters || [],
+    unresolved_masters: MAIN_AI_FILL.backendResult?.unresolved_masters || [],
+    confidence_map: Object.fromEntries(Object.entries(MAIN_AI_FILL.result?.fields || {}).map(([key,value]) => [key, value && typeof value === "object" ? value.confidence : null]).filter(([,value]) => value !== null && value !== undefined)),
+    warnings: MAIN_AI_FILL.result?.warnings || [],
+    source_type: MAIN_AI_FILL.rawOcrResult?.source_type || MAIN_AI_FILL.rawOcrResult?.ocr_engine || "",
     ocr_fields: MAIN_AI_FILL.result ? MAIN_AI_FILL.result.fields || {} : {},
     ocr_rows: MAIN_AI_FILL.result ? MAIN_AI_FILL.result.rows || [] : [],
     mappings_json: selectedDataset ? selectedDataset.mappings_json || [] : [],
@@ -6355,6 +6493,7 @@ async function validateMainWorkbenchForm(module){
   const payload = collectMainWorkbenchPayload(module);
   try{
     const result = await req("/api/v1/forms/workbench/validate", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    await runMainExportPrecheck(module, payload);
     const blocked = result.blocked_fields || [];
     const warnings = result.warnings || [];
     if(result.export_allowed){
@@ -6377,8 +6516,36 @@ async function validateMainWorkbenchForm(module){
   }
 }
 
+async function runMainExportPrecheck(module, payload=collectMainWorkbenchPayload(module)){
+  const precheck = await req("/api/v1/forms/workbench/export-precheck", {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(payload)
+  });
+  renderMainExportPrecheck(precheck, module);
+  const lines = [
+    `Quality score: ${precheck.quality_score} (${precheck.quality_grade})`,
+    `Export status: ${precheck.export_allowed ? "allowed" : "blocked"}`,
+    ...(precheck.blockers || []).map(item => `Blocked: ${item.message || item.field}`),
+    ...(precheck.warnings || []).map(item => `Warning: ${item}`)
+  ];
+  updateMainExportReview(module, lines);
+  return precheck;
+}
+
 async function downloadMainWorkbenchExport(module, fmt){
   const payload = collectMainWorkbenchPayload(module);
+  const precheck = await runMainExportPrecheck(module, payload);
+  if(!precheck.export_allowed){
+    const message = (precheck.blockers || []).map(item => item.message).join("; ") || "Export pre-check failed";
+    const err = new Error(message);
+    err.isBlocked = true;
+    setMainWorkbenchStatus(module, `Export blocked: ${message}`, "error");
+    throw err;
+  }
+  if(precheck.review_required){
+    setMainWorkbenchStatus(module, `Review required. Quality ${precheck.quality_score} (${precheck.quality_grade}); export allowed.`, "warn");
+  }
   const endpoint = `${apiBase()}/api/v1/forms/workbench/export/${fmt}`;
   console.log(`[Export] Endpoint: ${endpoint}`);
   console.log(`[Export] Payload for ${module}:`, payload);
@@ -6507,11 +6674,12 @@ function onTrainingUploadFileChange(){
   const unsupported = isUnsupportedSpreadsheetFile(file);
   if(process){
     process.disabled = !file || unsupported || !isSupportedOcrUploadFile(file);
-    process.textContent = "Process OCR";
+    process.textContent = file && isTabularUploadFile(file) ? "Process Document" : "Process OCR";
   }
-  trainingUploadText("trainingUpload_fileName", file ? `${file.name} (${Math.round(file.size / 1024)} KB)` : "No file selected.");
-  TRAINING_UPLOAD.warnings = unsupported ? ["Excel/CSV upload is not supported by the current backend parser yet."] : [];
-  if(file && !unsupported && !isSupportedOcrUploadFile(file)) TRAINING_UPLOAD.warnings = ["Unsupported file type. Upload PDF, PNG, JPG, JPEG, or WebP."];
+  const badge = file && isTabularUploadFile(file) ? (/\.xlsx$/i.test(file.name) ? "Excel" : "CSV") : "";
+  trainingUploadText("trainingUpload_fileName", file ? `${badge ? badge + " - " : ""}${file.name} (${Math.round(file.size / 1024)} KB)` : "No file selected.");
+  TRAINING_UPLOAD.warnings = unsupported ? ["Legacy .xls is not supported. Please upload .xlsx or .csv."] : [];
+  if(file && !unsupported && !isSupportedOcrUploadFile(file)) TRAINING_UPLOAD.warnings = ["Unsupported file type. Upload PDF, PNG, JPG, JPEG, WebP, XLSX, or CSV."];
   setTrainingUploadStep(0, file ? "done" : "", file ? "File selected" : "");
   renderTrainingUploadWarnings({warnings:TRAINING_UPLOAD.warnings, missing:[], lowConfidence:[]});
 }
@@ -6519,7 +6687,7 @@ function onTrainingUploadFileChange(){
 async function processTrainingUploadDocument(){
   const file = $("trainingUpload_file") && $("trainingUpload_file").files[0];
   if(!file){ toast("Select a training document first", "warn"); return; }
-  if(isUnsupportedSpreadsheetFile(file)){ toast("Excel/CSV upload is not supported by the current backend parser yet.", "warn"); return; }
+  if(isUnsupportedSpreadsheetFile(file)){ toast("Legacy .xls is not supported. Please upload .xlsx or .csv.", "warn"); return; }
   if(!isSupportedOcrUploadFile(file)){ toast("Unsupported file type.", "error"); return; }
   const process = $("trainingUpload_processBtn"), testBtn = $("trainingUpload_autoFillTestBtn"), saveBtn = $("trainingUpload_saveMappingBtn");
   if(process) process.disabled = true;
@@ -6529,20 +6697,27 @@ async function processTrainingUploadDocument(){
     setTrainingUploadStep(1, "active", "Uploading");
     const form = new FormData();
     form.append("file", file);
-    const uploaded = await req("/api/v1/upload/", {method:"POST", body:form});
-    const jobId = uploaded.job_id;
-    setTrainingUploadStep(1, "done", "Uploaded");
-    setTrainingUploadStep(2, "active", "OCR processing");
-    let data = uploaded;
-    let completed = false;
-    for(let i=0; i<60; i++){
-      data = await req(`/api/v1/upload/jobs/${jobId}`);
-      if(data.status === "completed" || data.status === "done" || data.status === "success"){ completed = true; break; }
-      if(data.status === "failed" || data.status === "error") throw new Error(data.error || "OCR processing failed.");
-      await new Promise(resolve => setTimeout(resolve, 1500));
+    let data;
+    if(isTabularUploadFile(file)){
+      data = await req("/api/v1/forms/workbench/parse-tabular", {method:"POST", body:form});
+      setTrainingUploadStep(1, "done", "Uploaded");
+      setTrainingUploadStep(2, "done", `Parsed ${data.item_rows?.length || 0} row(s)`);
+    }else{
+      const uploaded = await req("/api/v1/upload/", {method:"POST", body:form});
+      const jobId = uploaded.job_id;
+      setTrainingUploadStep(1, "done", "Uploaded");
+      setTrainingUploadStep(2, "active", "OCR processing");
+      data = uploaded;
+      let completed = false;
+      for(let i=0; i<60; i++){
+        data = await req(`/api/v1/upload/jobs/${jobId}`);
+        if(data.status === "completed" || data.status === "done" || data.status === "success"){ completed = true; break; }
+        if(data.status === "failed" || data.status === "error") throw new Error(data.error || "OCR processing failed.");
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+      if(!completed) throw new Error("TIMEOUT: OCR processing did not finish. Retry Process.");
+      setTrainingUploadStep(2, "done", "OCR complete");
     }
-    if(!completed) throw new Error("TIMEOUT: OCR processing did not finish. Retry Process.");
-    setTrainingUploadStep(2, "done", "OCR complete");
     setTrainingUploadStep(3, "active", "Extracting fields");
     TRAINING_UPLOAD.result = normalizeTrainingUploadOcrResult(data);
     TRAINING_UPLOAD.result.warnings = (TRAINING_UPLOAD.result.warnings || []).concat(TRAINING_UPLOAD.warnings);
@@ -6560,7 +6735,7 @@ async function processTrainingUploadDocument(){
     renderOcrTraining();
     if(testBtn) testBtn.disabled = false;
     if(saveBtn) saveBtn.disabled = false;
-    if(process) process.textContent = "Process OCR";
+    if(process) process.textContent = isTabularUploadFile(file) ? "Process Document" : "Process OCR";
   }catch(err){
     setTrainingUploadStep(2, "failed", err.message || "OCR failed");
     TRAINING_UPLOAD.warnings.push(err.message || "OCR failed.");
@@ -6613,7 +6788,7 @@ function normalizeTrainingUploadOcrResult(data){
       if(confidence !== null && confidence !== undefined && Number(confidence) < 0.5) out.lowConfidence.push(key);
     });
   });
-  [data.items,data.line_items,data.tables,data.ocr_result?.items,data.ocr_response?.items].forEach(src => {
+  [data.items,data.item_rows,data.line_items,data.tables,data.ocr_result?.items,data.ocr_response?.items].forEach(src => {
     if(!Array.isArray(src)) return;
     src.forEach(row => {
       if(Array.isArray(row)) row.forEach(nested => { if(nested && typeof nested === "object") out.rows.push(nested); });
@@ -6631,7 +6806,7 @@ function normalizeTrainingUploadOcrResult(data){
 function renderTrainingUploadSummary(result){
   trainingUploadText("trainingUpload_engine", result.ocrEngine || "-");
   trainingUploadText("trainingUpload_docType", result.documentType || (($("tr_doc_type") && $("tr_doc_type").value) || "-"));
-  trainingUploadText("trainingUpload_fieldCount", String(Object.keys(result.fields || {}).length));
+  trainingUploadText("trainingUpload_fieldCount", `${Object.keys(result.fields || {}).length} fields / ${(result.rows || []).length} rows`);
   trainingUploadText("trainingUpload_missingCount", String((result.missing || []).length));
   trainingUploadText("trainingUpload_confidence", result.confidence === null || result.confidence === undefined ? "-" : String(Math.round(Number(result.confidence) * 100)) + "%");
   const raw = $("trainingUpload_rawPreview");
@@ -6776,7 +6951,56 @@ function updateTrainingAutoFillSetupFromResult(result){
 
 initTrainingUploadWorkflow();
 
-/* Minimal OCR Training AI drawer: fills existing training mappings only. */
+/* ── ERP Master Import (Task 4) ─────────────────────────────────────────── */
+let _erpImportLastReport = null;
+
+function showErpMasterImportPage(){
+  document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
+  const ni = $("navErpImport"); if(ni) ni.classList.add("active");
+  [".page-kpi,.grid-2,.grid-2-async,#secUpload,#secForm,#secSalesForm,#secBackendReview,#secExport,#secAdmin,#secTraining"].forEach(sel => {
+    document.querySelectorAll(sel).forEach(el => { el.style.display = "none"; });
+  });
+  const sec = $("secErpMasterImport"); if(sec) sec.style.display = "flex";
+}
+
+async function runErpMasterImport(){
+  const masterType = ($("erpImport_masterType") || {}).value || "customer";
+  const module = ($("erpImport_module") || {}).value || "";
+  const dryRun = ($("erpImport_dryRun") || {}).checked !== false;
+  const fileInput = $("erpImport_file");
+  if(!fileInput || !fileInput.files || !fileInput.files[0]){ toast("Select a file first","warn"); return; }
+  const file = fileInput.files[0];
+  const fd = new FormData();
+  fd.append("file", file);
+  let url = `/api/v1/companies/erp-master-mappings/import?master_type=${encodeURIComponent(masterType)}&dry_run=${dryRun}`;
+  if(module) url += `&module=${encodeURIComponent(module)}`;
+  try{
+    const result = await req(url, {method:"POST", body:fd});
+    _erpImportLastReport = result;
+    const res = $("erpImport_result"); if(res) res.style.display = "";
+    const setText = (id,v) => { const el=$(id); if(el) el.textContent=String(v||0); };
+    setText("erpImport_imported", result.imported_count || (dryRun ? result.would_import : 0));
+    setText("erpImport_updated", result.updated_count || 0);
+    setText("erpImport_skipped", result.skipped_count || 0);
+    setText("erpImport_errors", result.error_count || 0);
+    const colMapEl = $("erpImport_colMap");
+    if(colMapEl) colMapEl.textContent = result.column_mapping ? "Detected columns: " + JSON.stringify(result.column_mapping) : "";
+    const errEl = $("erpImport_errorList");
+    if(errEl){
+      errEl.replaceChildren();
+      (result.errors || []).forEach(e => { const d=document.createElement("div"); d.textContent=e; errEl.appendChild(d); });
+    }
+    toast(dryRun ? `Dry run: would import ${result.would_import||0} records` : `Imported ${result.imported_count||0}, updated ${result.updated_count||0}`, dryRun?"info":"success");
+  }catch(err){
+    toast("Import failed: "+(err.message||"unknown error"), "error");
+  }
+}
+
+function downloadErpImportReport(){
+  if(!_erpImportLastReport){ toast("Run import first","warn"); return; }
+  const blob = new Blob([JSON.stringify(_erpImportLastReport,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="erp_import_report.json"; a.click();
+}
 const AI_FILL_STATE = { module: "sales", result: null, warnings: [] };
 const AI_FILL_FIELD_MAP = {
   sales: {
@@ -6845,10 +7069,12 @@ function closeAiFillDrawer(){
 function aiFillFileSelected(){
   const file = $("aiFill_file") && $("aiFill_file").files[0];
   const process = $("aiFill_process");
-  if(process) process.disabled = !file;
-  aiFillText("aiFill_fileInfo", file ? `${file.name} (${Math.round(file.size / 1024)} KB)` : "No file selected.");
+  if(process) process.disabled = !file || isUnsupportedSpreadsheetFile(file) || !isSupportedOcrUploadFile(file);
+  if(process) process.textContent = file && isTabularUploadFile(file) ? "Process Document" : "Process OCR";
+  const badge = file && isTabularUploadFile(file) ? (/\.xlsx$/i.test(file.name) ? "Excel" : "CSV") : "";
+  aiFillText("aiFill_fileInfo", file ? `${badge ? badge + " - " : ""}${file.name} (${Math.round(file.size / 1024)} KB)` : "No file selected.");
   const warnings = [];
-  if(file && /\.(xlsx|xls|csv)$/i.test(file.name)) warnings.push("Excel upload detected. Table extraction depends on backend parser.");
+  if(file && isUnsupportedSpreadsheetFile(file)) warnings.push("Legacy .xls is not supported. Please upload .xlsx or .csv.");
   renderAiFillWarnings(warnings);
 }
 
@@ -6859,20 +7085,27 @@ async function processAiFillDocument(){
   const apply = $("aiFill_apply");
   if(process) process.disabled = true;
   if(apply) apply.disabled = true;
-  const warnings = /\.(xlsx|xls|csv)$/i.test(file.name) ? ["Excel upload detected. Table extraction depends on backend parser."] : [];
+  if(isUnsupportedSpreadsheetFile(file)){ toast("Legacy .xls is not supported. Please upload .xlsx or .csv.", "warn"); return; }
+  if(!isSupportedOcrUploadFile(file)){ toast("Unsupported file type.", "error"); return; }
+  const warnings = [];
   try{
     aiFillText("aiFill_status", "Uploading");
     const form = new FormData();
     form.append("file", file);
-    const uploaded = await req("/api/v1/upload/", {method:"POST", body:form});
-    const jobId = uploaded.job_id;
-    aiFillText("aiFill_status", "OCR processing");
-    let data = uploaded;
-    for(let i = 0; i < 60; i++){
-      data = await req(`/api/v1/upload/jobs/${jobId}`);
-      if(data.status === "completed" || data.status === "done" || data.status === "success") break;
-      if(data.status === "failed" || data.status === "error") throw new Error(data.error || "OCR processing failed.");
-      await new Promise(resolve => setTimeout(resolve, 1500));
+    let data;
+    if(isTabularUploadFile(file)){
+      data = await req("/api/v1/forms/workbench/parse-tabular", {method:"POST", body:form});
+    }else{
+      const uploaded = await req("/api/v1/upload/", {method:"POST", body:form});
+      const jobId = uploaded.job_id;
+      aiFillText("aiFill_status", "OCR processing");
+      data = uploaded;
+      for(let i = 0; i < 60; i++){
+        data = await req(`/api/v1/upload/jobs/${jobId}`);
+        if(data.status === "completed" || data.status === "done" || data.status === "success") break;
+        if(data.status === "failed" || data.status === "error") throw new Error(data.error || "OCR processing failed.");
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
     }
     aiFillText("aiFill_status", "Mapping fields");
     AI_FILL_STATE.result = normalizeAiFillTrainingResult(data);

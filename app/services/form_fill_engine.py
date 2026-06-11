@@ -30,6 +30,7 @@ from app.schemas.fill import FieldFillResult, FillResult
 from app.services.field_mapper import FieldMapper
 from app.services.exporters import ExcelExporter, JSONExporter, PDFExporter
 from app.services.ownership_service import get_owned_extracted_data
+from app.services.export_precheck_engine import build_export_precheck
 
 
 class FormFillEngine:
@@ -93,6 +94,36 @@ class FormFillEngine:
                 overrides=overrides,
             )
             line_items: List[Dict[str, Any]] = extraction.line_items or []
+
+            # ── 4b. TASK 7.1 FIX: export_precheck gate before export ──────────
+            precheck = build_export_precheck({
+                "module": "general",
+                "document_type": "general",
+                "form_data": final_fields,
+                "item_rows": line_items,
+                "mapped_fields": final_fields,
+                "resolved_masters": [],
+                "unresolved_masters": [],
+                "confidence_map": {},
+                "warnings": list(warnings),
+                "source_type": "fill_engine",
+            })
+            if not precheck["export_allowed"]:
+                from fastapi import HTTPException as _HTTPException
+                raise _HTTPException(
+                    status_code=422,
+                    detail={
+                        "export_allowed": False,
+                        "quality_score": precheck["quality_score"],
+                        "quality_grade": precheck["quality_grade"],
+                        "blockers": precheck["blockers"],
+                        "missing_required_fields": precheck["missing_required_fields"],
+                        "unresolved_masters": precheck["unresolved_masters"],
+                        "row_issues": precheck["row_issues"],
+                        "message": "Fill export blocked by export precheck.",
+                    },
+                )
+            # ──────────────────────────────────────────────────────────────────
 
             # ── 5. export ──────────────────────────────────────────────────────
             metadata = {
