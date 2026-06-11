@@ -259,17 +259,24 @@ class TestTask4Frontend:
         assert isinstance(result["unresolved_masters"], list)
         assert isinstance(result["resolved_masters"], list)
 
-    def test_erp_import_panel_in_frontend(self):
+    def test_erp_import_panel_hidden_by_default(self):
         source = Path("frontend/index.html").read_text(encoding="utf-8")
         assert "secErpMasterImport" in source
         assert "runErpMasterImport" in source
         assert "erpImport_masterType" in source
         assert "erpImport_dryRun" in source
+        assert "ERP Master Import is admin/setup only and hidden from normal user flow." in source
+        assert 'id="navErpImport"' in source
+        assert 'class="admin-section" id="secErpMasterImport"' in source
+        assert 'data-admin-display="flex"' in source
+        assert 'style="display:none;' in source
 
-    def test_erp_import_nav_item_in_frontend(self):
+    def test_erp_import_admin_flag_visibility_controls_exist(self):
         source = Path("frontend/index.html").read_text(encoding="utf-8")
         assert "navErpImport" in source
         assert "showErpMasterImportPage" in source
+        assert 'new URLSearchParams(window.location.search).get("admin") === "1"' in source
+        assert "ERP Master Import is admin/setup only." in source
 
 
 # ── Task 4.1: Live DB Resolver wired into auto-fill ─────────────────────────

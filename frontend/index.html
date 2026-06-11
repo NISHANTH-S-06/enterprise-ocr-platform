@@ -932,7 +932,8 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
           <span class="nav-icon">◈</span>
           <span class="nav-label">OCR Training</span>
         </div>
-        <div class="nav-item" id="navErpImport" onclick="showErpMasterImportPage()">
+        <!-- ERP Master Import is admin/setup only and hidden from normal user flow. -->
+        <div class="nav-item admin-only" id="navErpImport" data-admin-display="" style="display:none;" onclick="showErpMasterImportPage()">
           <span class="nav-icon">⇪</span>
           <span class="nav-label">ERP Master Import</span>
         </div>
@@ -1916,7 +1917,7 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
           </div><!-- end #secTraining -->
 
           <!-- ── ERP Master Import Panel (Task 4) ── -->
-          <div id="secErpMasterImport" style="display:none;flex-direction:column;gap:20px;">
+          <div class="admin-section" id="secErpMasterImport" data-admin-display="flex" style="display:none;flex-direction:column;gap:20px;">
             <div class="card">
               <div class="card-header">
                 <div class="card-title"><span class="card-title-icon">⇪</span> ERP Master Import</div>
@@ -2000,6 +2001,7 @@ const S = {
   isBusy: false,
   adminLoaded: false,
 };
+const ADMIN_MODE = new URLSearchParams(window.location.search).get("admin") === "1";
 
 /* ═══════════════════════════════════════════════════════
    UTILS
@@ -2125,12 +2127,14 @@ function fmtDate(v){
   return Number.isNaN(d.getTime()) ? "-" : d.toLocaleString();
 }
 function isAdminRole(){
-  return S.role === "admin" || S.role === "superadmin";
+  return ADMIN_MODE;
 }
 function setAdminVisible(){
   const visible = isAdminRole();
-  document.querySelectorAll(".admin-only").forEach(el => { el.style.display = visible ? "" : "none"; });
-  if($("secAdmin")) $("secAdmin").style.display = visible ? "" : "none";
+  document.querySelectorAll(".admin-only").forEach(el => {
+    el.style.display = visible ? (el.dataset.adminDisplay || "") : "none";
+  });
+  if($("secAdmin")) $("secAdmin").style.display = visible ? "flex" : "none";
   if(visible && !S.adminLoaded) loadAdminDashboard(false);
 }
 
@@ -4222,7 +4226,7 @@ function showTrainingPage(){
   const ni = $("navTraining"); if(ni) ni.classList.add("active");
   /* Preserve each workspace element's current state before hiding it. */
   document.querySelectorAll(
-    ".page-kpi,.grid-2,.grid-2-async,#secUpload,#secForm,#secSalesForm,#secBackendReview,#secExport,#secAdmin"
+    ".page-kpi,.grid-2,.grid-2-async,#secUpload,#secForm,#secSalesForm,#secBackendReview,#secExport,#secAdmin,#secErpMasterImport"
   ).forEach(el => {
     if(el.dataset.trHidden !== "1"){
       el.dataset.trHidden = "1";
@@ -6954,7 +6958,12 @@ initTrainingUploadWorkflow();
 /* ── ERP Master Import (Task 4) ─────────────────────────────────────────── */
 let _erpImportLastReport = null;
 
+// ERP Master Import is admin/setup only and hidden from normal user flow.
 function showErpMasterImportPage(){
+  if(!isAdminRole()){
+    toast("ERP Master Import is admin/setup only.", "warn");
+    return;
+  }
   document.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
   const ni = $("navErpImport"); if(ni) ni.classList.add("active");
   [".page-kpi,.grid-2,.grid-2-async,#secUpload,#secForm,#secSalesForm,#secBackendReview,#secExport,#secAdmin,#secTraining"].forEach(sel => {

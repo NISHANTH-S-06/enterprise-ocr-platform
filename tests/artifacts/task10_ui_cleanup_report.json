@@ -1,0 +1,66 @@
+{
+  "task": "TASK 10 - Normal User UI Cleanup Hide ERP Master Import From Main UI",
+  "status": "done",
+  "audit_findings": [
+    {
+      "file": "frontend/index.html",
+      "line": 935,
+      "text": "ERP Master Import nav item hidden behind admin-only styling"
+    },
+    {
+      "file": "frontend/index.html",
+      "line": 1920,
+      "text": "ERP Master Import panel markup"
+    },
+    {
+      "file": "frontend/index.html",
+      "line": 6961,
+      "text": "ERP Master Import page switcher"
+    },
+    {
+      "file": "tests/test_task4_erp_master.py",
+      "line": 262,
+      "text": "Frontend assertions updated for hidden-by-default behavior"
+    }
+  ],
+  "hidden_items": [
+    "ERP Master Import sidebar entry",
+    "ERP Master Import dashboard panel"
+  ],
+  "admin_flag": {
+    "implemented": true,
+    "query_param": "admin=1",
+    "behavior": "shows admin-only ERP import UI in frontend only"
+  },
+  "files_changed": [
+    "frontend/index.html",
+    "tests/test_task4_erp_master.py",
+    "docs/TASK10_UI_CLEANUP_REPORT.md",
+    "tests/artifacts/task10_ui_cleanup_report.json"
+  ],
+  "verification": {
+    "js_parse": "PASS",
+    "duplicate_ids": 0,
+    "compile_app": "PASS",
+    "compile_alembic": "PASS",
+    "pytest_subset": "PASS",
+    "pytest_broader_set": "PASS",
+    "e2e": "not run"
+  },
+  "normal_user_flow": [
+    "Upload document",
+    "Process OCR",
+    "AI Auto Fill",
+    "Review fields / quality gate",
+    "Export PDF / Excel / JSON",
+    "Save Corrections if present",
+    "Training upload/test if already part of current workflow"
+  ],
+  "backend_changed": false,
+  "migration_changed": false,
+  "risks": [
+    "Admin flag is frontend-only and not a security boundary",
+    "ERP import JS still exists in the bundle for admin/demo access",
+    "Backend import APIs remain available by design"
+  ]
+}
