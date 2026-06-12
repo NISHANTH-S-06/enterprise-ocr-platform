@@ -59,3 +59,26 @@ final_gemini_autofill_test.py
 company_form_mapper.backup-before-final-e2e-completion.py
 test_platform.backup-before-final-e2e-completion.py
 
+# Local quarantine, verification archives, and phase artifacts
+_quarantine_unused/
+_archive_test_backups/
+verification_archive/
+
+_p*.py
+_task*.py
+*_out
+*_out.*
+*_compile
+*_compile.*
+*_audit
+*_audit.*
+*_verify
+*_verify.*
+
+scripts/*_out.txt
+scripts/*out*.txt
+scripts/baseline_out.txt
+scripts/compile_out.txt
+scripts/targeted_out*.txt
+scripts/full*_out.txt
+
