@@ -55,6 +55,10 @@ from app.services.memory_apply_engine import (
     apply_memory_to_canonical_fields,
     load_company_correction_memory,
 )
+from app.services.training_template_engine import (
+    match_training_dataset,
+    apply_training_to_mapped_fields,
+)
 
 router = APIRouter(prefix="/upload", tags=["Upload"])
 settings = get_settings()
@@ -707,6 +711,46 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
         )
         
         mapper_ms = int((time.monotonic() - mapper_t0) * 1000)
+
+        # ── Phase 5: Training template matching (after regex, before Gemini) ──
+        _training_matched = False
+        _training_name: str | None = None
+        _training_score: float = 0.0
+        _training_id: str | None = None
+        _training_applied_fields: list[str] = []
+        _training_conflicts: list[str] = []
+        try:
+            async with AsyncSessionLocal() as _tdb:
+                _company_info_for_training = detected_company_info if "detected_company_info" in dir() else {}
+                _training_match = await match_training_dataset(
+                    _tdb,
+                    text,
+                    effective_doc_type,
+                    _company_info_for_training,
+                    effective_doc_type,
+                    update_usage=True,
+                )
+            if _training_match and _training_match.get("score", 0.0) >= 0.50:
+                _apply_result = apply_training_to_mapped_fields(mapped_result, _training_match)
+                mapped_result["mapped_fields"] = _apply_result.get("mapped_fields", mapped_result.get("mapped_fields", {}))
+                _training_matched = True
+                _training_name = _training_match.get("dataset_name") or _training_match.get("name")
+                _training_score = float(_training_match.get("score", 0.0))
+                _training_id = str(_training_match.get("dataset_id") or _training_match.get("id") or "")
+                _training_applied_fields = _apply_result.get("training_applied_fields", [])
+                _training_conflicts = _apply_result.get("training_conflicts", [])
+                # Re-normalise after training overwrites
+                mapped_result["mapped_fields"] = normalize_mapped_fields(mapped_result.get("mapped_fields", {}))
+                mapped_result["missing_fields"] = missing_fields_for_doc(
+                    mapped_result["mapped_fields"], effective_doc_type
+                )
+                logger.info(
+                    "TrainingTemplate: job_id={} matched={} score={:.2f} applied={}",
+                    job_id, _training_name, _training_score, _training_applied_fields,
+                )
+        except Exception as _te:
+            logger.warning("TrainingTemplate: skipped due to error: {}", _te)
+
         ai_targets = _ai_fallback_target_fields(mapped_result)
         tenant_ai_source: Any = None
         async with AsyncSessionLocal() as db:
@@ -1061,6 +1105,13 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             "memory_suggestion_fields": memory_apply_result.get("memory_suggestion_fields", []),
             "memory_suggestions":     memory_apply_result.get("memory_suggestions", {}),
             "memory_warnings":        memory_warnings,
+            # ── Phase 5: training template metadata ──
+            "training_template_matched":  _training_matched,
+            "training_template_name":     _training_name,
+            "training_match_score":       _training_score,
+            "training_template_id":       _training_id or None,
+            "training_applied_fields":    _training_applied_fields,
+            "training_conflicts":         _training_conflicts,
             **final_ocr_decision,
         })
         if len(text.strip()) < 20:
