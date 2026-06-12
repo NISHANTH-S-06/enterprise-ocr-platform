@@ -1490,6 +1490,10 @@ class TestFieldSynonymDetection:
             fields = self._extract(f"Invoice No:\n{currency}")
             assert fields.get("invoice_number") != currency
 
+    def test_invoice_number_rejects_date_only_value(self):
+        fields = self._extract("Invoice No\n31-05-2026")
+        assert fields.get("invoice_number") != "31-05-2026"
+
     def test_invoice_number_rejects_parenthesized_currency_tokens(self):
         for currency in ("EUR", "USD", "INR", "GBP"):
             fields = self._extract(f"Inv Value\n({currency})")
@@ -1512,6 +1516,30 @@ class TestFieldSynonymDetection:
         )
         assert fields.get("invoice_number") == "SPR023/26-27"
         assert fields.get("purchase_order_number") == "U2/2026-27/MRP-D_021"
+
+    @pytest.mark.parametrize("invoice_number", [
+        "SPR023/26-27",
+        "CI/24-25/009",
+        "12345/2026",
+    ])
+    def test_valid_invoice_number_formats_are_accepted(self, invoice_number):
+        fields = self._extract(f"Invoice No\n{invoice_number}")
+        assert fields.get("invoice_number") == invoice_number
+
+    def test_stacked_invoice_number_and_date_are_mapped(self):
+        fields = self._extract(
+            "Invoice No\nInvoice Date\nSPR023/26-27\n31-05-2026"
+        )
+        assert fields.get("invoice_number") == "SPR023/26-27"
+        assert fields.get("invoice_date") == "31-05-2026"
+
+    def test_sales_invoice_label_maps_precise_value_without_currency_fallback(self):
+        fields = self._extract(
+            "EXPORT INVOICE\nInvoice No: EXP/2026-27/0042\n"
+            "Invoice Date: 25-05-2026\nCurrency: EUR"
+        )
+        assert fields.get("invoice_number") == "EXP/2026-27/0042"
+        assert fields.get("invoice_number") != "EUR"
 
     def test_multiple_buyer_order_numbers_emit_exact_plural_key(self):
         fields = self._extract("Buyer's Order No: 62073736, 62080057, 62075113")

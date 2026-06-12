@@ -51,7 +51,7 @@ FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
         (r"date[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
         (r"date[:\s]*(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})", re.I),
         (r"date[:\s]*([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})", re.I),
-        (r"(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", 0),
+        (r"(?<![A-Za-z0-9])(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})(?![A-Za-z0-9])", 0),
     ],
     "due_date": [
         (r"due\s*(?:date|by)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
@@ -667,6 +667,13 @@ def _looks_like_value(field: str, value: str) -> bool:
             return False
         if re.fullmatch(r"(?i)(?:export|tax|commercial)?\s*invoice|export|tax|commercial", value):
             return False
+        # Reject pure date strings as invoice numbers (Phase 8)
+        if re.fullmatch(
+            r"\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}"
+            r"|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}",
+            value,
+        ):
+            return False
     if field == "invoice_date":
         return bool(re.fullmatch(
             r"(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|"
@@ -732,6 +739,42 @@ def _extract_clause_blocks(raw_text: str) -> Dict[str, Any]:
 def _extract_next_line_fields(raw_text: str) -> Dict[str, Any]:
     lines = [_clean(line) for line in raw_text.splitlines()]
     out: Dict[str, Any] = {}
+
+    # Labels that should be SKIPPED when scanning ahead for a value.
+    # These are standalone label-only lines that appear between a field label
+    # and its value in two-column / stacked PDF layouts (e.g. Glsprint).
+    _SKIP_LABEL_RE = re.compile(
+        r"^(?:"
+        r"invoice\s*(?:no\.?|number|#|date|dt)|"
+        r"bill\s*(?:no\.?|number|#|date)|"
+        r"inv\b\s*(?:no\.?|number|date|#)?|"
+        r"date|dated?|"
+        r"gstin?|gst\s*(?:no\.?|number)|"
+        r"pan\s*(?:no\.?|number)?|"
+        r"buyer|consignee|vendor|supplier|seller|"
+        r"total|grand\s*total|amount|"
+        r"description|address|"
+        r"tax\s*invoice|commercial\s*invoice|export\s*invoice"
+        r")\s*[:#\-]?\s*$",
+        re.I,
+    )
+    # Peer-value pattern: lines that look like an invoice/PO number value
+    # (e.g. SPR023/26-27, CI/24-25/009, INV-2026-001) but NOT date strings.
+    # When scanning for invoice_date, skip over such lines (they belong to
+    # the sibling invoice_number field in a two-column layout).
+    # Explicitly exclude pure date patterns (dd-mm-yyyy, dd/mm/yyyy, etc.)
+    _DATE_LINE_RE = re.compile(
+        r"^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$"
+        r"|^\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}$",
+        re.I,
+    )
+    _PEER_VALUE_RE = re.compile(
+        r"^[A-Z]{2,}[0-9]*[\/\-][A-Z0-9\-\/._]{2,}$"   # SPR023/26-27, CI/24-25/009
+        r"|^[A-Z]{2,}\-[0-9]{4}\-[0-9]+$"               # INV-2026-001
+        r"|^[A-Z0-9]{3,}\/[0-9]{2}\-[0-9]{2}$",         # EXP/26-27
+        re.I,
+    )
+
     for idx, line in enumerate(lines):
         if not line:
             continue
@@ -743,8 +786,34 @@ def _extract_next_line_fields(raw_text: str) -> Dict[str, Any]:
                 if not m:
                     continue
                 value = m.group(1).strip()
-                if not _looks_like_value(field, value) and idx + 1 < len(lines):
-                    value = lines[idx + 1]
+                if not _looks_like_value(field, value):
+                    # ── Phase 8: multi-line lookahead (skip other label lines) ──
+                    value = ""
+                    for lookahead_line in lines[idx + 1: idx + 5]:
+                        if not lookahead_line:
+                            continue
+                        if _SKIP_LABEL_RE.match(lookahead_line):
+                            continue  # skip peer label lines (e.g. "Invoice Date")
+                        # For date fields: also skip lines that look like sibling
+                        # invoice/PO number values in a two-column layout,
+                        # but only if the line is NOT itself a date string.
+                        if (
+                            field in {"invoice_date", "po_date"}
+                            and not _DATE_LINE_RE.match(lookahead_line)
+                            and (
+                                _PEER_VALUE_RE.match(lookahead_line)
+                                or _looks_like_value("invoice_number", lookahead_line)
+                            )
+                        ):
+                            continue
+                        if field in {"invoice_number", "purchase_order_number", "buyer_order_no"} \
+                                and not re.search(r"\d", lookahead_line):
+                            break
+                        if _looks_like_value(field, lookahead_line):
+                            value = lookahead_line
+                            break
+                        # stop at non-skippable, non-value lines
+                        break
                 value = _clean(value)
                 if _looks_like_value(field, value):
                     out[field] = {"value": value, "confidence": 0.72,
