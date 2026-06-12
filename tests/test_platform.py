@@ -2427,7 +2427,202 @@ class TestWorkbenchProductionEndpoints:
             "id", "dataset_name", "module", "document_type", "company_name",
             "vendor_name", "customer_name", "is_active", "version", "mappings_json",
             "row_mappings_json", "metadata_json", "created_at", "updated_at",
+            # Phase 2A: template matching foundation columns
+            "template_signature", "approved", "confidence",
+            "sample_count", "usage_count", "last_used_at",
         }
+
+    def test_create_training_dataset_with_approved_confidence_signature(self):
+        """Phase 7B: approved, confidence, template_signature accepted + persisted."""
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetRequest, save_training_dataset
+
+        db = self._DatasetDB(execute_rows=[])
+        body = TrainingDatasetRequest(
+            dataset_name="Invoice Template P7B",
+            module="invoice",
+            document_type="invoice",
+            company_name="Sprint Industries",
+            approved=True,
+            confidence=0.92,
+            template_signature="tpl:abc123def456",
+            mappings_json=[{"field": "invoice_number", "value": "SPR023/26-27",
+                            "source": "training", "method": "training_template"}],
+        )
+        result = asyncio.run(save_training_dataset(body, db=db, current_user={"org_id": "org-1"}))
+
+        assert result["success"] is True
+        assert result["created"] is True
+        d = result["dataset"]
+        assert d["approved"] is True
+        assert d["confidence"] == 0.92
+        assert d["template_signature"] == "tpl:abc123def456"
+
+    def test_create_training_dataset_defaults_backward_compat(self):
+        """Phase 7B: old payloads without new fields still work (approved=True default)."""
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetRequest, save_training_dataset
+
+        db = self._DatasetDB(execute_rows=[])
+        body = TrainingDatasetRequest(
+            dataset_name="Legacy Dataset Compat",
+            module="sales_order",
+            document_type="sales_order",
+            mappings_json=[],
+        )
+        result = asyncio.run(save_training_dataset(body, db=db, current_user={"org_id": "org-1"}))
+
+        assert result["success"] is True
+        d = result["dataset"]
+        assert d["approved"] is True          # default True
+        assert d["confidence"] is None        # default None
+        assert d["template_signature"] is None  # default None
+
+    def test_update_training_dataset_persists_new_fields(self):
+        """Phase 7B: PUT handler via _apply_dataset_request persists all 3 new fields."""
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetRequest, update_training_dataset
+
+        existing = self._training_dataset()
+        body = TrainingDatasetRequest(
+            dataset_name=existing.dataset_name,
+            module=existing.module,
+            document_type=existing.document_type,
+            approved=False,
+            confidence=0.75,
+            template_signature="tpl:updated9999",
+            mappings_json=[],
+        )
+        result = asyncio.run(update_training_dataset(
+            existing.id, body,
+            db=self._DatasetDB([existing]),
+            current_user={"org_id": "org-1"},
+        ))
+
+        assert result["success"] is True
+        d = result["dataset"]
+        assert d["approved"] is False
+        assert d["confidence"] == 0.75
+        assert d["template_signature"] == "tpl:updated9999"
+
+    def test_training_dataset_request_schema_fields(self):
+        """Phase 7B: TrainingDatasetRequest schema has all 3 new fields with correct defaults."""
+        from app.api.v1.routers.companies import TrainingDatasetRequest
+
+        r = TrainingDatasetRequest(
+            dataset_name="Test", module="invoice", document_type="invoice"
+        )
+        assert r.approved is True
+        assert r.confidence is None
+        assert r.template_signature is None
+
+        r2 = TrainingDatasetRequest(
+            dataset_name="Test2", module="invoice", document_type="invoice",
+            approved=False, confidence=0.88, template_signature="tpl:xyz",
+        )
+        assert r2.approved is False
+        assert r2.confidence == 0.88
+        assert r2.template_signature == "tpl:xyz"
+
+    # ── Phase 7C tests ─────────────────────────────────────────────────────
+
+    def test_explicit_template_signature_preserved(self):
+        """Phase 7C: explicit template_signature is kept as-is (not overwritten)."""
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetRequest, save_training_dataset
+
+        db = self._DatasetDB(execute_rows=[])
+        body = TrainingDatasetRequest(
+            dataset_name="Explicit Sig Dataset",
+            module="sales_order",
+            document_type="Sales Invoice",
+            template_signature="tpl:explicit_custom_sig",
+            metadata_json={"raw_ocr_text": "INVOICE vendor buyer total amount gstin"},
+        )
+        result = asyncio.run(save_training_dataset(body, db=db, current_user={"org_id": "org-1"}))
+        d = result["dataset"]
+        assert d["template_signature"] == "tpl:explicit_custom_sig", (
+            f"Explicit sig should be preserved, got: {d['template_signature']}"
+        )
+
+    def test_auto_generate_signature_from_raw_ocr_text(self):
+        """Phase 7C: missing template_signature + metadata_json.raw_ocr_text → auto-generates tpl:..."""
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetRequest, save_training_dataset
+
+        db = self._DatasetDB(execute_rows=[])
+        raw = "INVOICE vendor_name ACME Corp buyer_name TechVision gstin 27AAAAA0000A1Z5 total 50000"
+        body = TrainingDatasetRequest(
+            dataset_name="AutoSig Dataset",
+            module="sales_order",
+            document_type="Sales Invoice",
+            metadata_json={"raw_ocr_text": raw},
+        )
+        result = asyncio.run(save_training_dataset(body, db=db, current_user={"org_id": "org-1"}))
+        d = result["dataset"]
+        sig = d["template_signature"]
+        assert sig is not None, "template_signature should be auto-generated"
+        assert sig.startswith("tpl:"), f"Auto-generated sig must start with 'tpl:', got: {sig}"
+
+    def test_no_raw_text_signature_remains_none(self):
+        """Phase 7C: old payload without raw text → template_signature stays None."""
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetRequest, save_training_dataset
+
+        db = self._DatasetDB(execute_rows=[])
+        body = TrainingDatasetRequest(
+            dataset_name="No Raw Text Dataset",
+            module="sales_order",
+            document_type="Sales Invoice",
+            metadata_json={"warnings": ["some warning"]},
+        )
+        result = asyncio.run(save_training_dataset(body, db=db, current_user={"org_id": "org-1"}))
+        d = result["dataset"]
+        assert d["template_signature"] is None, (
+            f"No raw text → sig should be None, got: {d['template_signature']}"
+        )
+
+    def test_generated_signature_is_deterministic(self):
+        """Phase 7C: same raw_text + doc_type always produces the same signature."""
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetRequest, save_training_dataset
+
+        raw = "PURCHASE ORDER supplier ABC Enterprises GSTIN 29BBBBB1111B1Z3 qty rate amount total"
+        db1 = self._DatasetDB(execute_rows=[])
+        db2 = self._DatasetDB(execute_rows=[])
+        body1 = TrainingDatasetRequest(
+            dataset_name="Determ Test 1",
+            module="purchase_order",
+            document_type="Purchase Order",
+            metadata_json={"raw_ocr_text": raw},
+        )
+        body2 = TrainingDatasetRequest(
+            dataset_name="Determ Test 2",
+            module="purchase_order",
+            document_type="Purchase Order",
+            metadata_json={"raw_ocr_text": raw},
+        )
+        r1 = asyncio.run(save_training_dataset(body1, db=db1, current_user={"org_id": "org-1"}))
+        r2 = asyncio.run(save_training_dataset(body2, db=db2, current_user={"org_id": "org-1"}))
+        sig1 = r1["dataset"]["template_signature"]
+        sig2 = r2["dataset"]["template_signature"]
+        assert sig1 == sig2, f"Determinism failed: {sig1} != {sig2}"
+        assert sig1 is not None and sig1.startswith("tpl:")
+
+    def test_generated_signature_ignores_volatile_values(self):
+        """Phase 7C: invoice number / date / amount differences don't change the signature."""
+        import asyncio
+        from app.api.v1.routers.companies import TrainingDatasetRequest, save_training_dataset
+        from app.services.training_template_engine import build_template_signature
+
+        raw_a = "INVOICE INV-001 date 01/01/2025 vendor ACME Corp total 10000 gstin 27AAAAA0000A1Z5"
+        raw_b = "INVOICE INV-999 date 31/12/2025 vendor ACME Corp total 99999 gstin 27AAAAA0000A1Z5"
+        sig_a = build_template_signature(raw_a, document_type="invoice")
+        sig_b = build_template_signature(raw_b, document_type="invoice")
+        assert sig_a == sig_b, (
+            f"Volatile-value change should not affect signature.\n  A: {sig_a}\n  B: {sig_b}"
+        )
+        assert sig_a.startswith("tpl:")
 
     @staticmethod
     def _sales_workbench_request(**overrides):

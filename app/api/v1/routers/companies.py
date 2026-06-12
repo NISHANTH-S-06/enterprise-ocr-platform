@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import get_current_user
+from app.services.training_template_engine import build_template_signature
 from app.models.company import (
     Company, CompanyTemplate, FieldMapping,
     TrainingDataset, ERPMasterMapping, CorrectionMemory, DocumentQualityReport,
@@ -64,6 +65,9 @@ class TrainingDatasetRequest(BaseModel):
     vendor_name: str | None = None
     customer_name: str | None = None
     is_active: bool = True
+    approved: bool = True
+    confidence: float | None = None
+    template_signature: str | None = None
     mappings_json: list[dict[str, Any]] = Field(default_factory=list)
     row_mappings_json: list[dict[str, Any]] = Field(default_factory=list)
     metadata_json: dict[str, Any] = Field(default_factory=dict)
@@ -525,6 +529,16 @@ def _dataset_to_dict(dataset: TrainingDataset) -> dict[str, Any]:
         "mappings_json": dataset.mappings_json or [],
         "row_mappings_json": dataset.row_mappings_json or [],
         "metadata_json": dataset.metadata_json or {},
+        # ── Phase 2A additions (safe getattr for pre-migration rows) ──
+        "template_signature": getattr(dataset, "template_signature", None),
+        "approved": getattr(dataset, "approved", True),
+        "confidence": getattr(dataset, "confidence", None),
+        "sample_count": getattr(dataset, "sample_count", 1),
+        "usage_count": getattr(dataset, "usage_count", 0),
+        "last_used_at": (
+            getattr(dataset, "last_used_at", None).isoformat()
+            if getattr(dataset, "last_used_at", None) else None
+        ),
         "created_at": dataset.created_at.isoformat() if dataset.created_at else None,
         "updated_at": dataset.updated_at.isoformat() if dataset.updated_at else None,
     }
@@ -619,10 +633,21 @@ def _dataset_scope_clause(current_user: dict):
     return TrainingDataset.org_id == org_id if org_id else TrainingDataset.org_id.is_(None)
 
 
+_VALID_MODULES = {
+    "sales_order", "purchase_order",
+    "sales", "purchase",
+    "commercial_invoice", "export_invoice",
+    "grn", "invoice", "general",
+}
+
+
 def _validate_dataset_module(module: str) -> str:
     normalized = _normalized_dataset_text(module).replace(" ", "_")
-    if normalized not in {"sales_order", "purchase_order"}:
-        raise HTTPException(status_code=422, detail="module must be sales_order or purchase_order")
+    if normalized not in _VALID_MODULES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"module must be one of: {', '.join(sorted(_VALID_MODULES))}",
+        )
     return normalized
 
 
@@ -643,7 +668,23 @@ async def _get_training_dataset_or_404(
     return dataset
 
 
-def _apply_dataset_request(dataset: TrainingDataset, body: TrainingDatasetRequest) -> None:
+def _extract_training_raw_text(body: "TrainingDatasetRequest") -> str:
+    """Extract raw OCR text from metadata_json for signature generation.
+
+    Checks common keys in priority order. Returns empty string if none found.
+    """
+    meta = body.metadata_json or {}
+    for key in (
+        "raw_ocr_text", "raw_text", "extracted_text",
+        "full_text", "ocr_text", "sample_raw_text",
+    ):
+        val = meta.get(key)
+        if val and isinstance(val, str) and val.strip():
+            return val.strip()
+    return ""
+
+
+def _apply_dataset_request(dataset: TrainingDataset, body: "TrainingDatasetRequest") -> None:
     dataset.dataset_name = _clean_dataset_text(body.dataset_name)
     dataset.module = _validate_dataset_module(body.module)
     dataset.document_type = _clean_dataset_text(body.document_type)
@@ -651,9 +692,30 @@ def _apply_dataset_request(dataset: TrainingDataset, body: TrainingDatasetReques
     dataset.vendor_name = _clean_dataset_text(body.vendor_name) or None
     dataset.customer_name = _clean_dataset_text(body.customer_name) or None
     dataset.is_active = body.is_active
+    dataset.approved = body.approved
+    dataset.confidence = body.confidence
     dataset.mappings_json = body.mappings_json
     dataset.row_mappings_json = body.row_mappings_json
     dataset.metadata_json = body.metadata_json
+
+    # ── Phase 7C: auto-generate template_signature if not provided ──────
+    if body.template_signature:
+        dataset.template_signature = body.template_signature
+    else:
+        raw_text = _extract_training_raw_text(body)
+        if raw_text:
+            company_info = {
+                "company_name": body.company_name,
+                "vendor_name": body.vendor_name,
+                "customer_name": body.customer_name,
+            }
+            dataset.template_signature = build_template_signature(
+                raw_text,
+                document_type=body.document_type,
+                company_info=company_info,
+            )
+        else:
+            dataset.template_signature = None
 
 
 @router.post("/training-datasets", status_code=status.HTTP_201_CREATED)

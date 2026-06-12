@@ -131,24 +131,32 @@ class TrainingDataset(Base, TimestampMixin):
             name="uq_training_datasets_scope_name",
         ),
         CheckConstraint(
-            "module IN ('sales_order','purchase_order')",
+            "module IN ('sales_order','purchase_order','sales','purchase',"
+            "'commercial_invoice','export_invoice','grn','invoice','general')",
             name="ck_training_datasets_module",
         ),
     )
 
-    id:                Mapped[str]           = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    org_id:            Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-    dataset_name:      Mapped[str]           = mapped_column(String(255), nullable=False)
-    module:            Mapped[str]           = mapped_column(String(50), nullable=False)
-    document_type:     Mapped[str]           = mapped_column(String(100), nullable=False)
-    company_name:      Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    vendor_name:       Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    customer_name:     Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    is_active:         Mapped[bool]          = mapped_column(Boolean, nullable=False, default=True)
-    version:           Mapped[int]           = mapped_column(Integer, nullable=False, default=1)
-    mappings_json:     Mapped[list]          = mapped_column(JSONB, nullable=False, default=list)
-    row_mappings_json: Mapped[list]          = mapped_column(JSONB, nullable=False, default=list)
-    metadata_json:     Mapped[dict]          = mapped_column(JSONB, nullable=False, default=dict)
+    id:                  Mapped[str]            = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    org_id:              Mapped[Optional[str]]  = mapped_column(String(64), nullable=True)
+    dataset_name:        Mapped[str]            = mapped_column(String(255), nullable=False)
+    module:              Mapped[str]            = mapped_column(String(50), nullable=False)
+    document_type:       Mapped[str]            = mapped_column(String(100), nullable=False)
+    company_name:        Mapped[Optional[str]]  = mapped_column(String(255), nullable=True)
+    vendor_name:         Mapped[Optional[str]]  = mapped_column(String(255), nullable=True)
+    customer_name:       Mapped[Optional[str]]  = mapped_column(String(255), nullable=True)
+    is_active:           Mapped[bool]           = mapped_column(Boolean, nullable=False, default=True)
+    version:             Mapped[int]            = mapped_column(Integer, nullable=False, default=1)
+    mappings_json:       Mapped[list]           = mapped_column(JSONB, nullable=False, default=list)
+    row_mappings_json:   Mapped[list]           = mapped_column(JSONB, nullable=False, default=list)
+    metadata_json:       Mapped[dict]           = mapped_column(JSONB, nullable=False, default=dict)
+    # ── Phase 2A: template matching foundation ─────────────────────────────
+    template_signature:  Mapped[Optional[str]]  = mapped_column(Text, nullable=True)
+    approved:            Mapped[bool]           = mapped_column(Boolean, nullable=False, default=True)
+    confidence:          Mapped[Optional[float]]= mapped_column(Float, nullable=True)
+    sample_count:        Mapped[int]            = mapped_column(Integer, nullable=False, default=1)
+    usage_count:         Mapped[int]            = mapped_column(Integer, nullable=False, default=0)
+    last_used_at:        Mapped[Optional[datetime]] = mapped_column(nullable=True)
 
     def __repr__(self) -> str:
         return f"<TrainingDataset name={self.dataset_name!r} module={self.module!r} version={self.version}>"
