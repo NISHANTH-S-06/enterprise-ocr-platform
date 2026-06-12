@@ -330,6 +330,9 @@ input.af-missing{border-color:rgba(245,158,11,0.35);background:rgba(245,158,11,0
 .cb-low,.cb-miss{color:var(--red);background:var(--red-dim);border-color:rgba(239,68,68,0.3);}
 .cb-ai{color:var(--purple);background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.3);}
 .cb-mem{color:var(--cyan);background:rgba(6,182,212,0.1);border-color:rgba(6,182,212,0.3);}
+.cb-train{color:#f59e0b;background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);}
+#kpiConf{font-size:11px;color:var(--text-3);}
+#kpiTraining{margin-top:4px;}
 
 /* ── DOC TABS ── */
 .doc-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0;}
@@ -973,6 +976,10 @@ pre,.code-block{background:rgba(0,0,0,0.25);border:1px solid var(--border);borde
               <div class="kpi">
                 <div class="kpi-header"><span class="kpi-icon">📄</span><span class="kpi-label">Document Type</span></div>
                 <div id="kpiDocType" style="margin-top:4px;"><span class="badge badge-idle">Unknown</span></div>
+              </div>
+              <div class="kpi">
+                <div class="kpi-header"><span class="kpi-icon">🎓</span><span class="kpi-label">Training</span></div>
+                <div id="kpiTraining" style="margin-top:4px;"><span class="badge badge-idle">—</span></div>
               </div>
               <div class="kpi">
                 <div class="kpi-header"><span class="kpi-icon">⏱</span><span class="kpi-label">Processing Time</span></div>
@@ -2153,7 +2160,18 @@ function _badgeSrcLabel(source){
   const s = String(source || "").toLowerCase();
   if(s === "gemini" || s === "ai")     return {label:"GEMINI", cls:"cb-ai"};
   if(s === "correction_memory" || s === "memory") return {label:"MEMORY", cls:"cb-mem"};
+  if(s === "training" || s === "training_template") return {label:"TRAINING", cls:"cb-train"};
   return {label: source ? String(source).toUpperCase() : "", cls: ""};
+}
+function setTrainingBadge(data){
+  const el = $("kpiTraining"); if(!el) return;
+  const matched = data && data.training_template_matched;
+  if(matched){
+    const name = data.training_template_name ? String(data.training_template_name).replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])) : "Matched";
+    el.innerHTML = `<span class="cb cb-train" title="Training template matched">🎓 ${name}</span>`;
+  } else {
+    el.innerHTML = `<span class="badge badge-idle">—</span>`;
+  }
 }
 function confBadge(conf, source=""){
   const c = parseFloat(conf) || 0;
@@ -2565,6 +2583,7 @@ function resetUpload(){
   $("ocrPreviewCollapsed").style.display="none"; $("ocrPreviewExpanded").style.display="none";
   $("ocrEmptyState").style.display=""; $("ocrMetaRow").style.display="none";
   $("copyOcrBtn").style.display="none"; $("successBanner").style.display="none";
+  if($("kpiTraining")) $("kpiTraining").innerHTML=`<span class="badge badge-idle">—</span>`;
   hideDetPanel();
   if($("secBackendReview")) $("secBackendReview").style.display="none";
   if($("salesReviewPanel")) $("salesReviewPanel").style.display="none";
@@ -2670,6 +2689,7 @@ async function pollOcr(){
       updateDetectionReport(data.detection_report || null);
       updateBackendReviewFromPayload(data);
       setDocTypeBadge(data.document_type || "general");
+      setTrainingBadge(data);
 
       if(data.ocr_engine){
         const safeEngine = String(data.ocr_engine||"").replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c]));
@@ -4524,6 +4544,7 @@ function renderTrainingFieldRows(module_, fillType, docType, hasOcr){
       let cls = "cb";
       if(s === "gemini" || s === "ai") cls += " cb-ai";
       else if(s.includes("memory")) cls += " cb-mem";
+      else if(s === "training" || s === "training_template") cls += " cb-train";
       else if(s === "raw_text") cls = "cb cb-med";
       else cls += " cb-high";
       const badge = document.createElement("span");
@@ -4623,6 +4644,7 @@ function onTrainingSourceSelect(fieldName, selectEl){
     let cls = "cb";
     if(src === "gemini" || src === "ai") cls += " cb-ai";
     else if(src.includes("memory")) cls += " cb-mem";
+    else if(src === "training" || src === "training_template") cls += " cb-train";
     else if(src === "raw_text") cls = "cb cb-med";
     else cls += " cb-high";
     const badge = document.createElement("span");
