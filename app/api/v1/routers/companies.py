@@ -68,6 +68,7 @@ class TrainingDatasetRequest(BaseModel):
     approved: bool = True
     confidence: float | None = None
     template_signature: str | None = None
+    raw_ocr_text: str | None = None
     mappings_json: list[dict[str, Any]] = Field(default_factory=list)
     row_mappings_json: list[dict[str, Any]] = Field(default_factory=list)
     metadata_json: dict[str, Any] = Field(default_factory=dict)
@@ -673,6 +674,8 @@ def _extract_training_raw_text(body: "TrainingDatasetRequest") -> str:
 
     Checks common keys in priority order. Returns empty string if none found.
     """
+    if body.raw_ocr_text and body.raw_ocr_text.strip():
+        return body.raw_ocr_text.strip()
     meta = body.metadata_json or {}
     for key in (
         "raw_ocr_text", "raw_text", "extracted_text",

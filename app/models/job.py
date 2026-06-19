@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -41,9 +41,9 @@ class OCRJob(Base, TimestampMixin):
     priority:        Mapped[int]             = mapped_column(Integer, nullable=False, default=5)
     retry_count:     Mapped[int]             = mapped_column(Integer, nullable=False, default=0)
     max_retries:     Mapped[int]             = mapped_column(Integer, nullable=False, default=3)
-    queued_at:       Mapped[datetime]        = mapped_column(nullable=False)
-    started_at:      Mapped[Optional[datetime]] = mapped_column(nullable=True)
-    completed_at:    Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    queued_at:       Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at:      Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at:    Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     processing_ms:   Mapped[Optional[int]]   = mapped_column(Integer, nullable=True)
     worker_id:       Mapped[Optional[str]]   = mapped_column(String(255), nullable=True)
     celery_task_id:  Mapped[Optional[str]]   = mapped_column(String(255), nullable=True)
@@ -70,7 +70,7 @@ class JobEvent(Base):
     id:          Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_id:      Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("ocr_jobs.id", ondelete="CASCADE"), nullable=False)
     event_type:  Mapped[str]       = mapped_column(String(50), nullable=False)
-    occurred_at: Mapped[datetime]  = mapped_column(nullable=False)
+    occurred_at: Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=False)
     message:     Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     payload:     Mapped[dict]      = mapped_column(JSONB, nullable=False, default=dict)
 

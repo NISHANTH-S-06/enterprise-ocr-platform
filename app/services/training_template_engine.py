@@ -258,6 +258,28 @@ def score_template_similarity(
             if kw_ds and kw_in:
                 kw_overlap = len(kw_ds & kw_in) / max(len(kw_ds | kw_in), 1)
                 score += int(kw_overlap * 20)
+    else:
+        # No signature stored yet — use source_key labels from mappings_json
+        # to check if OCR text contains those field labels (structural match).
+        try:
+            mappings = list(getattr(dataset, "mappings_json", None) or [])
+            label_keys: list[str] = []
+            for m in mappings:
+                if not isinstance(m, dict):
+                    continue
+                lbl = (m.get("source_label") or m.get("source_key") or
+                       m.get("normalized_source_key") or "").lower()
+                if lbl:
+                    label_keys.append(lbl)
+            if label_keys:
+                cleaned_ocr = _clean(str(raw_text or "")).lower()
+                hits = sum(1 for lbl in label_keys if lbl in cleaned_ocr)
+                hit_ratio = hits / max(len(label_keys), 1)
+                # Give up to 20 pts based on how many of dataset's field labels
+                # appear in the incoming OCR text (layout fingerprint substitute).
+                score += int(hit_ratio * 20)
+        except Exception:
+            pass
 
     # ── keyword bonus (partial OCR text overlap) ──────────────────────────
     # Compare top structural keywords in incoming text with keywords implied
@@ -277,13 +299,24 @@ def score_template_similarity(
 
 # Threshold constants (as float 0.0–1.0)
 THRESHOLD_APPLY = 0.75    # auto-apply training mapping
-THRESHOLD_SUGGEST = 0.50  # suggest training but mark needs_review
-THRESHOLD_IGNORE = 0.50   # below this → return None
+THRESHOLD_SUGGEST = 0.70  # suggest training but mark needs_review (raised from 0.50)
+THRESHOLD_IGNORE = 0.60   # below this → return None (raised from 0.40)
 
 _VALID_MODULES = {
     "sales_order", "purchase_order", "sales", "purchase",
     "commercial_invoice", "export_invoice", "grn", "invoice", "general",
 }
+
+
+def _module_family(module: str | None) -> str:
+    norm = _normalise_module(module)
+    if "purchase" in norm or norm in {"grn"}:
+        return "purchase"
+    if "sales" in norm or norm in {"commercial_invoice", "export_invoice"}:
+        return "sales"
+    if norm == "invoice":
+        return "sales"
+    return "general"
 
 
 async def match_training_dataset(
@@ -328,10 +361,14 @@ async def match_training_dataset(
             pass  # column absent on pre-migration SQLite — ignore
 
         if normalised_module and normalised_module != "general":
-            clauses.append(
-                (TrainingDataset.module == normalised_module)
-                | (TrainingDataset.module.in_(_VALID_MODULES))
-            )
+            is_purchase = "purchase" in normalised_module
+            is_sales = "sales" in normalised_module
+            if is_purchase:
+                clauses.append(TrainingDataset.module.in_({"purchase_order", "purchase", "general"}))
+            elif is_sales:
+                clauses.append(TrainingDataset.module.in_({"sales_order", "sales", "general"}))
+            else:
+                clauses.append(TrainingDataset.module == normalised_module)
 
         stmt = select(TrainingDataset).where(*clauses)
         result = await db.execute(stmt)
@@ -345,17 +382,25 @@ async def match_training_dataset(
 
     best_score = 0.0
     best_dataset: TrainingDataset | None = None
+    requested_family = _module_family(normalised_module)
     for dataset in candidates:
+        dataset_family = _module_family(getattr(dataset, "module", None))
+        if (
+            requested_family in {"sales", "purchase"}
+            and dataset_family in {"sales", "purchase"}
+            and requested_family != dataset_family
+        ):
+            continue
         s = score_template_similarity(raw_text, dataset, document_type, company_info)
         if s > best_score:
             best_score = s
             best_dataset = dataset
 
-    if best_score < THRESHOLD_IGNORE or best_dataset is None:
+    if best_score < THRESHOLD_SUGGEST or best_dataset is None:
         logger.debug(
             "match_training_dataset: no match above threshold "
             "(best={:.3f} threshold={:.3f})",
-            best_score, THRESHOLD_IGNORE,
+            best_score, THRESHOLD_SUGGEST,
         )
         return None
 
@@ -402,6 +447,70 @@ def _source_priority(field: dict[str, Any]) -> int:
     return 40  # unknown / ocr_guess
 
 
+def extract_value_for_label_from_text(raw_text: str, label: str) -> str | None:
+    if not raw_text or not label:
+        return None
+    normalized_label = label.strip()
+    if not normalized_label:
+        return None
+
+    lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+    label_clean = normalized_label.rstrip(":-| ")
+    if not label_clean:
+        return None
+
+    escaped_label = re.escape(label_clean)
+
+    # 1. Try same line match
+    pattern = r"(?i)\b" + escaped_label + r"\b\s*[:\-\|\s]\s*(.+)"
+    for line in lines:
+        m = re.search(pattern, line)
+        if m:
+            val = m.group(1).strip(" :-|")
+            if val:
+                val = re.split(r"\s{2,}|\t", val)[0].strip()
+                val = re.split(r"(?i)\s+(?:date|gstin|tin|pan|cin|bill|ship|to)\b", val)[0].strip()
+                val = val.strip(" :-|")
+                if val:
+                    return val
+
+    # Try loose same line
+    pattern_loose = r"(?i)" + escaped_label + r"\s*[:\-\|\s]\s*(.+)"
+    for line in lines:
+        m = re.search(pattern_loose, line)
+        if m:
+            val = m.group(1).strip(" :-|")
+            if val:
+                val = re.split(r"\s{2,}|\t", val)[0].strip()
+                val = re.split(r"(?i)\s+(?:date|gstin|tin|pan|cin|bill|ship|to)\b", val)[0].strip()
+                val = val.strip(" :-|")
+                if val:
+                    return val
+
+    # 2. Try next line match
+    for i, line in enumerate(lines):
+        if line.lower() == label_clean.lower() or label_clean.lower() in line.lower():
+            if i + 1 < len(lines):
+                val = lines[i+1].strip()
+                if val and len(val) < 80 and not any(k in val.lower() for k in ["invoice", "date", "total", "gstin", "buyer", "seller", "consignee"]):
+                    return val
+    return None
+
+
+def is_dynamic_field(field_name: str) -> bool:
+    name = str(field_name).lower().strip()
+    dynamic_keywords = [
+        "order_no", "date", "tax", "total", "po_number", "round_off", "charges",
+        "qty", "price", "rate", "amount", "number", "description", "hsn", "product",
+        "invoice_no", "invoice_num", "po_no", "subtotal", "cgst", "sgst", "igst",
+        "quantity", "ref", "reference", "discount", "item", "row"
+    ]
+    for kw in dynamic_keywords:
+        if kw in name:
+            return True
+    return False
+
+
 def apply_training_to_mapped_fields(
     mapped_result: dict[str, Any],
     matched_dataset: dict[str, Any] | TrainingDataset,
@@ -445,6 +554,8 @@ def apply_training_to_mapped_fields(
     applied: list[str] = []
     conflicts: list[dict[str, Any]] = []
 
+    raw_text = str(mapped_result.get("raw_text") or "").strip()
+
     for mapping in mappings:
         if not isinstance(mapping, dict):
             continue
@@ -461,6 +572,10 @@ def apply_training_to_mapped_fields(
             continue
         target = str(target).strip()
 
+        # Dynamic fields must not come from training dataset
+        if is_dynamic_field(target):
+            continue
+
         # Training value: use sample_value as the learned reference value
         trained_value = str(
             mapping.get("sample_value")
@@ -472,16 +587,50 @@ def apply_training_to_mapped_fields(
         if not trained_value:
             continue
 
+        final_value = ""
+        source_evidence = "training_template"
+
+        if raw_text:
+            src_key = mapping.get("source_key") or mapping.get("source_label")
+            extracted_val = extract_value_for_label_from_text(raw_text, src_key) if src_key else None
+
+            if not extracted_val and mapping.get("source_label"):
+                extracted_val = extract_value_for_label_from_text(raw_text, mapping["source_label"])
+
+            if extracted_val:
+                final_value = extracted_val
+                source_evidence = f"extracted_via_training_label: {src_key}"
+            else:
+                existing = mapped_fields.get(target)
+                if existing and isinstance(existing, dict) and str(existing.get("value") or "").strip():
+                    final_value = str(existing.get("value")).strip()
+                    source_evidence = existing.get("source_evidence") or "existing_regex_value"
+                elif existing and not isinstance(existing, dict) and str(existing).strip():
+                    final_value = str(existing).strip()
+                    source_evidence = "existing_regex_value"
+                else:
+                    final_value = trained_value
+                    source_evidence = "training_sample_value_fallback"
+        else:
+            final_value = trained_value
+            source_evidence = "training_sample_value_test"
+
+        if not final_value:
+            continue
+
         trained_confidence = float(mapping.get("confidence") or dataset_confidence or 0.90)
         trained_entry: dict[str, Any] = {
-            "value": trained_value,
+            "value": final_value,
             "confidence": trained_confidence,
             "method": "training_template",
             "source": "training",
             "training_dataset_id": dataset_id,
             "training_dataset_name": dataset_name,
             "status": "AUTO_FILLED",
+            "source_evidence": source_evidence,
         }
+        if source_evidence in {"training_sample_value_fallback", "training_sample_value_test"}:
+            trained_entry["value_source"] = "training_dataset"
 
         existing = mapped_fields.get(target)
         if existing is None:
@@ -502,28 +651,24 @@ def apply_training_to_mapped_fields(
         if existing_priority >= 85:
             conflicts.append({
                 "field": target,
-                "trained_value": trained_value,
+                "trained_value": final_value,
                 "existing_value": existing_value,
                 "existing_source": existing.get("source", ""),
                 "action": "skipped_protected",
             })
             continue
 
-        # Overwrite if: field is empty, or existing is weak (low confidence / regex/AI)
-        should_overwrite = (
-            not existing_value
-            or existing_confidence < 0.70
-            or existing_priority < 80
-        )
+        # Training data must never overwrite valid OCR values (non-empty current values)
+        should_overwrite = not existing_value
         if should_overwrite:
             # Preserve audit trail — keep original value in _prev_
             merged = {**existing, **trained_entry}
-            if existing_value and existing_value != trained_value:
+            if existing_value and existing_value != final_value:
                 merged["_prev_value"] = existing_value
                 merged["_prev_source"] = existing.get("source", "")
                 conflicts.append({
                     "field": target,
-                    "trained_value": trained_value,
+                    "trained_value": final_value,
                     "existing_value": existing_value,
                     "existing_source": existing.get("source", ""),
                     "action": "overwritten",
@@ -534,7 +679,7 @@ def apply_training_to_mapped_fields(
             # Existing value is high-confidence regex/trained — keep, record info
             conflicts.append({
                 "field": target,
-                "trained_value": trained_value,
+                "trained_value": final_value,
                 "existing_value": existing_value,
                 "existing_source": existing.get("source", ""),
                 "action": "kept_existing",
@@ -555,3 +700,194 @@ def apply_training_to_mapped_fields(
         dataset_name, len(applied), len(conflicts),
     )
     return updated_result
+
+
+def generate_field_level_trace(
+    doc_type: str,
+    raw_mapped_fields: dict[str, Any],     # regex/AI fields before training merge
+    validation_result: dict[str, Any],     # final validation result after training merge
+    matched_dataset_info: dict[str, Any] | None,  # the return value of match_training_dataset
+    applied_fields: list[str],             # fields that were successfully applied
+    conflicts: list[dict[str, Any]],        # conflicts from training merge
+) -> list[dict[str, Any]]:
+    from app.services.company_form_mapper import _DOC_TYPE_FIELDS
+
+    # Get active fields for this doc_type
+    target_fields = _DOC_TYPE_FIELDS.get((doc_type or "general").lower(), _DOC_TYPE_FIELDS.get("general", []))
+
+    dataset_name = matched_dataset_info.get("dataset_name") if matched_dataset_info else None
+    dataset_id = matched_dataset_info.get("dataset_id") if matched_dataset_info else None
+    dataset_obj = matched_dataset_info.get("dataset") if matched_dataset_info else None
+
+    mappings = list(getattr(dataset_obj, "mappings_json", None) or []) if dataset_obj else []
+    if not mappings and isinstance(dataset_obj, dict):
+        mappings = list(dataset_obj.get("mappings_json") or [])
+
+    trace_list = []
+
+    # Prefix for DOM IDs
+    is_sales = doc_type.lower() in {"sales", "invoice", "export_invoice", "commercial_invoice", "tax_invoice"}
+    dom_prefix = "sf_" if is_sales else "f_"
+
+    # Build maps for mapping lookup and conflict lookup
+    mapping_by_target = {}
+    for m in mappings:
+        if isinstance(m, dict):
+            target = (
+                m.get("target_erp_name")
+                or m.get("target_field")
+                or m.get("erp_field_name")
+                or m.get("target")
+                or m.get("canonical_name")
+            )
+            if target:
+                mapping_by_target[str(target).strip()] = m
+
+    conflict_by_field = {c["field"]: c for c in conflicts if isinstance(c, dict) and "field" in c}
+
+    # We want to trace all possible target fields
+    for field in target_fields:
+        # 1. source value (value before training was merged)
+        src_val = raw_mapped_fields.get(field)
+        src_value_str = ""
+        if src_val is not None:
+            if isinstance(src_val, dict):
+                src_value_str = str(src_val.get("value") or "").strip()
+            else:
+                src_value_str = str(src_val).strip()
+
+        # 2. selected dataset
+        selected_ds = dataset_name or "None"
+
+        # 3. mapping found
+        m_found = mapping_by_target.get(field)
+
+        # 4. final target ID
+        final_target_id = dom_prefix + field
+
+        # 5. target exists
+        target_exists = True
+
+        # 6. validation status
+        val_status = "VALID"
+        field_warnings = []
+        for w in validation_result.get("warnings", []):
+            if f"'{field}'" in w or f" {field}:" in w or w.startswith(f"{field}:"):
+                field_warnings.append(w)
+        for e in validation_result.get("errors", []):
+            if f"'{field}'" in e or f" {field}:" in e or e.startswith(f"{field}:"):
+                field_warnings.append(e)
+        if field_warnings:
+            val_status = "; ".join(field_warnings)
+
+        # 7. applied/skipped result & 8. exact skip reason
+        applied_skipped = "skipped"
+        skip_reason = ""
+
+        if not dataset_name:
+            applied_skipped = "no_training_matched"
+            skip_reason = "No matching training layout dataset found for this document"
+        elif field in applied_fields:
+            applied_skipped = "applied"
+            skip_reason = ""
+        else:
+            if field in conflict_by_field:
+                action = conflict_by_field[field].get("action")
+                if action == "skipped_protected":
+                    skip_reason = "skipped_protected (priority >= 85)"
+                elif action == "kept_existing":
+                    skip_reason = "kept_existing (high-confidence value already present)"
+                else:
+                    skip_reason = action or "skipped"
+            elif not m_found:
+                skip_reason = "no_mapping_found_in_dataset"
+            else:
+                trained_value = m_found.get("sample_value") or m_found.get("value") or ""
+                if not trained_value:
+                    skip_reason = "no_source_value_in_trained_mapping"
+                else:
+                    skip_reason = "unknown"
+
+        trace_list.append({
+            "field": field,
+            "source_value": src_value_str,
+            "selected_dataset": selected_ds,
+            "mapping_found": m_found,
+            "final_target_id": final_target_id,
+            "target_exists": target_exists,
+            "validation_status": val_status,
+            "applied_skipped": applied_skipped,
+            "skip_reason": skip_reason
+        })
+
+    # For any fields that are in mapped fields but not in target_fields
+    for field in sorted(raw_mapped_fields.keys()):
+        if field in {"item_rows", "items"}:
+            continue
+        if any(t["field"] == field for t in trace_list):
+            continue
+
+        src_val = raw_mapped_fields[field]
+        src_value_str = ""
+        if isinstance(src_val, dict):
+            src_value_str = str(src_val.get("value") or "").strip()
+        else:
+            src_value_str = str(src_val).strip()
+
+        selected_ds = dataset_name or "None"
+        m_found = mapping_by_target.get(field)
+        final_target_id = dom_prefix + field
+        target_exists = False
+
+        val_status = "VALID"
+        field_warnings = []
+        for w in validation_result.get("warnings", []):
+            if f"'{field}'" in w or f" {field}:" in w or w.startswith(f"{field}:"):
+                field_warnings.append(w)
+        for e in validation_result.get("errors", []):
+            if f"'{field}'" in e or f" {field}:" in e or e.startswith(f"{field}:"):
+                field_warnings.append(e)
+        if field_warnings:
+            val_status = "; ".join(field_warnings)
+
+        applied_skipped = "skipped"
+        skip_reason = "field_not_in_schema"
+
+        if not dataset_name:
+            applied_skipped = "no_training_matched"
+            skip_reason = "No matching training layout dataset found for this document"
+        elif field in applied_fields:
+            applied_skipped = "applied"
+            skip_reason = ""
+        elif field in conflict_by_field:
+            action = conflict_by_field[field].get("action")
+            if action == "skipped_protected":
+                skip_reason = "skipped_protected (priority >= 85)"
+            elif action == "kept_existing":
+                skip_reason = "kept_existing (high-confidence value already present)"
+            else:
+                skip_reason = action or "skipped"
+        elif not m_found:
+            skip_reason = "no_mapping_found_in_dataset"
+
+        trace_list.append({
+            "field": field,
+            "source_value": src_value_str,
+            "selected_dataset": selected_ds,
+            "mapping_found": m_found,
+            "final_target_id": final_target_id,
+            "target_exists": target_exists,
+            "validation_status": val_status,
+            "applied_skipped": applied_skipped,
+            "skip_reason": skip_reason
+        })
+
+    for trace in trace_list:
+        logger.info(
+            "FieldLevelTrace: field={} source_value={!r} selected_dataset={!r} applied_skipped={} skip_reason={!r} target_exists={} final_target_id={} validation_status={}",
+            trace["field"], trace["source_value"], trace["selected_dataset"],
+            trace["applied_skipped"], trace["skip_reason"], trace["target_exists"],
+            trace["final_target_id"], trace["validation_status"]
+        )
+
+    return trace_list

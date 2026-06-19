@@ -39,7 +39,7 @@ _inspect_*.py
 _ocr_selftest.py
 _test_paddle*.py
 
-.chrome-final-e2e-profile/
+.chrome-*-profile/
 chrome-export-downloads/
 ocr_enterprise.db
 phase2b_result.json

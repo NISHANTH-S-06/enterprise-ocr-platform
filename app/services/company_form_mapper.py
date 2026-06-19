@@ -10,17 +10,17 @@ from typing import Any, Dict, List, Tuple
 FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
     "invoice_number": [
         # exact multi-word labels first (most specific → least)
-        (r"tax\s*invoice\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/]+)", re.I),
-        (r"invoice\s*(?:no\.?|number|#|num)[:\s#-]*([A-Z0-9\-/]+)", re.I),
-        (r"inv\b\s*(?:no\.?|number|#)?[:\s#-]*([A-Z0-9\-/]{3,30})", re.I),
-        (r"tax\s*invoice[:\s#]+([A-Z0-9\-/]{3,30})", re.I),
+        (r"tax\s*invoice\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9][A-Z0-9.,_\-/]*)", re.I),
+        (r"invoice\s*(?:no\.?|number|#|num)[:\s#-]*([A-Z0-9][A-Z0-9.,_\-/]*)", re.I),
+        (r"inv\b\s*(?:no\.?|number|#)?[:\s#-]*([A-Z0-9][A-Z0-9.,_\-/]{2,29})", re.I),
+        (r"tax\s*invoice[:\s#]+([A-Z0-9][A-Z0-9.,_\-/]{2,29})", re.I),
         # ── synonyms ──
-        (r"bill\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/]+)", re.I),
-        (r"(?:document|doc)\b\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/]+)", re.I),
-        (r"voucher\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/]+)", re.I),
-        (r"reference\s*(?:no\.?|number|#|ref)[:\s#-]*([A-Z0-9\-/]+)", re.I),
-        (r"challan\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/]+)", re.I),
-        (r"inv\b[:\s#]*([A-Z0-9\-/]{4,20})", re.I),
+        (r"bill\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9][A-Z0-9.,_\-/]*)", re.I),
+        (r"(?:document|doc)\b\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9][A-Z0-9.,_\-/]*)", re.I),
+        (r"voucher\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9][A-Z0-9.,_\-/]*)", re.I),
+        (r"reference\s*(?:no\.?|number|#|ref)[:\s#-]*([A-Z0-9][A-Z0-9.,_\-/]*)", re.I),
+        (r"challan\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9][A-Z0-9.,_\-/]*)", re.I),
+        (r"inv\b[:\s#]*([A-Z0-9][A-Z0-9.,_\-/]{3,19})", re.I),
     ],
     "bill_number": [
         (r"bill\s*(?:no\.?|number|#)[:\s#-]*([A-Z0-9\-/]+)", re.I),
@@ -32,9 +32,9 @@ FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
         (r"purchase\s*order[:\s#]*([A-Z0-9_\-/]+)", re.I),
     ],
     "po_date": [
+        (r"p\.?o\.?\s*no\.?\s*:?\s*[A-Z0-9_\-/]+.{0,80}?\bdate\s*:?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I | re.S),
         (r"p\.?o\.?\s*(?:date|dt)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
         (r"purchase\s*order\s*(?:date|dt)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
-        (r"order\s*(?:date|dt)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
         (r"p\.?o\.?\s*(?:date|dt)[:\s]*(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})", re.I),
     ],
     "invoice_date": [
@@ -46,12 +46,8 @@ FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
         (r"bill\s*date[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
         (r"document\s*date[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
         (r"doc\s*date[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
-        (r"\bdated?[:\s]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
-        (r"\bdated?[:\s]+([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})", re.I),
-        (r"date[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
-        (r"date[:\s]*(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})", re.I),
-        (r"date[:\s]*([A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4})", re.I),
-        (r"(?<![A-Za-z0-9])(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})(?![A-Za-z0-9])", 0),
+        (r"\bdated[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
+        (r"\bdated[:\s]*(\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2})", re.I),
     ],
     "due_date": [
         (r"due\s*(?:date|by)[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
@@ -75,9 +71,8 @@ FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
         (r"([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", 0),
     ],
     "vendor_name": [
-        (r"(?:vendor|seller|from|billed?\s*by|supplier)[:\s]+([^\r\n]{3,80})", re.I),
+        (r"(?:vendor|seller|(?<!origin\s)(?<!made\s)(?<!exported\s)\bfrom\b|billed?\s*by|supplier)[:\s]+([^\r\n]{3,80})", re.I),
         (r"(?:company|business)\s*name[:\s]+([^\r\n]{3,80})", re.I),
-        (r"^([A-Za-z][A-Za-z0-9 &.,'-]{2,50}(?:pvt|ltd|llp|inc|corp|traders?|enterprises?|solutions?)\.?)", re.I | re.M),
     ],
     "customer_name": [
         (r"(?:customer|client|buyer)[:\s]+([^\r\n]{3,80})", re.I),
@@ -292,6 +287,96 @@ FIELD_PATTERNS: Dict[str, List[Tuple[str, int]]] = {
         (r"(?:total\s*qty|total\s*quantity|grand\s*qty)[:\s]*([0-9,]+(?:\.[0-9]{1,3})?)", re.I),
         (r"total\s*(?:pairs|pcs|units|nos|cartons)[:\s]*([0-9,]+)", re.I),
     ],
+    "po_type": [
+        (r"po\s*type[:\s]+([A-Za-z0-9 ]+)", re.I),
+    ],
+    "round_off": [
+        (r"round\s*off?[:\s₹$€£]*(-?[0-9]+(?:\.[0-9]{1,2})?)", re.I),
+    ],
+    "source": [
+        (r"source[:\s]+([A-Za-z0-9 ]+)", re.I),
+    ],
+    "created_by": [
+        (r"created\s*by[:\s]+([A-Za-z0-9 ]+)", re.I),
+    ],
+    "supplier_site": [
+        (r"supplier\s*site[:\s]+([A-Za-z0-9 ]+)", re.I),
+    ],
+    "reverse_charge": [
+        (r"reverse\s*charge[:\s]+(yes|no|y|n)", re.I),
+    ],
+    "delivery_date": [
+        (r"delivery\s*date[:\s]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})", re.I),
+    ],
+    "purchase_type": [
+        (r"purchase\s*type[:\s]+([A-Za-z0-9 ]+)", re.I),
+    ],
+    "project": [
+        (r"project[:\s]+([A-Za-z0-9 ]+)", re.I),
+    ],
+    "delivery_term": [
+        (r"(?:delivery\s*terms?|terms?\s*of\s*delivery)[:\s]+([^\r\n]{3,60})", re.I),
+    ],
+    "supplier_reference_no": [
+        (r"(?:supplier\s*ref(?:erence)?\s*(?:no\.?|number|#)?|supp\.\s*ref\b)[:\s#-]*([A-Z0-9\-/]+)", re.I),
+    ],
+    "freight_term": [
+        (r"(?:freight\s*terms?|terms?\s*of\s*freight)[:\s]+([^\r\n]{3,60})", re.I),
+    ],
+    "insurance_term": [
+        (r"(?:insurance\s*terms?|terms?\s*of\s*insurance)[:\s]+([^\r\n]{3,60})", re.I),
+    ],
+    "bill_to_location": [
+        (r"bill\s*to\s*location[:\s]+([^\r\n]{3,60})", re.I),
+    ],
+    "ship_to_location": [
+        (r"ship\s*to\s*location[:\s]+([^\r\n]{3,60})", re.I),
+    ],
+    "payment_method": [
+        (r"payment\s*method[:\s]+([A-Za-z0-9 ]+)", re.I),
+    ],
+    "freight_carrier": [
+        (r"(?:freight\s*carrier|carrier\s*name)[:\s]+([^\r\n]{3,60})", re.I),
+    ],
+    "packing_charges": [
+        (r"pack(?:ing|age)\s*charges?[:\s₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)", re.I),
+    ],
+    "insurance_charges": [
+        (r"insurance\s*charges?[:\s₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)", re.I),
+    ],
+    "unloading_charges": [
+        (r"unloading\s*charges?[:\s₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)", re.I),
+    ],
+    "transport_charges": [
+        (r"transport(?:ation)?\s*charges?[:\s₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)", re.I),
+    ],
+    "other_freight_amount": [
+        (r"other\s*freight\s*(?:amount)?[:\s₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)", re.I),
+    ],
+    "other_tax_amount": [
+        (r"other\s*tax\s*(?:amount)?[:\s₹$€£]*([0-9,]+(?:\.[0-9]{1,2})?)", re.I),
+    ],
+    "order_type": [
+        (r"order\s*type[:\s]+([A-Za-z0-9 ]+)", re.I),
+    ],
+    "qty_total": [
+        (r"qty\s*total[:\s]*([0-9,]+)", re.I),
+    ],
+    "customer_type": [
+        (r"customer\s*type[:\s]+([A-Za-z0-9 ]+)", re.I),
+    ],
+    "price_list": [
+        (r"price\s*list[:\s]+([A-Za-z0-9 ]+)", re.I),
+    ],
+    "contact_number": [
+        (r"(?:contact|mobile|phone)\s*(?:no\.?|number|#)?[:\s]*([+\d][\d\s\-().]{7,17})", re.I),
+    ],
+    "contact_person": [
+        (r"contact\s*person[:\s]+([^\r\n]{3,60})", re.I),
+    ],
+    "salesperson": [
+        (r"salesperson[:\s]+([^\r\n]{3,60})", re.I),
+    ],
 }
 
 ALL_FIELDS = list(FIELD_PATTERNS.keys()) + ["item_description"]
@@ -324,6 +409,13 @@ _SALES_FORM_FIELDS = [
     "gross_weight","net_weight","total_cartons","currency",
     "amount_in_words","igst_percent","igst_amount","total_amount_inr","exchange_rate","grand_total",
     "account_number","swift_code","bank_name","branch","declaration_text","statement_of_origin",
+    "sales_order_no", "sales_order_date", "order_type", "order_tax", "order_total",
+    "qty_total", "source", "created_by", "customer_type", "price_list", "customer_id",
+    "customer_name", "customer_po_number", "bill_to_address", "ship_to_address", "delivery_date",
+    "remarks", "contact_number", "contact_person", "project", "salesperson", "payment_method",
+    "payment_term", "freight_term", "delivery_name", "carrier_name", "invoice_currency",
+    "discount", "other_tax_amount", "other_freight_amount", "transport_charges",
+    "insurance_charges", "packaging_charges"
 ]
 _GENERAL_FORM_FIELDS = [
     "vendor_name","customer_name","invoice_number","bill_number","purchase_order_number",
@@ -335,6 +427,13 @@ _GENERAL_FORM_FIELDS = [
 _PO_FORM_FIELDS = list(set(_GENERAL_FORM_FIELDS) | {
     "purchase_order_number","vendor_name","delivery_name","delivery_address",
     "transport_name","vehicle_number","lr_number","eway_bill_number","total_quantity",
+    "po_number", "po_date", "po_type", "reference_number", "po_tax_total", "po_grand_total",
+    "round_off", "source", "created_by", "supplier_id", "supplier_name", "supplier_site",
+    "reverse_charge", "delivery_date", "purchase_type", "project", "delivery_term",
+    "payment_term", "supplier_reference_no", "freight_term", "remarks", "insurance_term",
+    "currency", "bill_to_location", "bill_to_address", "ship_to_location", "ship_to_address",
+    "payment_method", "freight_carrier", "packing_charges", "insurance_charges",
+    "unloading_charges", "transport_charges", "other_freight_amount", "other_tax_amount"
 })
 _GRN_FORM_FIELDS = list(set(_GENERAL_FORM_FIELDS) | {
     "vendor_name","transport_name","vehicle_number","lr_number","eway_bill_number","total_quantity",
@@ -355,7 +454,7 @@ _DOC_TYPE_FIELDS: Dict[str, List[str]] = {
 
 CANONICAL_FIELD_ALIASES: Dict[str, List[str]] = {
     "invoice_number": ["invoice_no", "inv_no", "bill_no", "bill_number", "tax_invoice_no", "document_no"],
-    "invoice_date": ["date", "invoice_dt", "bill_date", "document_date", "dated"],
+    "invoice_date": ["invoice_dt", "bill_date", "document_date", "dated"],
     "buyer_name": ["buyer", "bill_to", "customer_name", "importer", "buyer_company", "consignee_buyer"],
     "consignee_name": ["consignee", "ship_to", "delivery_to", "consignee_buyer"],
     "vendor_name": ["vendor", "supplier", "seller", "exporter", "supplier_name", "company_name"],
@@ -389,6 +488,36 @@ CANONICAL_FIELD_ALIASES: Dict[str, List[str]] = {
     "account_number": ["bank_account", "account_no", "ac_no", "beneficiary_account"],
     "declaration_text": ["declaration", "declaration_clause"],
     "statement_of_origin": ["origin_statement", "country_origin_statement"],
+    "po_type": ["purchase_order_type", "po_type"],
+    "round_off": ["roundoff", "round_off", "round_off_amount"],
+    "source": ["doc_source", "source"],
+    "created_by": ["created_by", "creator"],
+    "supplier_site": ["supplier_site_id", "supplier_site", "vendor_site"],
+    "reverse_charge": ["rev_charge", "reverse_charge"],
+    "delivery_date": ["del_date", "delivery_date", "promised_date"],
+    "purchase_type": ["purchase_type"],
+    "project": ["project_id", "project", "project_name"],
+    "delivery_term": ["delivery_term", "delivery_terms", "terms_of_delivery"],
+    "supplier_reference_no": ["supplier_reference_no", "supplier_ref", "supplier_reference"],
+    "freight_term": ["freight_term", "freight_terms", "terms_of_freight"],
+    "insurance_term": ["insurance_term", "insurance_terms"],
+    "bill_to_location": ["bill_to_location", "billing_location"],
+    "ship_to_location": ["ship_to_location", "shipping_location"],
+    "payment_method": ["payment_method", "mode_of_payment"],
+    "freight_carrier": ["freight_carrier", "despatch_through"],
+    "packing_charges": ["packing_charges", "packaging_charges"],
+    "insurance_charges": ["insurance_charges"],
+    "unloading_charges": ["unloading_charges"],
+    "transport_charges": ["transport_charges"],
+    "other_freight_amount": ["other_freight_amount", "other_frieght_amount"],
+    "other_tax_amount": ["other_tax_amount"],
+    "order_type": ["order_type_id", "order_type"],
+    "qty_total": ["qty_total", "total_qty", "quantity_total"],
+    "customer_type": ["customer_type_id", "customer_type"],
+    "price_list": ["pricelist_id", "price_list"],
+    "contact_number": ["contact_number", "mobile", "phone_no"],
+    "contact_person": ["contact_person"],
+    "salesperson": ["salesperson_id", "salesperson", "sales_person"],
 }
 
 REQUIRED_CANONICAL_FIELDS: List[str] = [
@@ -401,7 +530,7 @@ REQUIRED_CANONICAL_FIELDS: List[str] = [
 
 REQUIRED_CANONICAL_ALIASES: Dict[str, List[str]] = {
     "invoice_no": ["invoice_number", "bill_number", "bill_no", "tax_invoice_no", "document_no", "voucher_no", "challan_no"],
-    "invoice_date": ["date", "invoice_dt", "bill_date", "document_date", "dated"],
+    "invoice_date": ["invoice_dt", "bill_date", "document_date", "dated"],
     "po_no": ["purchase_order_number", "po_number", "order_number", "order_no", "buyer_order_no"],
     "po_date": ["purchase_order_date", "order_date"],
     "vendor_name": ["company_name", "supplier_name", "supplier", "seller", "exporter"],
@@ -623,9 +752,9 @@ NEXT_LINE_LABELS: Dict[str, List[str]] = {
     ],
     "invoice_date": [
         r"invoice\s*date", r"bill\s*date", r"document\s*date",
-        r"doc\s*date", r"dated?",
+        r"doc\s*date", r"dated",
     ],
-    "vendor_name": [r"vendor", r"seller", r"supplier", r"from", r"billed?\s*by", r"exporter"],
+    "vendor_name": [r"vendor", r"seller", r"supplier", r"billed?\s*by", r"exporter"],
     "customer_name": [r"customer", r"client", r"buyer", r"bill\s*to", r"sold\s*to", r"party\s*name"],
     "consignee_name": [r"consignee", r"ship\s*to", r"delivery\s*to", r"deliver\s*to", r"receiver"],
     "gross_weight": [r"gross\s*weight", r"gr\.?\s*wt\.?", r"gross\s*wt"],
@@ -639,6 +768,87 @@ NEXT_LINE_LABELS: Dict[str, List[str]] = {
     "phone": [r"phone", r"mobile", r"tel", r"contact"],
     "email": [r"email", r"e-mail"],
 }
+
+
+_INVOICE_CURRENCY_RE = re.compile(
+    r"^(?:USD|EUR|INR|GBP|AED|JPY|AUD|CAD|SGD|CHF|CNY)$",
+    re.I,
+)
+_INVOICE_DATE_RE = re.compile(
+    r"^(?:"
+    r"\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|"
+    r"\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|"
+    r"\d{1,2}\s+[A-Za-z]{3,9}\s+\d{2,4}|"
+    r"[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{2,4}"
+    r")$",
+    re.I,
+)
+_INVOICE_AMOUNT_RE = re.compile(
+    r"^(?:(?:USD|EUR|INR|GBP|AED|JPY|AUD|CAD|SGD|CHF|CNY)\s*|[$\u20ac\u00a3\u00a5\u20b9]\s*)?"
+    r"(?:\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+\.\d{1,2})"
+    r"(?:\s*(?:USD|EUR|INR|GBP|AED|JPY|AUD|CAD|SGD|CHF|CNY))?$",
+    re.I,
+)
+_GSTIN_RE = re.compile(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$", re.I)
+_PAN_RE = re.compile(r"^[A-Z]{5}[0-9]{4}[A-Z]$", re.I)
+_INVOICE_OTHER_FIELD_LABEL_RE = re.compile(
+    r"^(?:"
+    r"p\.?\s*o\.?|purchase\s*order|buyers?'?\s*order|buyer\s*order|order\s*(?:no\.?|number)|"
+    r"gst(?:in)?|i\.?\s*e\.?\s*(?:code|c)|iec|pan|"
+    r"grand\s*total|total(?:\s*amount)?|amount(?:\s*payable)?|"
+    r"invoice\s*date|port\s*of\s*(?:loading|discharge)"
+    r")\b\s*[:#\-]?\s*",
+    re.I,
+)
+_INVOICE_PLACEHOLDER_RE = re.compile(
+    r"^(?:n\s*\/?\s*a|na|nil|null|none|not\s+available|not\s+applicable|[-_.]+)$",
+    re.I,
+)
+
+
+def _is_valid_invoice_number(value: str, source_evidence: str = "") -> bool:
+    candidate = _clean(value)
+    if not candidate or _INVOICE_PLACEHOLDER_RE.fullmatch(candidate):
+        return False
+    compact = re.sub(r"[()\[\]{}\s]", "", candidate)
+    if _INVOICE_CURRENCY_RE.fullmatch(compact):
+        return False
+    if _INVOICE_DATE_RE.fullmatch(candidate) or _INVOICE_AMOUNT_RE.fullmatch(candidate):
+        return False
+    identifier = re.sub(r"\s+", "", candidate).upper()
+    if _GSTIN_RE.fullmatch(identifier) or _PAN_RE.fullmatch(identifier):
+        return False
+    if _INVOICE_OTHER_FIELD_LABEL_RE.match(candidate):
+        return False
+    evidence = _clean(source_evidence)
+    if evidence and _INVOICE_OTHER_FIELD_LABEL_RE.match(evidence) \
+            and not re.search(r"\binvoice\s*(?:no\.?|number|#)\b", evidence, re.I):
+        return False
+    label_only = re.sub(r"[^a-z]+", " ", candidate.lower()).strip()
+    if label_only in {
+        "value", "invoice", "invoice date", "date", "no", "number",
+        "export invoice", "tax invoice", "commercial invoice", "invoice no",
+        "total", "total amount", "gstin", "gst", "iec", "pan",
+        "order", "order no", "purchase order", "buyer order",
+        "port of loading", "port of discharge",
+    }:
+        return False
+    return bool(re.search(r"\d", candidate)) and bool(re.fullmatch(r"[A-Z0-9][A-Z0-9\-\/_\.]*", candidate, re.I))
+
+
+def _invoice_candidate_from_match(raw_text: str, match: re.Match[str]) -> str:
+    line_end = raw_text.find("\n", match.start(1))
+    if line_end < 0:
+        line_end = len(raw_text)
+    candidate = raw_text[match.start(1):line_end].strip()
+    candidate = re.split(
+        r"\s+(?=(?:invoice\s*date|bill\s*date|document\s*date|dated?|"
+        r"port\s*of\s*(?:loading|discharge)|currency|total)\b)|\s*\|\s*|\t+",
+        candidate,
+        maxsplit=1,
+        flags=re.I,
+    )[0]
+    return _clean(candidate)
 
 
 def _looks_like_value(field: str, value: str) -> bool:
@@ -662,19 +872,8 @@ def _looks_like_value(field: str, value: str) -> bool:
     if label_only in bad_by_field.get(field, set()) and not (field in number_fields and re.search(r"\d", value)):
         return False
     if field == "invoice_number":
-        currency_token = re.sub(r"[()\[\]{}\s]", "", value).upper()
-        if currency_token in {"EUR", "USD", "INR", "GBP", "AED"}:
-            return False
-        if re.fullmatch(r"(?i)(?:export|tax|commercial)?\s*invoice|export|tax|commercial", value):
-            return False
-        # Reject pure date strings as invoice numbers (Phase 8)
-        if re.fullmatch(
-            r"\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}"
-            r"|\d{4}[\/\-\.]\d{1,2}[\/\-\.]\d{1,2}",
-            value,
-        ):
-            return False
-    if field == "invoice_date":
+        return _is_valid_invoice_number(value)
+    if field in {"invoice_date", "po_date", "grn_date", "due_date", "dc_date", "gin_date", "delivery_date", "shipment_date", "promised_date"}:
         return bool(re.fullmatch(
             r"(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|"
             r"\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|"
@@ -683,6 +882,13 @@ def _looks_like_value(field: str, value: str) -> bool:
         ))
     if field in {"purchase_order_number", "buyer_order_no"}:
         return bool(re.search(r"\d", value))
+    if field in {"customer_name", "buyer_name", "consignee_name", "vendor_name", "supplier_name", "company_name"}:
+        if re.fullmatch(r"(?:\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2})", value):
+            return False
+        if re.search(r"\b(?:standard|batch|production|invoice|purchase order|order no|reference\(s\)?|reference|country of origin|made from|exported from)\b", value, re.I):
+            return False
+        if len(value) > 100 or re.search(r"\b(?:road|street|colony|village|district|city|state|india|pin|zip)\b", value, re.I):
+            return False
     if field in {"gross_weight", "net_weight"}:
         # Must contain digits (actual weight value)
         return bool(re.search(r"\d", value))
@@ -698,6 +904,8 @@ def _looks_like_value(field: str, value: str) -> bool:
         return bool(re.search(r"[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]", value, re.I))
     if field == "email":
         return "@" in value
+    if field.endswith("address") or field == "address":
+        return len(value) > 8 and not value.lower().startswith(("buyer if", "delivery at", "invoice no"))
     return len(value) >= 2
 
 
@@ -984,7 +1192,7 @@ def _extract_sale_purchase_fields(raw_text: str) -> Dict[str, Any]:
     text = raw_text or ""
     patterns = {
         "supplier_name": [
-            r"(?:supplier|vendor|seller|from|billed?\s*by)\s*:?\s*([^\r\n]{3,80})",
+            r"(?:supplier|vendor|seller|(?<!origin\s)(?<!made\s)(?<!exported\s)\bfrom\b|billed?\s*by)\s*:?\s*([^\r\n]{3,80})",
             r"\b(K2\s+Footprints[^\r\n]*)",
         ],
         "buyer_name": [
@@ -1014,24 +1222,26 @@ def _extract_sale_purchase_fields(raw_text: str) -> Dict[str, Any]:
         for pattern in field_patterns:
             m = re.search(pattern, text, re.I | re.S)
             if m:
-                out[field] = {"value": _clean(m.group(1)), "confidence": 0.70}
-                break
+                val = _clean(m.group(1))
+                if _looks_like_value(field, val):
+                    out[field] = {"value": val, "confidence": 0.70}
+                    break
     return out
 
 
-def _next_value(lines: List[str], labels: List[str], max_lookahead: int = 4) -> str:
+def _next_value(lines: List[str], labels: List[str], max_lookahead: int = 4, field: str = "generic") -> str:
     label_re = re.compile(r"(?:" + "|".join(labels) + r")", re.I)
     stop_re = re.compile(r"^(s\.?\s*no|item|description|qty|quantity|price|value|total|page)\b", re.I)
     for idx, line in enumerate(lines):
         if not label_re.search(line):
             continue
         value = label_re.sub("", line, count=1).strip(" :-")
-        if _looks_like_value("generic", value):
+        if _looks_like_value(field, value):
             return _clean(value)
         for nxt in lines[idx + 1:idx + 1 + max_lookahead]:
             if not nxt or stop_re.search(nxt):
                 continue
-            if _looks_like_value("generic", nxt):
+            if _looks_like_value(field, nxt):
                 return _clean(nxt)
     return ""
 
@@ -1065,7 +1275,7 @@ def _extract_document_extras(raw_text: str) -> Dict[str, Any]:
         "grn_number": [r"GRN\s*No"],
         "grn_date": [r"GRN\s*Date"],
         "po_number": [r"PO\s*No", r"Buyer's\s+Order\s+No\.?"],
-        "po_date": [r"PO\s*Date", r"Dated"],
+        "po_date": [r"PO\s*Date"],
         "dc_number": [r"DC\s*No"],
         "dc_date": [r"DC\s*Date"],
         "season": [r"Season"],
@@ -1087,7 +1297,7 @@ def _extract_document_extras(raw_text: str) -> Dict[str, Any]:
         "remarks": [r"Remarks"],
         "authorized_by": [r"Authorized\s+by"],
     }.items():
-        add(field, _next_value(lines, labels))
+        add(field, _next_value(lines, labels, field=field))
 
     for field, pattern in {
         "iec_code": r"I\.?\s*E\.?\s*Code\s*(?:No\.?|:)?\s*([A-Z0-9]{8,15})",
@@ -1112,7 +1322,7 @@ def _extract_document_extras(raw_text: str) -> Dict[str, Any]:
     return out
 
 
-def _extract_vertical_item_fields(raw_text: str, limit: int = 12) -> Dict[str, Any]:
+def _extract_vertical_item_fields(raw_text: str, limit: int = 100) -> Dict[str, Any]:
     lines = [_clean(line) for line in raw_text.splitlines() if _clean(line)]
     out: Dict[str, Any] = {}
 
@@ -1122,14 +1332,76 @@ def _extract_vertical_item_fields(raw_text: str, limit: int = 12) -> Dict[str, A
                 out[f"{prefix}_{key}"] = {"value": value, "confidence": 0.68}
 
     po_re = re.compile(r"^(\d+)\s+([A-Z]{2,}\d+[A-Z-]*)$", re.I)
+    po_inline_re = re.compile(r"^(\d+)\s+([A-Z]{2,}\d+[A-Z-]*)\s+(.+)$", re.I)
+    po_tail_re = re.compile(r"^(PAIRS|NOS|BOX|PCS)\s+(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4})\s+([0-9,]+(?:\.[0-9]+)?)\s+([0-9,]+(?:\.[0-9]+)?)\s+([0-9,]+(?:\.[0-9]+)?)$", re.I)
     gls_re = re.compile(r"^(\d{8})$")
     sales_re = re.compile(r"^\d+$")
     idx = 0
     po_count = gls_count = sales_count = grn_count = 0
+    po_rows: List[Dict[str, str]] = []
     grn_rows: List[Dict[str, str]] = []
 
     while idx < len(lines):
         line = lines[idx]
+        # Custom multi-line PO parser: serial number + product code + description + UOM + delivery date + quantity + price + value
+        if line.isdigit() and po_count < limit and idx + 1 < len(lines):
+            code_cand = lines[idx + 1]
+            if re.match(r"^[A-Z]{2,}\d+[A-Z-]*$", code_cand, re.I):
+                uom_idx = -1
+                for j in range(idx + 2, min(len(lines), idx + 6)):
+                    if re.fullmatch(r"(PAIRS|NOS|BOX|PCS)", lines[j], re.I):
+                        uom_idx = j
+                        break
+                
+                if uom_idx >= 0 and uom_idx + 4 < len(lines):
+                    del_date = lines[uom_idx + 1]
+                    qty = lines[uom_idx + 2]
+                    prc = lines[uom_idx + 3]
+                    val = lines[uom_idx + 4]
+                    
+                    if re.match(r"^\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}$", del_date) and re.search(r"\d", qty) and re.search(r"\d", prc) and re.search(r"\d", val):
+                        desc = " ".join(lines[idx + 2:uom_idx])
+                        po_count += 1
+                        po_row = {
+                            "sno": line,
+                            "code": code_cand,
+                            "description": desc,
+                            "uom": lines[uom_idx].upper(),
+                            "delivery_date": del_date,
+                            "quantity": qty,
+                            "price": prc,
+                            "value": val,
+                        }
+                        po_rows.append(po_row)
+                        add_row(f"po_item_{po_count:02d}", po_row)
+                        idx = uom_idx + 5
+                        continue
+
+        m_inline = po_inline_re.match(line)
+        if m_inline and po_count < limit and idx + 1 < len(lines):
+            desc = m_inline.group(3).strip()
+            tail_idx = idx + 1
+            if not po_tail_re.match(lines[tail_idx]) and tail_idx + 1 < len(lines):
+                desc = f"{desc} {lines[tail_idx]}".strip()
+                tail_idx += 1
+            m_tail = po_tail_re.match(lines[tail_idx]) if tail_idx < len(lines) else None
+            if m_tail:
+                po_count += 1
+                po_row = {
+                    "sno": m_inline.group(1),
+                    "code": m_inline.group(2),
+                    "description": desc,
+                    "uom": m_tail.group(1).upper(),
+                    "delivery_date": m_tail.group(2),
+                    "quantity": m_tail.group(3),
+                    "price": m_tail.group(4),
+                    "value": m_tail.group(5),
+                }
+                po_rows.append(po_row)
+                add_row(f"po_item_{po_count:02d}", po_row)
+                idx = tail_idx + 1
+                continue
+
         m_po = po_re.match(line)
         if m_po and po_count < limit and idx + 7 < len(lines):
             desc_parts = []
@@ -1139,7 +1411,7 @@ def _extract_vertical_item_fields(raw_text: str, limit: int = 12) -> Dict[str, A
                 j += 1
             if j + 4 < len(lines):
                 po_count += 1
-                add_row(f"po_item_{po_count:02d}", {
+                po_row = {
                     "sno": m_po.group(1),
                     "code": m_po.group(2),
                     "description": " ".join(desc_parts),
@@ -1148,7 +1420,9 @@ def _extract_vertical_item_fields(raw_text: str, limit: int = 12) -> Dict[str, A
                     "quantity": lines[j + 2],
                     "price": lines[j + 3],
                     "value": lines[j + 4],
-                })
+                }
+                po_rows.append(po_row)
+                add_row(f"po_item_{po_count:02d}", po_row)
                 idx = j + 5
                 continue
 
@@ -1205,6 +1479,14 @@ def _extract_vertical_item_fields(raw_text: str, limit: int = 12) -> Dict[str, A
 
     if out:
         out["line_item_count"] = {"value": max(po_count, gls_count, sales_count, grn_count), "confidence": 0.78}
+    if po_rows:
+        out["item_rows"] = {
+            "value": po_rows,
+            "confidence": 0.86,
+            "method": "purchase_order_vertical_table",
+            "source": "regex",
+            "source_evidence": "PO product code/description/uom/quantity/price/value rows",
+        }
     if grn_rows:
         out["item_rows"] = {
             "value": grn_rows,
@@ -1331,7 +1613,9 @@ def extract_fields(raw_text: str) -> Dict[str, Any]:
             m = re.search(pat, raw_text, flags)
             if m:
                 val = _clean(m.group(1))
-                if val and (field not in {"invoice_number", "invoice_date", "purchase_order_number", "buyer_order_no"} or _looks_like_value(field, val)):
+                if field == "invoice_number":
+                    val = _invoice_candidate_from_match(raw_text, m)
+                if val and (field not in {"invoice_number", "invoice_date", "purchase_order_number", "buyer_order_no", "customer_name", "buyer_name", "consignee_name", "vendor_name", "supplier_name", "company_name"} or _looks_like_value(field, val)):
                     conf = round(min(0.95, 0.60 + len(val) * 0.01 + (0.15 if patterns.index((pat, flags)) == 0 else 0)), 2)
                     # Capture short evidence snippet (safe: never full OCR text)
                     evidence = _clean(m.group(0))[:80]
@@ -1382,7 +1666,11 @@ def extract_fields(raw_text: str) -> Dict[str, Any]:
     for field, data in _extract_document_extras(raw_text).items():
         result.setdefault(field, data)
     for field, data in _extract_vertical_item_fields(raw_text).items():
-        result.setdefault(field, data)
+        if field == "item_rows" and isinstance(data, dict) and data.get("method") == "purchase_order_vertical_table":
+            result[field] = data
+            result["items"] = data
+        else:
+            result.setdefault(field, data)
     for field, data in _extract_commercial_invoice_rows(raw_text).items():
         result[field] = data
     for field, data in _extract_clause_blocks(raw_text).items():
@@ -1409,7 +1697,6 @@ def extract_fields(raw_text: str) -> Dict[str, Any]:
             if 10 < len(line) < 120 and not re.match(r"^[\d\W]+$", line):
                 result["item_description"] = {"value": line[:100], "confidence": 0.40}
                 break
-
     return result
 
 
@@ -1626,6 +1913,8 @@ def map_sales_invoice_fields(raw_text: str) -> Dict[str, Any]:
     def find_label(label: str, start: int = 0) -> int:
         for i in range(start, len(lines)):
             if has_label(lines[i], label):
+                if label == "BUYER" and re.search(r"\b(?:order|no|date)\b", lines[i], re.I):
+                    continue
                 return i
         return -1
 
@@ -1665,12 +1954,16 @@ def map_sales_invoice_fields(raw_text: str) -> Dict[str, Any]:
             return False
         if not re.search(r"[A-Za-z0-9]", value):
             return False
-        if field in {"invoice_number", "order_number"}:
+        if field == "invoice_number":
+            return _is_valid_invoice_number(value)
+        if field == "order_number":
             return bool(re.search(r"\d", value)) and not re.search(r"\b(invoice|dated|group|order no)\b", low)
         if field == "invoice_date":
             return _looks_like_value(field, value)
         if field.endswith("_address"):
             return len(value) > 8 and not low.startswith(("buyer if", "delivery at", "invoice no"))
+        if field in {"customer_name", "buyer_name", "consignee_name", "vendor_name", "supplier_name", "company_name"}:
+            return _looks_like_value(field, value)
         return True
 
     def set_field(field: str, value: str, confidence: float = 0.85) -> None:
@@ -1690,7 +1983,11 @@ def map_sales_invoice_fields(raw_text: str) -> Dict[str, Any]:
         company_idx = next((i for i, line in enumerate(lines[:12]) if not re.search(r"\b(original|duplicate|draft|export invoice|tax invoice|statement|declaration)\b", line, re.I)), -1)
     if company_idx >= 0:
         if re.search(r"FOOTPRINTS", lines[company_idx], re.I):
-            set_field("company_name", lines[company_idx], 0.90)
+            _cn_raw = lines[company_idx]
+            # Strip "M/s." prefix clutter and truncate at rex No. / declaration suffix
+            _cn_raw = re.sub(r"\s*,?\s*rex\s+No\..*$", "", _cn_raw, flags=re.I).strip(" ,.")
+            _cn_raw = re.sub(r"^M/s\.?\s*", "", _cn_raw, flags=re.I).strip()
+            set_field("company_name", _cn_raw, 0.90)
         gst_idx = min([idx for idx in [find_label("GST No", company_idx), find_label("GSTIN", company_idx)] if idx >= 0] or [len(lines)])
         set_field("company_address", "\n".join(lines[company_idx + 1:gst_idx]), 0.86)
     if "company_address" not in mapped:
@@ -1721,8 +2018,15 @@ def map_sales_invoice_fields(raw_text: str) -> Dict[str, Any]:
             set_field(f"{prefix}_address", "\n".join(clean_lines[1:]), 0.90)
         debug[f"{prefix}_block"] = clean_lines
 
+    if "buyer_name" not in mapped:
+        buyer_block = block_between("BUYER", ["Country of Origin", "Pre - Carriage", "Vessel", "Port of Discharge"])
+        clean_lines = [line for line in buyer_block if valid_value("buyer_name", line) and not re.search(r"\bbuyer\b", line, re.I)]
+        if clean_lines:
+            set_field("buyer_name", clean_lines[0], 0.92)
+            set_field("buyer_address", "\n".join(clean_lines[1:]), 0.90)
+
     label_to_field = {
-        "INVOICE NO": "invoice_number", "INVOICE DATE": "invoice_date", "DATED": "invoice_date",
+        "INVOICE NO": "invoice_number", "INVOICE DATE": "invoice_date",
         "PORT OF LOADING": "port_of_loading", "PORT OF DISCHARGE": "port_of_discharge",
         "MODE OF TRANSPORT": "mode_of_transport", "FINAL DESTINATION": "final_destination",
         "TERMS OF DELIVERY": "terms_of_delivery", "PAYMENT TERMS": "payment_terms",
@@ -1745,6 +2049,21 @@ def map_sales_invoice_fields(raw_text: str) -> Dict[str, Any]:
         if valid_value("invoice_number", paired_number) and valid_value("invoice_date", paired_date):
             set_field("invoice_number", paired_number, 0.94)
             set_field("invoice_date", paired_date, 0.94)
+    if invoice_no_idx >= 0 and invoice_no_idx + 1 < len(lines) and has_label(lines[invoice_no_idx], "INVOICE DATE"):
+        m = re.match(r"([A-Z0-9][A-Z0-9./_-]*\d[A-Z0-9./_-]*)\s+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})$", lines[invoice_no_idx + 1], re.I)
+        if m and valid_value("invoice_number", m.group(1)) and valid_value("invoice_date", m.group(2)):
+            set_field("invoice_number", m.group(1), 0.94)
+            set_field("invoice_date", m.group(2), 0.94)
+
+    joined = "\n".join(lines)
+    if "buyer_order_no" not in mapped:
+        m = re.search(r"Buyer['\u2019]?s?\s+Order\s+No\.?\s*:?\s*([A-Z0-9,/_-]+)", joined, re.I)
+        if m:
+            set_field("buyer_order_no", m.group(1).split(",")[0], 0.90)
+    if "po_date" not in mapped:
+        m = re.search(r"Buyer['\u2019]?s?\s+Order\s+No\.?[\s\S]{0,120}?\bDated\s*:?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", joined, re.I)
+        if m:
+            set_field("po_date", m.group(1), 0.88)
 
     sorted_labels = sorted(label_to_field, key=len, reverse=True)
     kv_hits: List[Dict[str, str]] = []
@@ -1770,7 +2089,6 @@ def map_sales_invoice_fields(raw_text: str) -> Dict[str, Any]:
     debug["grid_hits"] = kv_hits
 
     # Fallback for OCR text where label and value are split into adjacent visual columns.
-    joined = "\n".join(lines)
     for field, pattern in {
         "port_of_loading": r"PORT OF LOADING\s*:?\s*(CHENNAI|MUMBAI|DELHI|BANGALORE|COCHIN)",
         "port_of_discharge": r"PORT OF DISCHARGE\s*:?\s*([A-Z ]{3,40})",

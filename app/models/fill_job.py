@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -49,8 +49,8 @@ class FormFillJob(Base, TimestampMixin):
     fill_result:    Mapped[dict]            = mapped_column(JSONB, nullable=False, default=dict)
     processing_ms:  Mapped[Optional[int]]   = mapped_column(Integer, nullable=True)
     error_message:  Mapped[Optional[str]]   = mapped_column(Text, nullable=True)
-    started_at:     Mapped[Optional[datetime]] = mapped_column(nullable=True)
-    completed_at:   Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    started_at:     Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at:   Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     extracted_data: Mapped["ExtractedData"]          = relationship("ExtractedData", back_populates="fill_jobs", lazy="raise")
     template:       Mapped[Optional["ExtractionTemplate"]] = relationship("ExtractionTemplate", back_populates="fill_jobs", lazy="raise")

@@ -30,6 +30,7 @@ async def health() -> HealthResponse:
     )
 
 
+@router.get("/ready", response_model=HealthResponse, summary="Readiness probe — checks DB + OCR engine")
 @router.get("/health/ready", response_model=HealthResponse, summary="Readiness probe — checks DB + OCR engine")
 async def readiness(db: AsyncSession = Depends(get_db)) -> HealthResponse:
     checks: dict = {}

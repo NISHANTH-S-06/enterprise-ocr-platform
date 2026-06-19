@@ -1494,10 +1494,98 @@ class TestFieldSynonymDetection:
         fields = self._extract("Invoice No\n31-05-2026")
         assert fields.get("invoice_number") != "31-05-2026"
 
+    @pytest.mark.parametrize("date_value", [
+        "31 May 2026",
+        "May 31, 2026",
+    ])
+    def test_invoice_number_rejects_textual_date_value(self, date_value):
+        fields = self._extract(f"Invoice No: {date_value}")
+        assert fields.get("invoice_number") != date_value
+
     def test_invoice_number_rejects_parenthesized_currency_tokens(self):
         for currency in ("EUR", "USD", "INR", "GBP"):
             fields = self._extract(f"Inv Value\n({currency})")
             assert fields.get("invoice_number") != f"({currency})"
+
+    @pytest.mark.parametrize("candidate", [
+        "17,612.25",
+        "EUR 17612.25",
+        "33AAXFK0245J1Z4",
+        "AAXFK0245J",
+        "N/A",
+        "NIL",
+    ])
+    def test_invoice_number_rejects_other_field_values(self, candidate):
+        fields = self._extract(f"Invoice No: {candidate}")
+        assert fields.get("invoice_number") != candidate
+
+    @pytest.mark.parametrize("candidate", [
+        "Purchase Order No: PO-2026-0042",
+        "Buyer's Order No: BO-2026-0042",
+        "IEC: 1234567890",
+        "PAN: ABCDE1234F",
+        "GSTIN: 33AAXFK0245J1Z4",
+        "Total Amount: 17612.25",
+        "Port of Loading: CHENNAI",
+    ])
+    def test_invoice_number_rejects_other_field_label_context(self, candidate):
+        from app.services.company_form_mapper import map_sales_invoice_fields
+
+        mapped = map_sales_invoice_fields(f"EXPORT INVOICE\nINVOICE NO: {candidate}")
+
+        assert not mapped.get("mapped_fields", {}).get("invoice_number", {}).get("value")
+
+    def test_sales_invoice_blank_cell_remains_missing(self):
+        from app.services.company_form_mapper import map_sales_invoice_fields
+
+        mapped = map_sales_invoice_fields(
+            "EXPORT INVOICE\nINVOICE NO\n\nINVOICE DATE\nPORT OF LOADING\nCHENNAI"
+        )
+
+        assert "invoice_number" in mapped.get("missing_fields", [])
+        assert not mapped.get("mapped_fields", {}).get("invoice_number", {}).get("value")
+
+    def test_salesinvoice_fixture_blank_invoice_number_remains_missing(self):
+        import fitz
+        from pathlib import Path
+        from app.services.company_form_mapper import map_sales_invoice_fields
+
+        fixture = Path(r"D:\OCR_MASTER\datasets\salesinvoice.pdf")
+        with fitz.open(fixture) as document:
+            raw_text = "\n".join(page.get_text("text") for page in document)
+        mapped = map_sales_invoice_fields(raw_text)
+
+        assert "invoice_number" in mapped.get("missing_fields", [])
+        assert not mapped.get("mapped_fields", {}).get("invoice_number", {}).get("value")
+
+    @pytest.mark.parametrize("candidate", [
+        "17,612.25",
+        "33AAXFK0245J1Z4",
+        "ABCDE1234F",
+    ])
+    def test_invoice_alias_normalization_cannot_reintroduce_invalid_value(self, candidate):
+        from app.services.company_form_mapper import normalize_mapped_fields
+
+        mapped = normalize_mapped_fields({"bill_number": {"value": candidate, "confidence": 0.9}})
+
+        assert not mapped.get("invoice_number", {}).get("value")
+
+    def test_rejected_invoice_value_does_not_reach_validation_or_workbench(self):
+        from app.api.v1.routers.forms import WorkbenchAutoFillRequest, build_workbench_auto_fill
+        from app.services.company_form_mapper import map_sales_invoice_fields
+        from app.services.validation_service import validate_mapped_fields
+
+        mapped = map_sales_invoice_fields("EXPORT INVOICE\nINVOICE NO: GSTIN: 33AAXFK0245J1Z4")
+        mapped_fields = mapped.get("mapped_fields", {})
+        validated = validate_mapped_fields(mapped_fields, doc_type="sales")
+        workbench = build_workbench_auto_fill(
+            WorkbenchAutoFillRequest(module="sales", ocr_result={}),
+            {"document_type": "export_invoice", "mapped_fields": mapped_fields},
+        )
+
+        assert "invoice_number" not in mapped_fields
+        assert "invoice_number" not in validated.get("validated_fields", {})
+        assert "reference_number" not in workbench.get("form_data", {})
 
     def test_invoice_alias_cannot_reintroduce_currency_token(self):
         from app.services.company_form_mapper import normalize_mapped_fields
@@ -1518,9 +1606,14 @@ class TestFieldSynonymDetection:
         assert fields.get("purchase_order_number") == "U2/2026-27/MRP-D_021"
 
     @pytest.mark.parametrize("invoice_number", [
+        "INV-2026-0012",
+        "SI/25-26/104",
+        "EXP_00451",
+        "2026/INV/89",
         "SPR023/26-27",
         "CI/24-25/009",
         "12345/2026",
+        "2026000123",
     ])
     def test_valid_invoice_number_formats_are_accepted(self, invoice_number):
         fields = self._extract(f"Invoice No\n{invoice_number}")
@@ -3782,6 +3875,108 @@ class TestCorrectionLearning:
         result = asyncio.run(save_workbench_correction(body, current_user={"role": "operator"}, db=fake_db))
         assert result["saved"] is True
         assert result["correction_id"] is not None
+
+
+class TestRegressionCoverage:
+    @staticmethod
+    def _request(module="sales_order", **overrides):
+        from app.api.v1.routers.forms import WorkbenchAutoFillRequest
+        values = {"module": module, "ocr_result": {}, "overwrite": True}
+        values.update(overrides)
+        return WorkbenchAutoFillRequest(**values)
+
+    def test_dated_with_non_date_value_remains_rejected(self):
+        from app.services.company_form_mapper import auto_fill
+        result = auto_fill("Invoice: INV-X\nDated: NotADateString")
+        fields = {k: v.get("value", v) if isinstance(v, dict) else v
+                for k, v in result.get("mapped_fields", {}).items()}
+        assert fields.get("invoice_date") is None
+
+    def test_unrelated_total_like_label_does_not_populate_order_total(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        result = build_workbench_auto_fill(self._request(), {
+            "document_type": "sales_invoice",
+            "fields": {"unrelated total amount": "100.00"},
+        })
+        assert result["form_data"].get("order_total") is None
+
+    def test_sales_alias_cannot_populate_purchase_total(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        # amount_chargeable is a sales-only alias for order_total
+        result = build_workbench_auto_fill(self._request("purchase_order"), {
+            "document_type": "purchase_order",
+            "fields": {"Amount Chargeable": "100.00"},
+        })
+        assert result["form_data"].get("po_grand_total") is None
+
+    def test_purchase_alias_cannot_populate_sales_total(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        # tax_total is a purchase-only alias for po_tax_total
+        result = build_workbench_auto_fill(self._request("sales_order"), {
+            "document_type": "sales_invoice",
+            "fields": {"Tax Total": "18"},
+        })
+        assert result["form_data"].get("order_tax") is None
+
+    def test_dataset_mapping_requires_valid_selected_matched_dataset(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        # With dataset = None or empty, the mapping shouldn't apply
+        result = build_workbench_auto_fill(self._request(), {
+            "document_type": "sales_invoice",
+            "fields": {"Special Buyer Label": "Dataset Buyer"},
+        }, dataset=None)
+        assert result["form_data"].get("customer_name") is None
+
+    def test_cross_document_template_mapping_remains_rejected(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        import pytest
+        from fastapi import HTTPException
+        # A purchase dataset mapping should raise 422 if passed into sales form
+        dataset = {"mappings_json": [{"source_key": "some_key", "target_field": "po_number"}], "module": "purchase_order"}
+        with pytest.raises(HTTPException) as exc:
+            build_workbench_auto_fill(self._request("sales_order"), {
+                "document_type": "sales_invoice",
+                "fields": {"some_key": "val"},
+            }, dataset=dataset)
+        assert exc.value.status_code == 422
+
+    def test_correction_does_not_apply_when_old_value_differs(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        # Correction old value is "Acme Buyer" but OCR value is "Different Buyer"
+        correction = {
+            "source_ocr_key": "customer_name",
+            "normalized_source_key": "customer_name",
+            "target_erp_name": "customer_name",
+            "source_value_sample": "Acme Buyer",
+            "corrected_value_sample": "Corrected Buyer",
+            "is_active": True,
+            "confidence": 1.0
+        }
+        result = build_workbench_auto_fill(self._request(), {
+            "document_type": "sales_invoice",
+            "fields": {"customer_name": "Different Buyer"},
+        }, corrections=[correction])
+        # It should retain the direct OCR value "Different Buyer" instead of "Corrected Buyer"
+        assert result["form_data"]["customer_name"] == "Different Buyer"
+        assert result["correction_applied_count"] == 0
+
+    def test_correction_applied_count_increments_once_only(self):
+        from app.api.v1.routers.forms import build_workbench_auto_fill
+        correction = {
+            "source_ocr_key": "customer_name",
+            "normalized_source_key": "customer_name",
+            "target_erp_name": "customer_name",
+            "source_value_sample": "Acme Buyer",
+            "corrected_value_sample": "Corrected Buyer",
+            "is_active": True,
+            "confidence": 1.0
+        }
+        result = build_workbench_auto_fill(self._request(), {
+            "document_type": "sales_invoice",
+            "fields": {"customer_name": "Acme Buyer"},
+        }, corrections=[correction])
+        assert result["form_data"]["customer_name"] == "Corrected Buyer"
+        assert result["correction_applied_count"] == 1
 
     def test_list_workbench_corrections_endpoint_shape(self):
         """Test list endpoint returns expected shape with empty results."""

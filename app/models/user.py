@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -54,7 +54,7 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     status:           Mapped[str]             = mapped_column(String(50),  nullable=False, default=UserStatus.PENDING.value)
     org_id:           Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("organisations.id", ondelete="SET NULL"), nullable=True)
     is_email_verified: Mapped[bool]           = mapped_column(Boolean, nullable=False, default=False)
-    last_login_at:    Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    last_login_at:    Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     last_login_ip:    Mapped[Optional[str]]   = mapped_column(INET, nullable=True)
     failed_login_count: Mapped[int]           = mapped_column(Integer, nullable=False, default=0)
     preferences:      Mapped[dict]            = mapped_column(JSONB, nullable=False, default=dict)
@@ -80,8 +80,8 @@ class UserSession(Base, TimestampMixin):
     token_hash:  Mapped[str]       = mapped_column(String(64), nullable=False, unique=True)
     user_agent:  Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ip_address:  Mapped[Optional[str]] = mapped_column(INET, nullable=True)
-    expires_at:  Mapped[datetime]  = mapped_column(nullable=False)
-    revoked_at:  Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    expires_at:  Mapped[datetime]  = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked_at:  Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     is_revoked:  Mapped[bool]      = mapped_column(Boolean, nullable=False, default=False)
 
     user: Mapped["User"] = relationship("User", back_populates="sessions", lazy="raise")
@@ -97,8 +97,8 @@ class ApiKey(Base, TimestampMixin):
     key_hash: Mapped[str]       = mapped_column(String(64),  nullable=False, unique=True)
     prefix:   Mapped[str]       = mapped_column(String(8),   nullable=False)
     scopes:   Mapped[list]      = mapped_column(JSONB, nullable=False, default=list)
-    expires_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
-    last_used_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     is_active: Mapped[bool]     = mapped_column(Boolean, nullable=False, default=True)
 
     user: Mapped["User"] = relationship("User", back_populates="api_keys", lazy="raise")

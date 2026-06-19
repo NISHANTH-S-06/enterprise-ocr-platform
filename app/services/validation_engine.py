@@ -111,7 +111,7 @@ def _check_iec(mapped: dict[str, Any]) -> list[RuleResult]:
 def _check_dates(mapped: dict[str, Any]) -> list[RuleResult]:
     from datetime import datetime
     results = []
-    for fname in ("invoice_date", "po_date", "grn_date", "due_date", "shipment_date"):
+    for fname in ("invoice_date", "po_date", "grn_date", "due_date", "shipment_date", "delivery_date", "promised_date"):
         v = _val(mapped, fname)
         if not v:
             continue

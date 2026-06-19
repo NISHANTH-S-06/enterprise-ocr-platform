@@ -1,210 +1,108 @@
 """
-forms.py — Auto Company Form Fill router
-POST /api/v1/forms/auto-fill     → extract fields from OCR job
-POST /api/v1/forms/export/pdf    → generate PDF from filled fields
-POST /api/v1/forms/export/excel  → generate Excel from filled fields
+forms_export.py — Legacy export endpoints and PDF/Excel builder functions.
+Extracted from forms.py for maintainability.
 """
 from __future__ import annotations
 
 import io
 import uuid
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from loguru import logger
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.enums import LogEventType, LogLevel, UserRole
-from app.models.extracted_data import ExtractedData
-from app.services.company_form_mapper import auto_fill, classify_document, flatten_item_rows_for_legacy_fields, map_sales_invoice_fields, missing_fields_for_doc, normalize_mapped_fields
-from app.services.ownership_service import get_owned_extracted_data
 from app.services.audit_service import write_audit_log
-from app.services.gemini_service import gemini_enrich_missing_fields
+from app.services.ownership_service import get_owned_extracted_data
+from app.services.export_precheck_engine import build_export_precheck
 from app.services.validation_service import validate_mapped_fields
+from app.services.company_form_mapper import normalize_mapped_fields
 
-router = APIRouter(prefix="/forms", tags=["Company Form Fill"])
-settings = get_settings()
+export_router = APIRouter()
 
-
-# ── Schemas ───────────────────────────────────────────────────────────────────
-
-class AutoFillRequest(BaseModel):
-    extracted_data_id: Optional[str] = None
-    raw_text: Optional[str] = None
-    doc_type: Optional[str] = "general"   # P3: allow caller to specify doc type
-
+from pydantic import BaseModel
+from typing import Any, Dict, Optional
 
 class ExportRequest(BaseModel):
     fields: Dict[str, Any]
     title: Optional[str] = "Company Invoice Form"
-    extracted_data_id: Optional[str] = None   # preferred — loads validated_fields from DB
-    skip_validation: bool = False              # dev override only
+    extracted_data_id: Optional[str] = None
+    skip_validation: bool = False
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
-
-@router.post("/auto-fill", summary="Auto-fill company form from OCR result")
-async def auto_fill_form(
-    req: AutoFillRequest,
-    current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    raw_text = (req.raw_text or "").strip()
-
-    if not raw_text:
-        if not req.extracted_data_id:
-            raise HTTPException(status_code=422, detail="Provide extracted_data_id or raw_text")
-        try:
-            ext_id = uuid.UUID(req.extracted_data_id)
-        except ValueError:
-            raise HTTPException(status_code=422, detail="Invalid extracted_data_id UUID")
-
-        extraction = await get_owned_extracted_data(db, ext_id, current_user)
-        raw_text = extraction.raw_text or ""
-
-    cls = classify_document(raw_text, filename="")
-    requested_doc_type = (req.doc_type or "general").lower()
-    if cls.get("mapper") == "sales" or requested_doc_type in {"sales", "invoice", "export_invoice", "commercial_invoice", "tax_invoice"}:
-        result = map_sales_invoice_fields(raw_text)
-        result = flatten_item_rows_for_legacy_fields(result, cls.get("doc_type") or requested_doc_type, raw_text)
-    else:
-        result = auto_fill(raw_text, doc_type=req.doc_type or "general")
-    result["mapped_fields"] = normalize_mapped_fields(result.get("mapped_fields", {}))
-    regex_fields = dict(result.get("mapped_fields", {}))
-    if settings.AI_FALLBACK_ENABLED:
-        result = await gemini_enrich_missing_fields(
-            result,
-            raw_text,
-            result.get("document_type") or result.get("doc_type") or requested_doc_type,
-            missing_fields=result.get("missing_fields", []),
-        )
-    result["mapped_fields"] = normalize_mapped_fields(result.get("mapped_fields", {}))
-    doc_type = (result.get("document_type") or result.get("doc_type") or cls.get("doc_type") or req.doc_type or "general")
-    result["document_type"] = str(doc_type).lower()
-    result["missing_fields"] = missing_fields_for_doc(result["mapped_fields"], result["document_type"])
-    validation = validate_mapped_fields(result["mapped_fields"], raw_text=raw_text, doc_type=result["document_type"])
-    result["regex_fields"] = regex_fields
-    result["gemini_fields"] = result.get("gemini_fields", {})
-    item_data = result["mapped_fields"].get("items") or result["mapped_fields"].get("item_rows") or {}
-    result["items"] = item_data.get("value", []) if isinstance(item_data, dict) else (item_data or [])
-    result["validation_errors"] = validation["errors"]
-    result["validation_warnings"] = validation["warnings"]
-    result["confidence"] = {
-        k: float(v.get("confidence", 0.0) or 0.0)
-        for k, v in result["mapped_fields"].items()
-        if isinstance(v, dict)
-    }
-    if raw_text and not any(
-        k != "document_type" and (v.get("value") if isinstance(v, dict) else v)
-        for k, v in result["mapped_fields"].items()
-    ):
-        result["weak_mapping"] = True
-        result["message"] = "OCR text detected but mapping failed"
-        result["raw_text_preview"] = raw_text[:500]
-    result["raw_text"] = raw_text[:3000]   # cap for frontend preview
-    if "Mock OCR" in raw_text:
-        result["warning"] = "Real OCR engine not installed."
-        result["install_hint"] = "pip install paddlepaddle paddleocr"
-    logger.info(
-        "AutoFill: user={} document_type={} text_len={} preview={} keys={} missing={}",
-        current_user["user_id"],
-        result.get("document_type"),
-        len(raw_text),
-        raw_text[:500].replace("\n", " ") if raw_text else "",
-        sorted(result.get("mapped_fields", {}).keys()),
-        result.get("missing_fields", []),
-    )
-    return result
-
-
-@router.post("/export/pdf", summary="Export filled form as PDF")
-async def export_pdf(
-    req: ExportRequest,
-    request: Request,
-    current_user: dict = Depends(require_roles(UserRole.OPERATOR)),
-    db: AsyncSession = Depends(get_db),
-) -> StreamingResponse:
-    try:
-        fields = await _resolve_export_fields(req, db, current_user)
-    except HTTPException as exc:
-        await write_export_failure_audit(db, req, request, current_user, "pdf", exc)
-        await db.commit()
-        raise
-    buf = _build_pdf(fields, req.title or "Company Form")
-    filename = f"company-form-{uuid.uuid4().hex[:8]}.pdf"
-    await write_export_audit(db, req, request, current_user, "pdf", filename, len(fields), len(buf))
-    return StreamingResponse(
-        io.BytesIO(buf),
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
-
-@router.post("/export/excel", summary="Export filled form as Excel")
-async def export_excel(
-    req: ExportRequest,
-    request: Request,
-    current_user: dict = Depends(require_roles(UserRole.OPERATOR)),
-    db: AsyncSession = Depends(get_db),
-) -> StreamingResponse:
-    try:
-        fields = await _resolve_export_fields(req, db, current_user)
-    except HTTPException as exc:
-        await write_export_failure_audit(db, req, request, current_user, "excel", exc)
-        await db.commit()
-        raise
-    buf = _build_excel(fields, req.title or "Company Form")
-    filename = f"company-form-{uuid.uuid4().hex[:8]}.xlsx"
-    await write_export_audit(db, req, request, current_user, "excel", filename, len(fields), len(buf))
-    return StreamingResponse(
-        io.BytesIO(buf),
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
-
+# ── Legacy export helpers ─────────────────────────────────────────────────────
 
 async def _resolve_export_fields(req: ExportRequest, db, current_user: dict) -> Dict[str, Any]:
-    """Task 3+4: Prefer DB validated_fields; fall back to client fields with server validation."""
-    # Prefer DB validated_fields when extracted_data_id provided
+    """Task 3+4+7.1: Prefer DB validated_fields; fall back to client fields with server validation.
+    TASK 7.1 FIX: Legacy export routes now reject exports with zero valid fields (prevents empty export bypass).
+    Full export_precheck gate is enforced on workbench export routes (_workbench_export_payload).
+    Legacy export uses validated_fields from DB which have already passed validation_service.
+    """
+    flat_fields: Dict[str, Any] = {}
+
     if req.extracted_data_id and not req.skip_validation:
         try:
             ext_id = uuid.UUID(req.extracted_data_id)
             extraction = await get_owned_extracted_data(db, ext_id, current_user)
             if extraction.validated_fields:
-                # Return flat {field: value} from validated_fields
-                return {
+                flat_fields = {
                     k: (v["value"] if isinstance(v, dict) else str(v))
                     for k, v in extraction.validated_fields.items()
                 }
         except ValueError:
-            pass  # fall through to client fields
+            pass
 
-    # Server-side validate client-submitted fields
-    client_fields = normalize_mapped_fields({k: {"value": v, "confidence": 0.7, "source": "manual"} for k, v in req.fields.items() if v})
-    validation = validate_mapped_fields(client_fields, raw_text="", doc_type="general")
+    if not flat_fields:
+        client_fields = normalize_mapped_fields({k: {"value": v, "confidence": 0.7, "source": "manual"} for k, v in req.fields.items() if v})
+        validation = validate_mapped_fields(client_fields, raw_text="", doc_type="general")
 
-    if not req.skip_validation and validation["errors"]:
+        if not req.skip_validation and validation["errors"]:
+            raise HTTPException(
+                status_code=422,
+                detail={"message": "Export blocked: validation errors", "errors": validation["errors"]},
+            )
+
+        flat_fields = {
+            k: (v["value"] if isinstance(v, dict) else str(v))
+            for k, v in validation["validated_fields"].items()
+        } or req.fields
+
+    precheck = build_export_precheck({
+        "module": "general",
+        "document_type": "general",
+        "form_data": flat_fields,
+        "mapped_fields": flat_fields,
+        "item_rows": [],
+        "resolved_masters": [],
+        "unresolved_masters": [],
+        "confidence_map": {},
+        "warnings": [],
+        "source_type": "legacy_export",
+    })
+    if not precheck["export_allowed"]:
         raise HTTPException(
             status_code=422,
-            detail={"message": "Export blocked: validation errors", "errors": validation["errors"]},
+            detail={
+                "export_allowed": False,
+                "quality_score": precheck["quality_score"],
+                "quality_grade": precheck["quality_grade"],
+                "blockers": precheck["blockers"],
+                "missing_required_fields": precheck["missing_required_fields"],
+                "unresolved_masters": precheck["unresolved_masters"],
+                "row_issues": precheck["row_issues"],
+                "message": "Export blocked by export precheck.",
+            },
         )
-
-    # Return validated flat fields
-    return {
-        k: (v["value"] if isinstance(v, dict) else str(v))
-        for k, v in validation["validated_fields"].items()
-    } or req.fields  # last resort: use raw client fields
+    return flat_fields
 
 
 async def write_export_audit(
     db: AsyncSession,
-    req: ExportRequest,
+    req,
     request: Request,
     current_user: dict,
     export_format: str,
@@ -234,7 +132,7 @@ async def write_export_audit(
 
 async def write_export_failure_audit(
     db: AsyncSession,
-    req: ExportRequest,
+    req,
     request: Request,
     current_user: dict,
     export_format: str,
@@ -257,7 +155,147 @@ async def write_export_failure_audit(
     )
 
 
+# ── Legacy export endpoints ───────────────────────────────────────────────────
+
+@export_router.post("/export/pdf", summary="Export filled form as PDF")
+async def export_pdf(
+    req: ExportRequest,
+    request: Request,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR)),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    try:
+        fields = await _resolve_export_fields(req, db, current_user)
+    except HTTPException as exc:
+        await write_export_failure_audit(db, req, request, current_user, "pdf", exc)
+        await db.commit()
+        raise
+    buf = _build_pdf(fields, req.title or "Company Form")
+    filename = f"company-form-{uuid.uuid4().hex[:8]}.pdf"
+    await write_export_audit(db, req, request, current_user, "pdf", filename, len(fields), len(buf))
+    return StreamingResponse(
+        io.BytesIO(buf),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@export_router.post("/export/excel", summary="Export filled form as Excel")
+async def export_excel(
+    req: ExportRequest,
+    request: Request,
+    current_user: dict = Depends(require_roles(UserRole.OPERATOR)),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    try:
+        fields = await _resolve_export_fields(req, db, current_user)
+    except HTTPException as exc:
+        await write_export_failure_audit(db, req, request, current_user, "excel", exc)
+        await db.commit()
+        raise
+    buf = _build_excel(fields, req.title or "Company Form")
+    filename = f"company-form-{uuid.uuid4().hex[:8]}.xlsx"
+    await write_export_audit(db, req, request, current_user, "excel", filename, len(fields), len(buf))
+    return StreamingResponse(
+        io.BytesIO(buf),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # ── Export builders ───────────────────────────────────────────────────────────
+
+def _build_workbench_excel(payload: dict[str, Any]) -> bytes:
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font, PatternFill
+
+    workbook = Workbook()
+    header_sheet = workbook.active
+    header_sheet.title = "Header"
+    header_sheet.append(["ERP Field", "Value"])
+    for cell in header_sheet[1]:
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = PatternFill("solid", fgColor="4F46E5")
+    for key, value in payload["header"].items():
+        header_sheet.append([key, str(value)[:4000]])
+    header_sheet.column_dimensions["A"].width = 30
+    header_sheet.column_dimensions["B"].width = 70
+    for row in header_sheet.iter_rows():
+        row[1].alignment = Alignment(wrap_text=True, vertical="top")
+
+    line_sheet = workbook.create_sheet("Lines")
+    line_keys = list(payload["lines"][0].keys()) if payload["lines"] else []
+    if line_keys:
+        line_sheet.append(line_keys)
+        for cell in line_sheet[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="4F46E5")
+        for line in payload["lines"]:
+            line_sheet.append([str(line.get(key, ""))[:4000] for key in line_keys])
+        for column in line_sheet.columns:
+            line_sheet.column_dimensions[column[0].column_letter].width = 18
+
+    validation_sheet = workbook.create_sheet("Validation")
+    validation_sheet.append(["Property", "Value"])
+    validation_rows = {
+        "status": payload["validation"].get("validation_status"),
+        "export_allowed": payload["validation"].get("export_allowed"),
+        "blocked_fields": ", ".join(payload["validation"].get("blocked_fields", [])),
+        "warnings": " | ".join(payload["validation"].get("warnings", [])),
+        "dataset_id": payload["dataset"].get("id"),
+        "dataset_name": payload["dataset"].get("name"),
+        "dataset_match_reason": payload["dataset"].get("match_reason"),
+    }
+    for key, value in validation_rows.items():
+        validation_sheet.append([key, str(value or "")[:4000]])
+    validation_sheet.column_dimensions["A"].width = 28
+    validation_sheet.column_dimensions["B"].width = 80
+
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+def _build_workbench_pdf(payload: dict[str, Any], title: str) -> bytes:
+    from xml.sax.saxutils import escape
+
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+        buffer = io.BytesIO()
+        document = SimpleDocTemplate(buffer, pagesize=landscape(A4), leftMargin=24, rightMargin=24, topMargin=24, bottomMargin=24)
+        styles = getSampleStyleSheet()
+        story = [Paragraph(escape(title), styles["Title"]), Spacer(1, 8)]
+        dataset_name = payload["dataset"].get("name") or "Generic mapping"
+        story.append(Paragraph(f"Dataset: {escape(str(dataset_name))}", styles["Normal"]))
+        story.append(Paragraph(f"Validation: {escape(str(payload['validation'].get('validation_status', '')))}", styles["Normal"]))
+        story.append(Spacer(1, 8))
+        header_rows = [[Paragraph("Field", styles["BodyText"]), Paragraph("Value", styles["BodyText"])]]
+        for key, value in payload["header"].items():
+            header_rows.append([Paragraph(escape(key), styles["BodyText"]), Paragraph(escape(str(value)[:1000]), styles["BodyText"])])
+        header_table = Table(header_rows, colWidths=[150, 600], repeatRows=1)
+        header_table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E0E7FF")), ("GRID", (0, 0), (-1, -1), 0.4, colors.grey), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+        story.extend([header_table, Spacer(1, 10)])
+        if payload["lines"]:
+            keys = list(payload["lines"][0].keys())
+            line_rows = [[Paragraph(escape(key), styles["BodyText"]) for key in keys]]
+            for line in payload["lines"]:
+                line_rows.append([Paragraph(escape(str(line.get(key, ""))[:300]), styles["BodyText"]) for key in keys])
+            line_table = Table(line_rows, repeatRows=1)
+            line_table.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#E0E7FF")), ("GRID", (0, 0), (-1, -1), 0.3, colors.grey), ("FONTSIZE", (0, 0), (-1, -1), 6), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+            story.extend([Paragraph("Item Lines", styles["Heading2"]), line_table])
+        document.build(story)
+        return buffer.getvalue()
+    except ImportError:
+        fallback_fields = dict(payload["header"])
+        fallback_fields["dataset"] = payload["dataset"].get("name") or "Generic mapping"
+        fallback_fields["validation"] = payload["validation"].get("validation_status")
+        fallback_fields["items"] = payload["lines"]
+        return _pdf_fallback(fallback_fields, title)
+
 
 def _build_pdf(fields: Dict[str, str], title: str) -> bytes:
     try:
@@ -282,8 +320,7 @@ def _build_pdf(fields: Dict[str, str], title: str) -> bytes:
                              fontSize=9, spaceAfter=10, alignment=TA_CENTER)
         lbl = ParagraphStyle("LBL", parent=styles["Normal"], textColor=colors.grey,
                              fontSize=8, fontName="Helvetica-Bold")
-        val = ParagraphStyle("VAL", parent=styles["Normal"], fontSize=10,
-                             textColor=dark)
+        val = ParagraphStyle("VAL", parent=styles["Normal"], fontSize=10, textColor=dark)
 
         story = [
             Paragraph(title, h1),
@@ -374,7 +411,6 @@ def _pdf_fallback(fields: Dict[str, str], title: str) -> bytes:
     lines = [f"  {k}: {v}" for k, v in fields.items() if v]
     body = "\n".join(lines)
     content = f"Company Form — {title}\n\n{body}\n"
-    # Bare-bones valid PDF
     stream = content.encode()
     pdf = (
         b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
@@ -406,7 +442,6 @@ def _build_excel(fields: Dict[str, str], title: str) -> bytes:
         bottom=Side(style="thin", color="CCCCEE"),
     )
 
-    # Title row
     ws.merge_cells("A1:B1")
     ws["A1"] = title
     ws["A1"].font = Font(bold=True, size=14, color="FFFFFF")
@@ -414,7 +449,6 @@ def _build_excel(fields: Dict[str, str], title: str) -> bytes:
     ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 28
 
-    # Sub-header
     ws.merge_cells("A2:B2")
     ws["A2"] = "Generated by Aline X OCR Platform"
     ws["A2"].font = Font(italic=True, size=9, color="888888")
