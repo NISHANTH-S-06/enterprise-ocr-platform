@@ -82,3 +82,6 @@ scripts/compile_out.txt
 scripts/targeted_out*.txt
 scripts/full*_out.txt
 
+# Benchmark reports
+benchmark_report_*
+benchmark_results_*
