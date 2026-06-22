@@ -456,7 +456,12 @@ def _build_detection_report(mapped_fields: dict[str, Any], validation: dict[str,
     return report
 
 
-def _build_ocr_response(result: dict[str, Any], mapped_result: dict[str, Any], warnings: list[str] | None = None) -> dict[str, Any]:
+def _build_ocr_response(
+    result: dict[str, Any],
+    mapped_result: dict[str, Any],
+    warnings: list[str] | None = None,
+    source_traces: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     text = _extract_text_from_result(result)
     if text == OCR_FAILURE_TEXT:
         return {
@@ -468,6 +473,7 @@ def _build_ocr_response(result: dict[str, Any], mapped_result: dict[str, Any], w
             "fields": {},
             "confidence": {},
             "warnings": list(warnings or []) + [str(w) for w in result.get("warnings", []) if w],
+            "source_traces": {},
         }
     mapped_fields = mapped_result.get("mapped_fields", {}) if mapped_result else {}
     fields, confidence = _flatten_fields(mapped_fields)
@@ -477,7 +483,8 @@ def _build_ocr_response(result: dict[str, Any], mapped_result: dict[str, Any], w
     for key in ("warning", "weak_ocr_message", "install_hint"):
         if result.get(key):
             out_warnings.append(str(result[key]))
-    return {
+    
+    response = {
         "success": bool(result.get("success", True)),
         "text": text,
         "raw_text_length": int(result.get("raw_text_length", len(text)) or 0),
@@ -487,6 +494,11 @@ def _build_ocr_response(result: dict[str, Any], mapped_result: dict[str, Any], w
         "confidence": confidence,
         "warnings": out_warnings,
     }
+    if source_traces is not None:
+        response["source_traces"] = source_traces
+    else:
+        response["source_traces"] = {}
+    return response
 
 
 def _empty_ocr_response(warnings: list[str] | None = None) -> dict[str, Any]:
@@ -499,6 +511,7 @@ def _empty_ocr_response(warnings: list[str] | None = None) -> dict[str, Any]:
         "fields": {},
         "confidence": {},
         "warnings": list(warnings or []),
+        "source_traces": {},
     }
 
 

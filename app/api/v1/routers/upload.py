@@ -355,6 +355,25 @@ async def get_upload_job(
         {"field_name": key, **value} if isinstance(value, dict) else {"field_name": key, "value": value}
         for key, value in canonical_fields.items()
     ]
+    
+    source_traces = {}
+    if extracted and extracted.raw_ocr_json and isinstance(extracted.raw_ocr_json, dict):
+        source_traces = extracted.raw_ocr_json.get("source_traces") or {}
+    if extracted and not source_traces:
+        from app.services.source_trace import build_source_traces
+        trace_meta = {
+            "ocr_engine": "restored_from_db",
+            "training_template_id": extracted.raw_ocr_json.get("training_template_id"),
+            "training_template_name": extracted.raw_ocr_json.get("training_template_name"),
+            "training_conflicts": extracted.raw_ocr_json.get("training_conflicts") or [],
+        }
+        source_traces = build_source_traces(
+            mapped_fields=extracted.extracted_fields or {},
+            validated_fields=canonical_fields,
+            validation_report={"errors": validation_errors, "warnings": validation_warnings},
+            raw_mapped_fields=extracted.extracted_fields or {},
+            extra_meta=trace_meta
+        )
     export_allowed = bool(extracted and extracted.status == ExtractionStatus.VALIDATED.value and not validation_errors)
     document_type = "general"
     if extracted and extracted.raw_ocr_json and isinstance(extracted.raw_ocr_json, dict):
@@ -423,7 +442,9 @@ async def get_upload_job(
             "missing_fields": missing_fields,
             "low_confidence_fields": low_confidence_fields,
             "items": line_items,
+            "source_traces": source_traces,
         },
+        "source_traces": source_traces,
         "memory_applied_count": 0,
         "memory_suggestion_count": 0,
         "memory_applied_fields": [],

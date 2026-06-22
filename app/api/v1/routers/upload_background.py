@@ -363,6 +363,25 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
         ocr_warnings.extend(validation["warnings"])
         ocr_warnings.extend(company_resolution_warnings)
         ocr_warnings.extend(memory_warnings)
+
+        # Build source traces
+        from app.services.source_trace import build_source_traces
+        trace_meta = {
+            "ocr_engine": result.get("ocr_engine") or result.get("engine") or "paddleocr",
+            "training_template_id": _training_id if _training_matched else None,
+            "training_template_name": _training_name if _training_matched else None,
+            "training_conflicts": _training_conflicts,
+        }
+        source_traces = build_source_traces(
+            mapped_fields=mapped_result.get("mapped_fields", {}),
+            validated_fields=validation["validated_fields"],
+            validation_report=validation,
+            raw_mapped_fields=regex_fields,
+            extra_meta=trace_meta
+        )
+        result["source_traces"] = source_traces
+        ocr_response = _build_ocr_response(result, mapped_result, warnings=ocr_warnings, source_traces=source_traces)
+
         needs_ai_review = bool(ai_audit_metadata and ai_audit_metadata.get("needs_review"))
         is_mock = bool(result.get("is_mock_ocr") or "Mock OCR" in text or not validation["valid"] or needs_ai_review)
         extraction_status = ExtractionStatus.VALIDATED.value if (validation["valid"] and not is_mock) \
@@ -481,6 +500,7 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             "status": "completed",
             "completed_at": datetime.now(timezone.utc).isoformat(),
             "extracted_data_id": extracted_data_id,
+            "source_traces": source_traces,
             "ocr_engine": result.get("ocr_engine") or result.get("engine") or "unknown",
             "raw_text": text,
             "text": text,

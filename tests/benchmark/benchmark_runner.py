@@ -95,6 +95,25 @@ async def run_document_pipeline(file_path: Path, filename: str) -> Dict[str, Any
     # 6. Check if training matched (optional, requires DB context; default to false if not running in API)
     training_template_matched = ocr_result.get("training_template_matched", False)
     
+    # 7. Run validation and build source traces
+    validation = validate_mapped_fields(
+        mapped_fields,
+        raw_text=text,
+        doc_type=doc_type,
+    )
+    
+    from app.services.source_trace import build_source_traces
+    trace_meta = {
+        "ocr_engine": ocr_result.get("ocr_engine") or ocr_result.get("engine") or "paddleocr",
+    }
+    source_traces = build_source_traces(
+        mapped_fields=mapped_fields,
+        validated_fields=validation["validated_fields"],
+        validation_report=validation,
+        raw_mapped_fields=mapped_result.get("mapped_fields", {}),
+        extra_meta=trace_meta
+    )
+
     duration_ms = int((time.monotonic() - t0) * 1000)
     
     return {
@@ -102,7 +121,8 @@ async def run_document_pipeline(file_path: Path, filename: str) -> Dict[str, Any
         "fields": flat_fields,
         "item_rows": item_rows,
         "processing_time_ms": duration_ms,
-        "training_template_matched": training_template_matched
+        "training_template_matched": training_template_matched,
+        "source_traces": source_traces,
     }
 
 
@@ -242,7 +262,8 @@ def evaluate_document(actual: Dict[str, Any], ground_truth: Dict[str, Any]) -> D
         "auto_fill_coverage": coverage,
         "processing_time_ms": actual["processing_time_ms"],
         "training_template_matched": training_used,
-        "detailed_fields": detailed_fields
+        "detailed_fields": detailed_fields,
+        "source_traces": actual.get("source_traces", {})
     }
 
 
@@ -453,6 +474,14 @@ async def main():
         print(f"  Header accuracy: {doc_result['header_metrics']['accuracy']:.1%}")
         print(f"  Dates & Amounts accuracy: {doc_result['dates_and_amounts_metrics']['accuracy']:.1%}")
         print(f"  Item rows matched: {'Yes' if doc_result['item_rows_metrics']['count_matched'] else 'No'}")
+        # Source trace counts print
+        traces = actual.get("source_traces", {})
+        source_counts = {}
+        for t in traces.values():
+            st = t.get("source_type", "unknown")
+            source_counts[st] = source_counts.get(st, 0) + 1
+        source_str = ", ".join(f"{k}={v}" for k, v in sorted(source_counts.items()))
+        print(f"  Source traces: {source_str}")
         print(f"  Time taken: {doc_result['processing_time_ms']} ms")
         print("--------------------------------------------------")
         
