@@ -185,7 +185,7 @@ class TestBatchStatusPlumbing:
 
     def test_read_only_batch_status_endpoint_returns_summary(self, monkeypatch):
         import asyncio
-        from datetime import datetime
+        from datetime import datetime, timezone
         from types import SimpleNamespace
         from app.api.v1.routers import upload
         from app.models.enums import FileStatus
@@ -211,14 +211,14 @@ class TestBatchStatusPlumbing:
             mime_type="application/pdf",
             file_size=123,
             page_count=None,
-            created_at=datetime.utcnow(),
+            created_at=datetime.now(timezone.utc),
         )
         job = SimpleNamespace(
             id=job_id,
             file_id=file_id,
             status="completed",
             error_message=None,
-            completed_at=datetime.utcnow(),
+            completed_at=datetime.now(timezone.utc),
         )
         extraction = SimpleNamespace(
             job_id=job_id,
@@ -1958,7 +1958,7 @@ class TestAutoFillReliability:
         """Alias-populated fields carry method='alias' and source_evidence.
 
         Note: grand_total→total_amount alias rarely fires because total_amount's
-        broad regex ((?:grand\s*)?total) also matches the same text. We test the
+        broad regex ((?:grand\\s*)?total) also matches the same text. We test the
         alias metadata path using consignee→consignee_name, which is a one-way alias
         that auto_fill populates when only 'consignee' is in mapped_fields.
         Also verifies the weaker grand_total/total_amount case still has a correct value.
@@ -3852,13 +3852,13 @@ class TestCorrectionLearning:
             source_ocr_key="INV NO",
             source_ocr_label="Invoice Number",
             source_value_sample="INV-001",
-            target_erp_name="sales_order_no",
-            corrected_value_sample="SO-100",
+            target_erp_name="salesperson",
+            corrected_value_sample="John Doe",
             company_name="Acme Ltd",
-            metadata={},
+            metadata={"is_reusable": True},
         )
         fake_db = SimpleNamespace(added=None)
-        async def fake_add(obj):
+        def fake_add(obj):
             obj.id = "00000000-0000-0000-0000-000000000001"
             fake_db.added = obj
         async def fake_commit():

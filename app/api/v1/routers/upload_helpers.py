@@ -126,6 +126,8 @@ def _validate_file_content(data: bytes, detected_mime: str) -> None:
             import fitz  # type: ignore
             doc = fitz.open(stream=data, filetype="pdf")
             try:
+                if doc.is_encrypted:
+                    raise HTTPException(status_code=400, detail="Password-protected PDF is not allowed")
                 if doc.page_count <= 0:
                     raise HTTPException(status_code=400, detail="PDF has no pages")
                 if doc.page_count > MAX_UPLOAD_PDF_PAGES:
@@ -609,6 +611,28 @@ def cleanup_expired_batch_zips(
     return summary
 
 
+def cleanup_ocr_debug_files(max_age_seconds: int = 3600) -> dict[str, Any]:
+    debug_dir = Path("output") / "ocr_debug"
+    summary = {"deleted_count": 0, "deleted_bytes": 0, "errors": []}
+    if not debug_dir.exists():
+        return summary
+    now = time.time()
+    for path in debug_dir.glob("*.png"):
+        if not path.is_file():
+            continue
+        try:
+            stat = path.stat()
+            age = now - stat.st_mtime
+            if age > max_age_seconds:
+                size = stat.st_size
+                path.unlink()
+                summary["deleted_count"] += 1
+                summary["deleted_bytes"] += size
+        except Exception as exc:
+            summary["errors"].append(str(exc))
+    return summary
+
+
 def _get_memory_job_or_404(job_id: str, current_user: dict[str, Any]) -> dict[str, Any]:
     try:
         uuid.UUID(job_id)
@@ -631,6 +655,8 @@ def _require_canonical_fields(job: dict[str, Any]) -> dict[str, Any]:
 
 
 def _review_payload(job_id: str, job: dict[str, Any]) -> dict[str, Any]:
+    from app.services.source_trace import calculate_review_summary
+    source_traces = job.get("source_traces") or {}
     return {
         "job_id": job_id,
         "canonical_fields": job.get("canonical_fields", {}),
@@ -644,6 +670,7 @@ def _review_payload(job_id: str, job: dict[str, Any]) -> dict[str, Any]:
         "memory_suggestion_fields": job.get("memory_suggestion_fields", []),
         "memory_applied_count": int(job.get("memory_applied_count", 0) or 0),
         "memory_suggestion_count": int(job.get("memory_suggestion_count", 0) or 0),
+        "review_summary": calculate_review_summary(source_traces),
     }
 
 

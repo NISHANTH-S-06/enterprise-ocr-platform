@@ -45,6 +45,7 @@ from app.api.v1.routers.upload_helpers import (
     _build_detection_report,
     _build_ocr_response,
     _refresh_batch_counters,
+    cleanup_ocr_debug_files,
 )
 
 settings = get_settings()
@@ -54,7 +55,13 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
     """Background OCR task — runs after upload response is returned."""
     job_t0 = time.monotonic()
     try:
+        cleanup_ocr_debug_files(3600)
+    except Exception as cleanup_err:
+        logger.warning(f"Initial transient debug cleanup failed: {cleanup_err}")
+
+    try:
         from app.services.ocr_service import process_file
+        from app.services import job_queue
         async with aiofiles.open(file_path, "rb") as f:
             data = await f.read()
         logger.info(f"OCR background input: job_id={job_id} path={file_path} mime={mime_type} size={len(data)}")
@@ -73,16 +80,29 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
                 metadata={"mime_type": mime_type, "file_size": len(data)},
             )
             await db.commit()
+
+        # Step 1: mark processing
+        async with AsyncSessionLocal() as db:
+            await job_queue.mark_processing(job_id, job_queue.STEP_VALIDATING_UPLOAD, db)
+
         cached = OCR_RESULT_CACHE.get(checksum)
         if cached:
             result = dict(cached)
             result["cache_hit"] = True
             logger.info("OCR cache hit: job_id={} checksum={}", job_id, checksum[:16])
         else:
+            # Step 2: update progress before heavy OCR
+            async with AsyncSessionLocal() as db:
+                await job_queue.update_progress(job_id, 25, job_queue.STEP_RUNNING_OCR, db)
             ocr_t0 = time.monotonic()
             result = await asyncio.wait_for(process_file(data, mime_type), timeout=settings.OCR_TIMEOUT_SECONDS)
             result["ocr_wall_ms"] = int((time.monotonic() - ocr_t0) * 1000)
             OCR_RESULT_CACHE[checksum] = dict(result)
+
+        # Step 3: update progress before mapping
+        async with AsyncSessionLocal() as db:
+            await job_queue.update_progress(job_id, 50, job_queue.STEP_MAPPING_FIELDS, db)
+
         extracted_demo = _build_demo_extraction(result)
         text = _extract_text_from_result(result)
         
@@ -168,6 +188,8 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
         result["training_template_matched"] = False
         try:
             from app.services.training_template_engine import match_training_dataset, apply_training_to_mapped_fields, THRESHOLD_APPLY
+            async with AsyncSessionLocal() as db:
+                await job_queue.update_progress(job_id, 60, job_queue.STEP_APPLYING_TRAINING, db)
             async with AsyncSessionLocal() as _tdb:
                 _company_info_for_training = detected_company_info if "detected_company_info" in dir() else {}
                 _training_match = await match_training_dataset(
@@ -226,6 +248,8 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
         ocr_response = _build_ocr_response(result, mapped_result)
 
         # ── Task 2+3: Validate mapped fields before DB write ─────────────────
+        async with AsyncSessionLocal() as db:
+            await job_queue.update_progress(job_id, 70, job_queue.STEP_VALIDATING_FIELDS, db)
         mapped_for_validation = mapped_result.get("mapped_fields", {})
         validation = validate_mapped_fields(
             mapped_for_validation,
@@ -364,6 +388,135 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
         ocr_warnings.extend(company_resolution_warnings)
         ocr_warnings.extend(memory_warnings)
 
+        # ── Phase 6B: ERP Master Matching ─────────────────────────────────────
+        master_match = {
+            "party_type": "unknown",
+            "status": "no_master_match",
+            "confidence": 0.0,
+            "selected_master_id": "",
+            "selected_master_name": "",
+            "candidates": [],
+            "reasons": ["Master matching skipped"],
+            "review_required": False,
+            "blocking": False
+        }
+        erp_intelligence = {
+            "master_match": master_match,
+            "po_grn_invoice_match": {
+                "status": "not_applicable",
+                "confidence": 0.0,
+                "matched_job_id": None,
+                "matched_document_name": None,
+                "reasons": [],
+                "review_required": False,
+                "blocking": False
+            },
+            "tax_validation": {
+                "status": "pass",
+                "warnings": [],
+                "export_blockers": [],
+                "review_required": False
+            },
+            "review_required": False,
+            "blocking": False,
+            "warnings": [],
+            "export_blockers": []
+        }
+        try:
+            from app.services.master_matcher import match_master_data
+            async with AsyncSessionLocal() as _mm_db:
+                _job_for_org = await _mm_db.get(OCRJob, uuid.UUID(job_id))
+                _org_id = _job_for_org.org_id if _job_for_org else None
+                master_match = await match_master_data(
+                    db=_mm_db,
+                    org_id=_org_id,
+                    doc_type=effective_doc_type,
+                    validated_fields=validation["validated_fields"],
+                    mapped_result=mapped_result
+                )
+            
+            target_id_field = "supplier_id" if master_match["party_type"] == "supplier" else "customer_id"
+            if master_match["status"] in ("exact_master_match", "likely_master_match") and master_match["selected_master_id"]:
+                validation["validated_fields"][target_id_field] = {
+                    "value": master_match["selected_master_id"],
+                    "confidence": master_match["confidence"],
+                    "method": "master_match",
+                    "source": "master_match",
+                    "source_evidence": ", ".join(master_match["reasons"]),
+                    "status": "AUTO_FILLED"
+                }
+                mapped_result.setdefault("mapped_fields", {})[target_id_field] = validation["validated_fields"][target_id_field]
+            
+            if master_match.get("review_required"):
+                extraction_status = ExtractionStatus.NEEDS_REVIEW.value
+            
+            if master_match["status"] == "ambiguous_master_match":
+                warn_msg = f"supplier_id: Ambiguous master match for supplier. Review required." if master_match["party_type"] == "supplier" else f"customer_id: Ambiguous master match for customer. Review required."
+                if warn_msg not in ocr_warnings:
+                    ocr_warnings.append(warn_msg)
+            elif master_match["status"] == "no_master_match":
+                warn_msg = f"supplier_id: No master match found for supplier." if master_match["party_type"] == "supplier" else f"customer_id: No master match found for customer."
+                if warn_msg not in ocr_warnings:
+                    ocr_warnings.append(warn_msg)
+
+            # Compute PO/GRN matching & Tax Consistency Checks (Phase 6)
+            from app.services.erp_intelligence import build_erp_intelligence_payload
+            async with AsyncSessionLocal() as _mm_db2:
+                # Extract line items for matching
+                extracted_lines = mapped_for_validation.get("item_rows", {}).get("value", []) if isinstance(mapped_for_validation.get("item_rows"), dict) else mapped_for_validation.get("item_rows", []) or []
+                erp_intelligence = await build_erp_intelligence_payload(
+                    db=_mm_db2,
+                    org_id=_org_id,
+                    doc_type=effective_doc_type,
+                    validated_fields=validation["validated_fields"],
+                    line_items=extracted_lines,
+                    master_match=master_match
+                )
+            
+            # Map erp_intelligence blockers and warnings
+            for eb in erp_intelligence.get("export_blockers", []):
+                if eb not in validation["errors"]:
+                    validation["errors"].append(eb)
+            for ew in erp_intelligence.get("warnings", []):
+                if ew not in validation["warnings"]:
+                    validation["warnings"].append(ew)
+                if ew not in ocr_warnings:
+                    ocr_warnings.append(ew)
+
+            if erp_intelligence.get("blocking"):
+                validation["valid"] = False
+                extraction_status = ExtractionStatus.NEEDS_REVIEW.value
+
+        except Exception as mm_exc:
+            logger.warning("Master matching or ERP intelligence failed (non-fatal): job_id={} err={}", job_id, mm_exc)
+            ocr_warnings.append(f"ERP intelligence skipped: {mm_exc}")
+
+        result["master_match"] = master_match
+        result["erp_intelligence"] = erp_intelligence
+        if ocr_response and isinstance(ocr_response, dict):
+            ocr_response["master_match"] = master_match
+            ocr_response["erp_intelligence"] = erp_intelligence
+
+        # ── Phase 8: Document AI Fallback Adapter ──
+        from app.services.document_ai import run_document_ai_fallback
+        doc_ai_result = await run_document_ai_fallback(mapped_result, text, validation)
+        result["document_ai_result"] = doc_ai_result
+        if ocr_response and isinstance(ocr_response, dict):
+            ocr_response["document_ai_result"] = doc_ai_result
+
+        # If enabled and completed successfully, merge mapped fields
+        if doc_ai_result.get("status") == "completed":
+            fallback_fields = doc_ai_result.get("mapped_fields") or {}
+            for field, val_data in fallback_fields.items():
+                if field == "item_rows":
+                    continue
+                mapped_result.setdefault("mapped_fields", {})[field] = val_data
+                validation.setdefault("validated_fields", {})[field] = val_data
+            
+            for w in doc_ai_result.get("warnings") or []:
+                if w not in ocr_warnings:
+                    ocr_warnings.append(w)
+
         # Build source traces
         from app.services.source_trace import build_source_traces
         trace_meta = {
@@ -371,6 +524,7 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             "training_template_id": _training_id if _training_matched else None,
             "training_template_name": _training_name if _training_matched else None,
             "training_conflicts": _training_conflicts,
+            "erp_intelligence": erp_intelligence,
         }
         source_traces = build_source_traces(
             mapped_fields=mapped_result.get("mapped_fields", {}),
@@ -387,11 +541,53 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
         extraction_status = ExtractionStatus.VALIDATED.value if (validation["valid"] and not is_mock) \
             else ExtractionStatus.NEEDS_REVIEW.value
 
+        # Step 4: update progress before DB write
+        async with AsyncSessionLocal() as db:
+            await job_queue.update_progress(job_id, 80, job_queue.STEP_BUILDING_RESPONSE, db)
+
         async with AsyncSessionLocal() as db:
             job_uuid = uuid.UUID(job_id)
             job = await db.get(OCRJob, job_uuid)
             if not job:
                 raise RuntimeError(f"OCRJob {job_id} not found")
+
+            # Run duplicate document detection service
+            duplicate_detection = {
+                "status": "not_duplicate",
+                "confidence": 0.0,
+                "matched_job_id": None,
+                "matched_document_name": None,
+                "matched_created_at": None,
+                "reasons": [],
+                "blocking": False,
+                "review_required": False
+            }
+            try:
+                from app.services.duplicate_detection import detect_duplicates
+                duplicate_detection = await detect_duplicates(
+                    current_job_id=job.id,
+                    checksum=checksum,
+                    validated_fields=validation["validated_fields"],
+                    document_type=effective_doc_type,
+                    org_id=job.org_id,
+                    created_by_id=job.created_by_id,
+                    db=db,
+                )
+                if duplicate_detection.get("status") != "not_duplicate":
+                    reasons_str = ", ".join(duplicate_detection.get("reasons", []))
+                    warn_msg = f"Possible duplicate document detected: {reasons_str}"
+                    if warn_msg not in ocr_warnings:
+                        ocr_warnings.append(warn_msg)
+                    if duplicate_detection.get("review_required"):
+                        extraction_status = ExtractionStatus.NEEDS_REVIEW.value
+            except Exception as dd_exc:
+                logger.warning(f"Duplicate detection failed: {dd_exc}")
+                ocr_warnings.append(f"Duplicate detection warning: {dd_exc}")
+
+            result["duplicate_detection"] = duplicate_detection
+            if ocr_response and isinstance(ocr_response, dict):
+                ocr_response["duplicate_detection"] = duplicate_detection
+                ocr_response["warnings"] = ocr_warnings
 
             completed_at = datetime.now(timezone.utc)
             fields = extracted_demo["fields"]
@@ -441,6 +637,23 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             job.page_count = int(result.get("page_count", 0) or 0)
             job.avg_confidence = float(result.get("avg_confidence", 0.0) or 0.0)
             job.total_words = len(text.split())
+
+            # Persist queue lifecycle metadata in ocr_config
+            ocr_cfg = dict(job.ocr_config or {})
+            ocr_cfg.update({
+                "progress_percent": 100,
+                "current_step": "completed",
+                "retryable": False,
+                "error_code": None,
+                "error_message": None,
+                "document_type": effective_doc_type or None,
+                "ocr_engine": result.get("ocr_engine") or result.get("engine") or "unknown",
+                "completed_at": completed_at.isoformat(),
+                "updated_at": completed_at.isoformat(),
+                "duplicate_detection": duplicate_detection,
+                "erp_intelligence": erp_intelligence,
+            })
+            job.ocr_config = ocr_cfg
 
             await db.flush()
             extracted_data_id = str(extracted.id)
@@ -501,6 +714,11 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             "completed_at": datetime.now(timezone.utc).isoformat(),
             "extracted_data_id": extracted_data_id,
             "source_traces": source_traces,
+            "duplicate_detection": duplicate_detection,
+            "progress_percent": 100,
+            "current_step": "completed",
+            "retryable": False,
+            "error_code": None,
             "ocr_engine": result.get("ocr_engine") or result.get("engine") or "unknown",
             "raw_text": text,
             "text": text,
@@ -600,62 +818,37 @@ async def _ocr_background(file_path: str, mime_type: str, job_id: str, checksum:
             int((time.monotonic() - job_t0) * 1000),
             bool(result.get("cache_hit")),
         )
+        try:
+            cleanup_ocr_debug_files(3600)
+        except Exception as cleanup_err:
+            logger.warning(f"Final transient debug cleanup failed: {cleanup_err}")
     except Exception as exc:
+        is_timeout = isinstance(exc, (asyncio.TimeoutError, TimeoutError))
+        if is_timeout:
+            error_text = "OCR processing timed out. Please retry."
+            error_code = "OCR_TIMEOUT"
+            retryable = True
+        else:
+            # Classify corruption/IO errors as non-retryable
+            exc_name = type(exc).__name__
+            if any(t in exc_name for t in ("FileNotFoundError", "PermissionError", "IsADirectoryError", "BadZipFile", "PDFSyntaxError")):
+                error_code = "CORRUPTED_FILE"
+                retryable = False
+            elif isinstance(exc, (MemoryError, OverflowError)):
+                error_code = "RESOURCE_EXHAUSTED"
+                retryable = False
+            else:
+                error_code = "OCR_FAILED"
+                retryable = False
+            error_text = job_queue.sanitize_error_message(error_code, str(exc))
+
         async with AsyncSessionLocal() as db:
             try:
-                job = await db.get(OCRJob, uuid.UUID(job_id))
-                if job:
-                    job.status = JobStatus.FAILED.value
-                    job.completed_at = datetime.now(timezone.utc)
-                    job.error_message = str(exc)
-                    uploaded_file = await db.get(UploadedFile, job.file_id)
-                    if uploaded_file:
-                        uploaded_file.status = FileStatus.FAILED.value
-                    await write_audit_log(
-                        db,
-                        action="ocr.failure",
-                        event_type=LogEventType.OCR_JOB,
-                        status="failure",
-                        user_id=job.created_by_id,
-                        org_id=job.org_id,
-                        resource_type="ocr_job",
-                        resource_id=job.id,
-                        level=LogLevel.ERROR,
-                        message="OCR failed",
-                        metadata={"error": str(exc)},
-                        error=str(exc),
-                    )
-                    await _refresh_batch_counters(db, job.batch_id)
-                    await db.commit()
+                await job_queue.mark_failed(job_id, error_code, error_text, retryable, db)
             except Exception as db_exc:
-                await db.rollback()
                 logger.error(f"Background OCR failure status update failed: job_id={job_id} error={db_exc}")
-        error_text = str(exc)
-        failed_response = {
-            "success": True,
-            "text": OCR_FAILURE_TEXT,
-            "raw_text_length": len(OCR_FAILURE_TEXT),
-            "detected_line_count": 1,
-            "raw_text_preview": OCR_FAILURE_TEXT,
-            "fields": {},
-            "confidence": {},
-            "warnings": [error_text],
-        }
-        OCR_DEMO_JOBS.setdefault(job_id, {}).update({
-            "status": "failed",
-            "completed_at": datetime.now(timezone.utc).isoformat(),
-            "success": True,
-            "text": OCR_FAILURE_TEXT,
-            "raw_text": OCR_FAILURE_TEXT,
-            "extracted_text": OCR_FAILURE_TEXT,
-            "full_text": OCR_FAILURE_TEXT,
-            "raw_text_length": len(OCR_FAILURE_TEXT),
-            "detected_line_count": 1,
-            "raw_text_preview": OCR_FAILURE_TEXT,
-            "fields": {},
-            "confidence": {},
-            "warnings": [error_text],
-            "ocr_response": failed_response,
-            "error": error_text,
-        })
-        logger.exception(f"Background OCR failed: job_id={job_id} error={exc}")
+        try:
+            cleanup_ocr_debug_files(3600)
+        except Exception as cleanup_err:
+            logger.warning(f"Exception cleanup failed: {cleanup_err}")
+        logger.exception(f"Background OCR failed: job_id={job_id} error_code={error_code} retryable={retryable} error={exc}")

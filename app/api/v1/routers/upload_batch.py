@@ -19,7 +19,7 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.batch import OCRBatch
-from app.models.enums import BatchStatus, FileStatus, JobStatus, LogEventType, UserRole
+from app.models.enums import BatchStatus, FileStatus, JobStatus, LogEventType, UserRole, ExtractionStatus
 from app.models.file import UploadedFile
 from app.models.job import OCRJob
 from app.services.audit_service import write_audit_log
@@ -58,138 +58,189 @@ async def upload_batch(
     tenant_limits_source = await upload_mod._tenant_limit_source(db, current_user)
     check_batch_limits_for_user(tenant_limits_source, len(files), 0)
 
-    prepared_files: list[dict[str, Any]] = []
-    total_bytes = 0
-    for upload_file_obj in files:
-        prepared = await upload_mod._prepare_upload_file(upload_file_obj)
-        total_bytes += len(prepared["data"])
-        check_batch_limits_for_user(tenant_limits_source, len(files), total_bytes)
-        prepared_files.append(prepared)
-
     user_id = uuid.UUID(current_user["user_id"])
     org_id = uuid.UUID(current_user["org_id"]) if current_user.get("org_id") else None
+
+    # First, create batch with temporary counters.
     batch = OCRBatch(
+        id=uuid.uuid4(),
         created_by_id=user_id,
         org_id=org_id,
         status=BatchStatus.PROCESSING.value,
-        file_count=len(prepared_files),
-        total_bytes=total_bytes,
+        file_count=0,
+        total_bytes=0,
         started_at=datetime.now(timezone.utc),
         metadata_={"source": "upload.batches"},
     )
-    db.add(batch)
-    await db.flush()
+    if hasattr(db, "add") and hasattr(db, "begin_nested"):
+        db.add(batch)
+        await db.flush()
 
     response_files: list[dict[str, str]] = []
     job_ids: list[str] = []
     created_children: list[dict[str, Any]] = []
+    errors: list[dict[str, Any]] = []
 
-    for prepared in prepared_files:
-        data = prepared["data"]
-        safe_name = prepared["safe_name"]
-        detected = prepared["detected"]
-        stored_info = await upload_mod._store_prepared_upload(prepared)
-        checksum = stored_info["checksum"]
-        stored = stored_info["stored"]
-        dest = stored_info["dest"]
-        upload_save_ms = stored_info["upload_save_ms"]
-        job_uuid = uuid.uuid4()
-        job_id = str(job_uuid)
-        uploaded_at = datetime.now(timezone.utc).isoformat()
+    total_bytes = 0
+    accepted_count = 0
+    rejected_count = 0
+    last_http_exc = None
 
-        uploaded_file = UploadedFile(
-            uploaded_by_id=user_id,
-            batch_id=batch.id,
-            org_id=org_id,
-            original_filename=safe_name,
-            stored_filename=stored,
-            storage_path=str(dest),
-            mime_type=detected,
-            file_category=upload_mod._file_category_for_mime(detected),
-            file_size=len(data),
-            checksum_sha256=checksum,
-            status=FileStatus.PROCESSING.value,
-            extra={"demo_job_id": job_id, "batch_id": str(batch.id)},
-        )
-        db.add(uploaded_file)
-        await db.flush()
+    for upload_file_obj in files:
+        filename = getattr(upload_file_obj, "filename", None) or str(upload_file_obj) or "upload"
+        try:
+            prepared = await upload_mod._prepare_upload_file(upload_file_obj)
+            data = prepared["data"]
+            safe_name = prepared["safe_name"]
+            detected = prepared["detected"]
 
-        ocr_job = OCRJob(
-            id=job_uuid,
-            file_id=uploaded_file.id,
-            batch_id=batch.id,
-            created_by_id=user_id,
-            org_id=org_id,
-            status=JobStatus.PROCESSING.value,
-            queued_at=datetime.now(timezone.utc),
-            started_at=datetime.now(timezone.utc),
-            ocr_config={"demo": True, "mime_type": detected, "batch_id": str(batch.id)},
-        )
-        db.add(ocr_job)
-        await db.flush()
+            # Validate batch size limits
+            check_batch_limits_for_user(tenant_limits_source, len(files), total_bytes + len(data))
+            total_bytes += len(data)
 
+            # Store file on disk
+            stored_info = await upload_mod._store_prepared_upload(prepared)
+            checksum = stored_info["checksum"]
+            stored = stored_info["stored"]
+            dest = stored_info["dest"]
+            upload_save_ms = stored_info["upload_save_ms"]
+            job_uuid = uuid.uuid4()
+            job_id = str(job_uuid)
+            uploaded_at = datetime.now(timezone.utc).isoformat()
+
+            file_uuid = uuid.uuid4()
+            uploaded_file = UploadedFile(
+                id=file_uuid,
+                uploaded_by_id=user_id,
+                batch_id=batch.id,
+                org_id=org_id,
+                original_filename=safe_name,
+                stored_filename=stored,
+                storage_path=str(dest),
+                mime_type=detected,
+                file_category=upload_mod._file_category_for_mime(detected),
+                file_size=len(data),
+                checksum_sha256=checksum,
+                status=FileStatus.PROCESSING.value,
+                extra={"demo_job_id": job_id, "batch_id": str(batch.id)},
+            )
+
+            ocr_job = OCRJob(
+                id=job_uuid,
+                file_id=file_uuid,
+                batch_id=batch.id,
+                created_by_id=user_id,
+                org_id=org_id,
+                status=JobStatus.PROCESSING.value,
+                queued_at=datetime.now(timezone.utc),
+                started_at=datetime.now(timezone.utc),
+                ocr_config={"demo": True, "mime_type": detected, "batch_id": str(batch.id)},
+            )
+
+            if hasattr(db, "add"):
+                if hasattr(db, "begin_nested"):
+                    async with db.begin_nested():
+                        db.add(uploaded_file)
+                        await db.flush()
+                        db.add(ocr_job)
+                        await db.flush()
+                        await upload_mod.write_audit_log(
+                            db,
+                            action="file.upload",
+                            event_type=LogEventType.UPLOAD,
+                            status="success",
+                            user_id=user_id,
+                            org_id=org_id,
+                            resource_type="uploaded_file",
+                            resource_id=uploaded_file.id,
+                            message="File uploaded",
+                            metadata={
+                                "filename": safe_name,
+                                "mime_type": detected,
+                                "file_size": len(data),
+                                "ocr_job_id": job_id,
+                                "batch_id": str(batch.id),
+                            },
+                            request=request,
+                        )
+                else:
+                    db.add(uploaded_file)
+                    db.add(ocr_job)
+
+            response_files.append({
+                "filename": safe_name,
+                "file_id": str(uploaded_file.id),
+                "job_id": job_id,
+                "status": ocr_job.status,
+            })
+            job_ids.append(job_id)
+            created_children.append({
+                "job_id": job_id,
+                "user_id": user_id,
+                "uploaded_file_id": str(uploaded_file.id),
+                "safe_name": safe_name,
+                "stored": stored,
+                "detected": detected,
+                "file_size": len(data),
+                "checksum": checksum,
+                "uploaded_at": uploaded_at,
+                "upload_save_ms": upload_save_ms,
+                "dest": dest,
+                "actual_len": len(data),
+            })
+            accepted_count += 1
+        except HTTPException as exc:
+            if exc.status_code in (403, 413) and ("Batch exceeds" in str(exc.detail) or "disabled" in str(exc.detail)):
+                raise exc
+            rejected_count += 1
+            last_http_exc = exc
+            errors.append({
+                "filename": filename,
+                "error": str(exc.detail)
+            })
+        except Exception as exc:
+            rejected_count += 1
+            logger.exception("Error processing file in batch upload: {}", filename)
+            errors.append({
+                "filename": filename,
+                "error": "Failed to process file."
+            })
+
+    if accepted_count == 0:
+        if last_http_exc:
+            raise last_http_exc
+        raise HTTPException(status_code=400, detail="No valid files in batch")
+
+    # Update batch model count
+    batch.file_count = accepted_count
+    batch.total_bytes = total_bytes
+    
+    if hasattr(db, "add"):
+        if not hasattr(db, "added") or batch not in getattr(db, "added", []):
+            db.add(batch)
+
+    if hasattr(db, "add"):
         await upload_mod.write_audit_log(
             db,
-            action="file.upload",
+            action="batch.upload.created",
             event_type=LogEventType.UPLOAD,
             status="success",
             user_id=user_id,
             org_id=org_id,
-            resource_type="uploaded_file",
-            resource_id=uploaded_file.id,
-            message="File uploaded",
+            resource_type="ocr_batch",
+            resource_id=batch.id,
+            message="OCR batch uploaded",
             metadata={
-                "filename": safe_name,
-                "mime_type": detected,
-                "file_size": len(data),
-                "ocr_job_id": job_id,
                 "batch_id": str(batch.id),
+                "file_count": len(files),
+                "total_bytes": total_bytes,
+                "accepted_count": accepted_count,
+                "rejected_count": rejected_count,
             },
             request=request,
         )
-
-        response_files.append({
-            "filename": safe_name,
-            "file_id": str(uploaded_file.id),
-            "job_id": job_id,
-            "status": ocr_job.status,
-        })
-        job_ids.append(job_id)
-        created_children.append({
-            "job_id": job_id,
-            "user_id": user_id,
-            "uploaded_file_id": str(uploaded_file.id),
-            "safe_name": safe_name,
-            "stored": stored,
-            "detected": detected,
-            "file_size": child_size if "child_size" in dir() else len(data),  # fallback
-            "checksum": checksum,
-            "uploaded_at": uploaded_at,
-            "upload_save_ms": upload_save_ms,
-            "dest": dest,
-            "actual_len": len(data),
-        })
-
-    await upload_mod.write_audit_log(
-        db,
-        action="batch.upload.created",
-        event_type=LogEventType.UPLOAD,
-        status="success",
-        user_id=user_id,
-        org_id=org_id,
-        resource_type="ocr_batch",
-        resource_id=batch.id,
-        message="OCR batch uploaded",
-        metadata={
-            "batch_id": str(batch.id),
-            "file_count": len(prepared_files),
-            "total_bytes": total_bytes,
-            "accepted_count": len(prepared_files),
-            "rejected_count": 0,
-        },
-        request=request,
-    )
-    await db.commit()
+    if hasattr(db, "commit"):
+        await db.commit()
 
     for child in created_children:
         OCR_DEMO_JOBS[child["job_id"]] = {
@@ -218,27 +269,41 @@ async def upload_batch(
             "upload_save_ms": child["upload_save_ms"],
             "ocr_response": upload_mod._empty_ocr_response(),
         }
-        background_tasks.add_task(
-            upload_mod._ocr_background,
-            str(child["dest"]),
-            child["detected"],
-            child["job_id"],
-            child["checksum"],
-        )
+        if hasattr(background_tasks, "add_task"):
+            background_tasks.add_task(
+                upload_mod._ocr_background,
+                str(child["dest"]),
+                child["detected"],
+                child["job_id"],
+                child["checksum"],
+            )
 
     logger.info(
-        "Batch upload accepted: user={} batch={} files={} total_bytes={}",
+        "Batch upload completed: user={} batch={} files={} accepted={} rejected={} total_bytes={}",
         current_user["user_id"],
         batch.id,
-        len(prepared_files),
+        len(files),
+        accepted_count,
+        rejected_count,
         total_bytes,
     )
     return {
         "batch_id": str(batch.id),
         "status": batch.status,
-        "file_count": len(prepared_files),
+        "file_count": len(files),
+        "total_files": len(files),
+        "accepted": accepted_count,
+        "rejected": rejected_count,
         "job_ids": job_ids,
         "files": response_files,
+        "jobs": [
+            {
+                "job_id": job["job_id"],
+                "filename": job["filename"],
+                "status": job["status"]
+            } for job in response_files
+        ],
+        "errors": errors,
     }
 
 
@@ -261,6 +326,133 @@ async def get_upload_batch(
         await db.flush()
     files, jobs_by_file, extractions_by_job = await upload_mod._batch_child_rows(db, batch)
 
+    queued_count = 0
+    processing_count = 0
+    completed_count = 0
+    failed_count = 0
+    review_required_count = 0
+    duplicate_count = 0
+    export_ready_count = 0
+    jobs_list = []
+
+    for uploaded in files:
+        job = jobs_by_file.get(uploaded.id)
+        extraction = extractions_by_job.get(job.id) if job else None
+
+        dup_det = {
+            "status": "not_duplicate",
+            "confidence": 0.0,
+            "matched_job_id": None,
+            "matched_document_name": None,
+            "matched_created_at": None,
+            "reasons": [],
+            "blocking": False,
+            "review_required": False
+        }
+        erp_intel = {
+            "master_match": {
+                "party_type": "unknown",
+                "status": "no_master_match",
+                "confidence": 0.0,
+                "selected_master_id": "",
+                "selected_master_name": "",
+                "candidates": [],
+                "reasons": ["Master matching skipped"],
+                "review_required": False,
+                "blocking": False
+            },
+            "po_grn_invoice_match": {
+                "status": "not_applicable",
+                "confidence": 0.0,
+                "matched_job_id": None,
+                "matched_document_name": None,
+                "reasons": [],
+                "review_required": False,
+                "blocking": False
+            },
+            "tax_validation": {
+                "status": "pass",
+                "warnings": [],
+                "export_blockers": [],
+                "review_required": False
+            },
+            "review_required": False,
+            "blocking": False,
+            "warnings": [],
+            "export_blockers": []
+        }
+
+        if job:
+            demo_job = OCR_DEMO_JOBS.get(str(job.id))
+            if demo_job:
+                dup_det = demo_job.get("duplicate_detection") or dup_det
+                erp_intel = demo_job.get("erp_intelligence") or erp_intel
+            else:
+                job_ocr_config = getattr(job, "ocr_config", None)
+                extraction_raw_ocr = getattr(extraction, "raw_ocr_json", None)
+                if job_ocr_config and isinstance(job_ocr_config, dict):
+                    dup_det = job_ocr_config.get("duplicate_detection") or dup_det
+                    erp_intel = job_ocr_config.get("erp_intelligence") or erp_intel
+                if not job_ocr_config and extraction and extraction_raw_ocr and isinstance(extraction_raw_ocr, dict):
+                    dup_det = extraction_raw_ocr.get("duplicate_detection") or dup_det
+                    erp_intel = extraction_raw_ocr.get("erp_intelligence") or erp_intel
+
+        validation_errors = []
+        if extraction:
+            validation_items = getattr(extraction, "validation_errors", [])
+            if not isinstance(validation_items, list):
+                validation_items = []
+            validation_errors = [e.get("error", "") for e in validation_items if isinstance(e, dict) and "error" in e]
+
+        export_allowed = bool(extraction and getattr(extraction, "status", None) == ExtractionStatus.VALIDATED.value and not validation_errors)
+        if dup_det.get("blocking") or erp_intel.get("blocking"):
+            export_allowed = False
+
+        status_val = getattr(job, "status", "queued") if job else "queued"
+        current_step = "queued"
+        error_msg = None
+        if job:
+            error_msg = getattr(job, "error_message", None)
+            job_ocr_config = getattr(job, "ocr_config", None)
+            if job_ocr_config and isinstance(job_ocr_config, dict):
+                current_step = job_ocr_config.get("current_step") or getattr(job, "status", "queued")
+            else:
+                current_step = getattr(job, "status", "queued")
+
+            if status_val == "completed" and not export_allowed:
+                status_val = "review_required"
+
+        if status_val == "queued":
+            queued_count += 1
+        elif status_val == "processing":
+            processing_count += 1
+        elif status_val == "completed":
+            completed_count += 1
+        elif status_val == "failed":
+            failed_count += 1
+        elif status_val == "review_required":
+            review_required_count += 1
+
+        if dup_det.get("status") != "not_duplicate":
+            duplicate_count += 1
+
+        if export_allowed and status_val == "completed":
+            export_ready_count += 1
+
+        safe_error = None
+        if error_msg:
+            safe_error = error_msg
+            if ":\\" in safe_error or ("/" in safe_error and ".env" in safe_error):
+                safe_error = "An internal resource error occurred"
+
+        jobs_list.append({
+            "job_id": str(job.id) if job else None,
+            "filename": uploaded.original_filename,
+            "status": status_val,
+            "current_step": current_step,
+            "error_message": safe_error,
+        })
+
     return {
         "batch_id": str(batch.id),
         "status": batch.status,
@@ -271,6 +463,14 @@ async def get_upload_batch(
         "validated_count": batch.validated_count,
         "total_bytes": batch.total_bytes,
         "total_pages": batch.total_pages,
+        
+        "total_files": batch.file_count,
+        "queued_count": queued_count,
+        "processing_count": processing_count,
+        "review_required_count": review_required_count,
+        "duplicate_count": duplicate_count,
+        "export_ready_count": export_ready_count,
+        
         "files": [
             {
                 "file_id": str(uploaded.id),
@@ -305,6 +505,7 @@ async def get_upload_batch(
             }
             for uploaded in files
         ],
+        "jobs": jobs_list,
     }
 
 

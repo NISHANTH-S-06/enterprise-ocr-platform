@@ -295,6 +295,16 @@ def build_export_precheck(payload: dict[str, Any]) -> dict[str, Any]:
         else:
             warnings.append(f"Unresolved ERP {master_type or 'master'}: {source_value}")
 
+    # ERP Intelligence integration
+    erp_intelligence = payload.get("erp_intelligence")
+    if erp_intelligence:
+        for b in erp_intelligence.get("export_blockers") or []:
+            if not any(item["message"] == b for item in blockers):
+                blockers.append({"field": "erp_intelligence", "code": "erp_validation_error", "message": b})
+        for w in erp_intelligence.get("warnings") or []:
+            if w not in warnings:
+                warnings.append(w)
+
     for warning in list(dict.fromkeys(warnings)):
         if warning:
             score -= 3
@@ -304,6 +314,8 @@ def build_export_precheck(payload: dict[str, Any]) -> dict[str, Any]:
     grade = quality_grade(score, hard_blocker)
     export_allowed = not hard_blocker and grade in {"A", "B"}
     review_required = bool(low_confidence or row_issues or unresolved or warnings or grade != "A")
+    if erp_intelligence and erp_intelligence.get("review_required"):
+        review_required = True
     ready_count = sum(1 for item in required_fields if item.get("satisfied"))
     return {
         "export_allowed": export_allowed,
@@ -326,4 +338,5 @@ def build_export_precheck(payload: dict[str, Any]) -> dict[str, Any]:
         "export_formats": {"json": export_allowed, "excel": export_allowed, "pdf": export_allowed},
         "module": module,
         "document_type": document_type,
+        "erp_intelligence": erp_intelligence,
     }

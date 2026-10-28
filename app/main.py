@@ -49,6 +49,12 @@ async def lifespan(app: FastAPI):
         p.mkdir(parents=True, exist_ok=True)
     logger.info(f"Starting {settings.APP_NAME!r} [{settings.APP_ENV}]")
     try:
+        from app.core.database import init_db
+        await init_db()
+        logger.info("Database initialized & schema ready")
+    except Exception as exc:
+        logger.exception(f"Database initialization failed: {exc}")
+    try:
         from app.services.ocr_service import get_engine
         engine = await get_engine()
         logger.info(f"OCR engine preloaded during startup: {engine.name}")
@@ -106,6 +112,45 @@ def create_app() -> FastAPI:
     async def _val(request: Request, exc: RequestValidationError):
         return ORJSONResponse(status_code=422, content={"error": "Validation Error", "detail": exc.errors()})
 
+    from starlette.exceptions import HTTPException as StarletteHTTPException
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_err(request: Request, exc: StarletteHTTPException):
+        retryable = exc.status_code >= 500 and exc.status_code != 501
+        message = exc.detail
+        details = None
+
+        if isinstance(exc.detail, dict):
+            message = exc.detail.get("message") or exc.detail.get("detail") or "An error occurred"
+            details = exc.detail.get("errors") or exc.detail.get("details") or exc.detail.get("blockers") or exc.detail.get("warnings") or None
+
+        if isinstance(message, str):
+            if "database" in message.lower() and ("password" in message.lower() or "user" in message.lower()):
+                message = "Database connection error"
+            if ":\\" in message or ("/" in message and ".env" in message):
+                message = "An internal resource error occurred"
+
+        job_id = None
+        for k, v in request.path_params.items():
+            if "job_id" in k:
+                job_id = str(v)
+                break
+        if not job_id:
+            parts = request.url.path.split("/")
+            for p in parts:
+                if len(p) == 36 and p.count("-") == 4:
+                    job_id = p
+                    break
+
+        content = {
+            "error_code": f"ERR_{exc.status_code}",
+            "message": str(message),
+            "details": details,
+            "job_id": job_id,
+            "retryable": retryable
+        }
+        return ORJSONResponse(status_code=exc.status_code, content=content)
+
     @app.exception_handler(Exception)
     async def _err(request: Request, exc: Exception):
         logger.exception(f"Unhandled: {exc}")
@@ -125,6 +170,13 @@ def create_app() -> FastAPI:
             )
             await db.commit()
         return ORJSONResponse(status_code=500, content={"error": "Internal Server Error"})
+
+    @app.get("/health", summary="Root health probe", include_in_schema=True)
+    @app.head("/health", include_in_schema=False)
+    @app.get("/api/health", summary="Root API health probe", include_in_schema=True)
+    @app.head("/api/health", include_in_schema=False)
+    async def root_health():
+        return ORJSONResponse(status_code=200, content={"status": "ok", "app": settings.APP_NAME, "environment": settings.APP_ENV})
 
     app.include_router(api_router, prefix=settings.API_V1_PREFIX)
     return app

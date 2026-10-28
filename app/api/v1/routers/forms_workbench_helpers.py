@@ -52,6 +52,7 @@ class WorkbenchRequest(BaseModel):
     warnings: List[str] = Field(default_factory=list)
     source_type: Optional[str] = None
     title: Optional[str] = None
+    erp_intelligence: Optional[dict[str, Any]] = None
 
 
 class WorkbenchExportRequest(WorkbenchRequest):
@@ -181,7 +182,7 @@ WORKBENCH_ALIASES = {
 
 WORKBENCH_ROW_ALIASES = {
     "sales": {
-        "description": "description", "product": "product", "item": "product", "article": "product",
+        "description": "product_description", "product_description": "product_description", "product": "product", "item": "product", "article": "product",
         "hsn": "bulk_hsn_code", "hsn_code": "bulk_hsn_code", "qty": "bulk_qty", "quantity": "bulk_qty",
         "rate": "bulk_unit_price", "price": "bulk_unit_price", "unit_price": "bulk_unit_price",
         "amount": "bulk_line_total", "line_total": "bulk_line_total", "total": "bulk_line_total",
@@ -197,7 +198,7 @@ WORKBENCH_ROW_ALIASES = {
         "qoh_qty": "bulk_qoh_qty", "delivery_date": "bulk_delivery_date",
     },
     "purchase": {
-        "description": "description", "product": "product", "item": "product", "article": "product",
+        "description": "product_description", "product_description": "product_description", "product": "product", "item": "product", "article": "product",
         "part_no": "supplier_part_no", "hsn": "bulk_hsn_code", "hsn_code": "bulk_hsn_code",
         "qty": "bulk_qty", "quantity": "bulk_qty", "rate": "bulk_unit_price", "price": "bulk_unit_price",
         "unit_price": "bulk_unit_price", "amount": "bulk_line_total", "line_total": "bulk_line_total",
@@ -214,6 +215,7 @@ WORKBENCH_ROW_ALIASES = {
         "conv_cost": "bulk_conv_cost", "conversion_cost": "bulk_conv_cost",
         "blistering_cost": "bulk_blistering_cost",
         "delivery_date": "promised_date", "promised_date": "promised_date",
+        "promised_alternate_date": "promised_alternate_date", "promised_alt_date": "promised_alternate_date",
     },
 }
 
@@ -912,7 +914,9 @@ def build_workbench_auto_fill(
             elif value:
                 skipped.append({"ocr_key": f"row {row_index + 1}.{entry['ocr_key']}", "ocr_value": value,
                                 "normalized_key": entry["normalized_key"], "reason": "no_alias_match"})
-        if "description" in clean_row and "product" not in clean_row:
+        if "product_description" in clean_row and "product" not in clean_row:
+            clean_row["product"] = clean_row["product_description"]
+        elif "description" in clean_row and "product" not in clean_row:
             clean_row["product"] = clean_row["description"]
         if len(clean_row) > 1:
             item_rows.append(clean_row)
@@ -1095,6 +1099,7 @@ def build_workbench_auto_fill(
         "confidence_map": ocr_result.get("confidence_map") or ocr_result.get("confidence") or {},
         "warnings": list(ocr_result.get("warnings") or []) + warnings,
         "source_type": ocr_result.get("source_type") or ocr_result.get("ocr_engine") or "",
+        "erp_intelligence": ocr_result.get("erp_intelligence"),
     })
     response.update({
         "export_precheck": precheck,
@@ -1104,6 +1109,52 @@ def build_workbench_auto_fill(
         "review_required": precheck["review_required"],
         "blockers": precheck["blockers"],
     })
+
+    # Enrich matched targets with source_type, source_engine, confidence, and validation_status
+    source_type_val = ocr_result.get("source_type") or ocr_result.get("ocr_engine") or ""
+    source_engine_val = ocr_result.get("ocr_engine") or ocr_result.get("source_type") or ""
+    confidence_map = ocr_result.get("confidence_map") or ocr_result.get("confidence") or {}
+    
+    unresolved_target_fields = {u["target_field"] for u in unresolved_masters}
+    blocked_fields = set(precheck.get("blocked_fields", [])) if precheck else set()
+    warning_fields = set(precheck.get("warnings", [])) if precheck else set()
+    
+    for m in matched:
+        m["source_type"] = source_type_val
+        m["source_engine"] = source_engine_val
+        
+        # Look up confidence
+        conf = None
+        ocr_k = m.get("ocr_key")
+        norm_k = m.get("normalized_key")
+        
+        if ocr_k and ocr_k in confidence_map:
+            conf = confidence_map[ocr_k]
+        elif norm_k and norm_k in confidence_map:
+            conf = confidence_map[norm_k]
+        else:
+            if ocr_k and "." in ocr_k:
+                clean_ocr_k = ocr_k.split(".")[-1]
+                if clean_ocr_k in confidence_map:
+                    conf = confidence_map[clean_ocr_k]
+        
+        if conf is not None:
+            try:
+                m["confidence"] = float(conf)
+            except:
+                m["confidence"] = None
+        else:
+            m["confidence"] = None
+            
+        tgt_erp = m.get("target_erp_name")
+        if tgt_erp in unresolved_target_fields:
+            m["validation_status"] = "UNRESOLVED"
+        elif tgt_erp in blocked_fields:
+            m["validation_status"] = "BLOCKED"
+        elif tgt_erp in warning_fields:
+            m["validation_status"] = "WARNING"
+        else:
+            m["validation_status"] = "VALID"
 
     # ── Field-level Trace ───────────────────────────────────────────────────
     field_level_trace = []
@@ -1429,6 +1480,7 @@ def _workbench_export_payload(req: WorkbenchExportRequest) -> tuple[dict[str, An
         "confidence_map": req.confidence_map,
         "warnings": req.warnings,
         "source_type": req.source_type,
+        "erp_intelligence": req.erp_intelligence,
     })
     validation["export_precheck"] = precheck
     validation.update({

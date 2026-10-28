@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     APP_ENV: str  = "development"
     DEBUG: bool   = False
     API_V1_PREFIX: str = "/api/v1"
+    BACKEND_PORT: int = 8000
+    FRONTEND_PORT: int = 3000
 
     SECRET_KEY: str = "change-this-min-32-chars-in-production!!"
     ALGORITHM: str  = "HS256"
@@ -81,6 +83,14 @@ class Settings(BaseSettings):
     AI_FALLBACK_TIMEOUT_SECONDS: int = 10
     AI_FALLBACK_MIN_CONFIDENCE: float = 0.75
     AI_FALLBACK_REGEX_PROTECT_CONFIDENCE: float = 0.90
+
+    # ── Document AI Fallback Adapter — disabled by default ───────────────────
+    DOCUMENT_AI_ENABLED: bool = False
+    DOCUMENT_AI_PROVIDER: str = "none"
+    DOCUMENT_AI_MODE: str = "fallback_only"
+    DOCUMENT_AI_REQUIRE_EVIDENCE: bool = True
+    DOCUMENT_AI_TIMEOUT_SECONDS: int = 30
+    DOCUMENT_AI_ALLOW_CLOUD: bool = False
 
     BATCH_ZIP_RETENTION_DAYS: int = 7
     BATCH_ZIP_MAX_MB: int = 500

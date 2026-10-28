@@ -15,7 +15,18 @@ app.include_router(router)
 
 def mock_get_db():
     db = MagicMock()
-    db.execute = AsyncMock()
+
+    class EmptyResult:
+        def scalar_one_or_none(self):
+            return None
+
+        def scalars(self):
+            return self
+
+        def all(self):
+            return []
+
+    db.execute = AsyncMock(return_value=EmptyResult())
     return db
 
 @pytest.fixture
@@ -371,4 +382,3 @@ def test_workbench_auto_fill_ignores_low_confidence_match(client, monkeypatch):
     data = resp.json()
     assert data.get("training_match") is None
     assert data.get("dataset_name") is None
-

@@ -549,7 +549,7 @@ REQUIRED_CANONICAL_ALIASES: Dict[str, List[str]] = {
     "sgst": ["sgst_amount"],
     "igst": ["igst_amount"],
     "total_tax": ["tax_amount", "gst_amount", "total_gst"],
-    "total_amount": ["grand_total", "invoice_total", "invoice_value", "amount_payable", "net_amount", "total_amount_inr"],
+    "total_amount": ["grand_total", "invoice_total", "invoice_value", "amount_payable", "net_amount"],
     "account_no": ["account_number", "bank_account", "ac_no", "beneficiary_account"],
     "ifsc": ["ifsc_code"],
     "document_type": ["doc_type"],
@@ -633,9 +633,12 @@ def normalize_mapped_fields(mapped: Dict[str, Any]) -> Dict[str, Any]:
             normalized[key] = data
             continue
         entry = _as_field_entry(data)
-        if key in {"invoice_number", "invoice_no", "inv_no", "bill_no", "bill_number", "tax_invoice_no", "document_no"} \
-                and entry["value"] and not _looks_like_value("invoice_number", entry["value"]):
-            entry["value"] = ""
+        if key in {"invoice_number", "invoice_no", "inv_no", "bill_no", "bill_number", "tax_invoice_no", "document_no"}:
+            if entry["value"] and not _looks_like_value("invoice_number", entry["value"]):
+                entry["value"] = ""
+        elif key in {"order_number", "order_no", "po_no", "po_number", "purchase_order_number", "buyer_order_no"}:
+            if entry["value"] and not _looks_like_value("order_number", entry["value"]):
+                entry["value"] = ""
         if not entry["value"]:
             normalized.setdefault(key, entry)
             continue

@@ -1,0 +1,21 @@
+{
+  "module": "sales_order",
+  "document_type": "Sales Invoice",
+  "company_id": null,
+  "template_id": null,
+  "mapping_version": null,
+  "fields": [
+    {
+      "ocr_key": "invoice_number",
+      "target_field": "sales_order_no",
+      "value": "SO-1"
+    }
+  ],
+  "rows": [],
+  "missing": [],
+  "low_confidence": [],
+  "warnings": [],
+  "saved_at": "2026-06-22T10:15:07.757119+00:00",
+  "saved_by_user_id": "user-1",
+  "org_id": "org-1"
+}

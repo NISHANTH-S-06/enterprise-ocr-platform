@@ -300,6 +300,22 @@ async def save_workbench_correction(
     current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    from app.services.source_trace import is_field_dynamic, is_field_reusable
+    # 1. Enforce dynamic fields safety
+    if is_field_dynamic(body.target_erp_name):
+        raise HTTPException(
+            status_code=400,
+            detail="Dynamic transaction fields cannot be saved as reusable training defaults."
+        )
+    # 2. Enforce reusable fields explicit opt-in
+    if is_field_reusable(body.target_erp_name):
+        is_explicit = bool(body.metadata.get("is_reusable") or body.metadata.get("save_reusable"))
+        if not is_explicit:
+            raise HTTPException(
+                status_code=400,
+                detail="Reusable fields require explicit opt-in to be saved."
+            )
+
     try:
         from app.services.workbench_correction_apply import build_workbench_correction_memory
         rule_suggestion = "manual_correction"
@@ -376,6 +392,7 @@ async def save_workbench_corrections_bulk(
     current_user: dict = Depends(require_roles(UserRole.OPERATOR, UserRole.REVIEWER)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    from app.services.source_trace import is_field_dynamic, is_field_reusable
     saved_ids: list[str] = []
     errors: list[dict[str, str]] = []
     company_cache: dict[str, uuid.UUID | None] = {}
@@ -398,6 +415,15 @@ async def save_workbench_corrections_bulk(
     from app.services.workbench_correction_apply import build_workbench_correction_memory
     for index, item in enumerate(body.corrections):
         try:
+            # 1. Enforce dynamic fields safety
+            if is_field_dynamic(item.target_erp_name):
+                raise ValueError("Dynamic transaction fields cannot be saved as reusable training defaults.")
+            # 2. Enforce reusable fields explicit opt-in
+            if is_field_reusable(item.target_erp_name):
+                is_explicit = bool(item.metadata.get("is_reusable") or item.metadata.get("save_reusable"))
+                if not is_explicit:
+                    raise ValueError("Reusable fields require explicit opt-in to be saved.")
+
             record = build_workbench_correction_memory(
                 module=item.module,
                 source_ocr_key=item.source_ocr_key,
@@ -448,6 +474,7 @@ async def save_workbench_corrections_bulk(
         "correction_ids": saved_ids,
         "errors": errors,
     }
+
 
 
 @workbench_router.post("/workbench/corrections/apply", summary="Apply saved corrections to form_data")

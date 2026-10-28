@@ -22,6 +22,7 @@ async def _ocr_engine_status() -> dict:
 
 
 @router.get("/health", response_model=HealthResponse, summary="Liveness probe")
+@router.head("/health", include_in_schema=False)
 async def health() -> HealthResponse:
     return HealthResponse(
         status="ok",
@@ -32,6 +33,8 @@ async def health() -> HealthResponse:
 
 @router.get("/ready", response_model=HealthResponse, summary="Readiness probe — checks DB + OCR engine")
 @router.get("/health/ready", response_model=HealthResponse, summary="Readiness probe — checks DB + OCR engine")
+@router.head("/ready", include_in_schema=False)
+@router.head("/health/ready", include_in_schema=False)
 async def readiness(db: AsyncSession = Depends(get_db)) -> HealthResponse:
     checks: dict = {}
     try:
@@ -47,9 +50,18 @@ async def readiness(db: AsyncSession = Depends(get_db)) -> HealthResponse:
     overall = "ok" if all(v == "ok" for k, v in checks.items() if k == "database") else "degraded"
     if ocr["mock"]:
         overall = "degraded"
+
+    degraded_reasons = []
+    if checks["database"] != "ok":
+        degraded_reasons.append(f"Database query failed: {checks['database']}")
+    if ocr["mock"]:
+        degraded_reasons.append("OCR engine is mock fallback")
+    degraded_reason = " | ".join(degraded_reasons) if degraded_reasons else None
+
     return HealthResponse(
         status=overall,
         app=settings.APP_NAME,
         environment=settings.APP_ENV,
         checks=checks,
+        degraded_reason=degraded_reason,
     )
