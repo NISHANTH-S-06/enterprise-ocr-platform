@@ -3,7 +3,7 @@ Full test suite — models, field mapper, all three exporters.
 No live DB or PaddleOCR required.
 """
 from __future__ import annotations
-import json, uuid
+import json, os, uuid
 from pathlib import Path
 import pytest
 
@@ -2891,7 +2891,9 @@ class TestTask7RowCanonical:
             map_sales_invoice_fields,
         )
 
-        path = Path(r"D:\OCR_MASTER\datasets") / filename
+        path = Path(os.environ.get("OCR_DATASET_DIR", "datasets")) / filename
+        if not path.exists():
+            pytest.skip("private dataset not available (set OCR_DATASET_DIR)")
         with fitz.open(path) as document:
             raw_text = "\n".join(page.get_text() for page in document)
         classification = classify_document(raw_text, filename)

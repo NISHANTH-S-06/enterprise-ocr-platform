@@ -61,7 +61,7 @@ pytest tests/ -v
 Backend:
 
 ```powershell
-cd D:\OCR_MASTER\ocr-platform-complete
+cd enterprise-ocr-platform
 $env:FLAGS_use_mkldnn="0"
 $env:FLAGS_enable_pir_api="0"
 $env:OMP_NUM_THREADS="1"
@@ -72,7 +72,7 @@ $env:PADDLE_CPP_LOGLEVEL="3"
 Frontend:
 
 ```powershell
-cd D:\OCR_MASTER\ocr-platform-complete\frontend
+cd frontend
 python -m http.server 3000 --bind 127.0.0.1
 ```
 
@@ -93,7 +93,7 @@ curl.exe -H "Authorization: Bearer $token" "http://127.0.0.1:8000/api/v1/upload/
 Scripted upload checks:
 
 ```powershell
-cd D:\OCR_MASTER\ocr-platform-complete
+cd enterprise-ocr-platform
 .\scripts\test_upload_flow.ps1 -Token $token -ImagePath "<INVOICE_IMAGE_PATH>" -PdfPath "<INVOICE_PDF_PATH>" -LargeImagePath "<LARGE_IMAGE_PATH>"
 ```
 
