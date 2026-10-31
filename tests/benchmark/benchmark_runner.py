@@ -433,7 +433,7 @@ async def main():
     with open(manifest_path, "r", encoding="utf-8") as f:
         manifest = json.load(f)
         
-    dataset_dir_str = manifest.get("dataset_dir", "D:\\OCR_MASTER\\datasets")
+    dataset_dir_str = manifest.get("dataset_dir", "datasets")
     dataset_dir = Path(dataset_dir_str)
     
     documents = manifest.get("documents", [])

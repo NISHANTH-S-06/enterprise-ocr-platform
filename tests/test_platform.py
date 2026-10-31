@@ -1550,7 +1550,11 @@ class TestFieldSynonymDetection:
         from pathlib import Path
         from app.services.company_form_mapper import map_sales_invoice_fields
 
-        fixture = Path(r"D:\OCR_MASTER\datasets\salesinvoice.pdf")
+        import os
+        import pytest
+        fixture = Path(os.environ.get("OCR_DATASET_DIR", "datasets")) / "salesinvoice.pdf"
+        if not fixture.exists():
+            pytest.skip("private dataset not available (set OCR_DATASET_DIR)")
         with fitz.open(fixture) as document:
             raw_text = "\n".join(page.get_text("text") for page in document)
         mapped = map_sales_invoice_fields(raw_text)

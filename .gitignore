@@ -85,3 +85,10 @@ scripts/full*_out.txt
 # Benchmark reports
 benchmark_report_*
 benchmark_results_*
+
+# local/test artifacts
+backups/
+*.bak
+tmp_pytest/
+*pytest_tmpbasetemp/
+.pytest_tmp*/
