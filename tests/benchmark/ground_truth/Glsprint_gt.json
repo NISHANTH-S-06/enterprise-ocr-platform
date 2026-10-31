@@ -1,0 +1,48 @@
+{
+  "filename": "Glsprint.pdf",
+  "document_type": "COMMERCIAL_INVOICE",
+  "company_name": "GOODLEATHER SHOES PVT.LTD",
+  "fields": {
+    "company_name": "GOODLEATHER SHOES PVT.LTD",
+    "gst_number": "33AAACG8998G1Z8",
+    "buyer_name": "C. & J. CLARKS INTERNATIONAL LIMITED",
+    "invoice_number": "SPR023/26-27",
+    "invoice_date": "31-05-2026",
+    "buyer_order_no": "62073736",
+    "po_date": "16-01-2026",
+    "port_of_discharge": "LONDON GATEWAY",
+    "port_of_loading": "CHENNAI",
+    "final_destination": "UNITED KINGDOM",
+    "grand_total": "91842.14",
+    "gross_weight": "6727 KGS",
+    "net_weight": "6124 KGS",
+    "iec_code": "0495006726",
+    "account_number": "10269 25683-8"
+  },
+  "missing_fields": [
+    "delivery_name",
+    "delivery_address",
+    "export_category",
+    "taxation",
+    "igst_percent",
+    "igst_amount",
+    "total_amount_inr",
+    "exchange_rate"
+  ],
+  "item_rows_count": 10,
+  "first_item_row": {
+    "sno": "1",
+    "order_no": "62073736",
+    "group": "DC01",
+    "article": "26182815-F",
+    "colour": "JONWIN STEP Y BLACK",
+    "hsn_sac": "64035113",
+    "type": "CHILDREN SHOES MADE OF COW FINISHED LEATHER",
+    "size": "3-5.5",
+    "uom": "PAIRS",
+    "qty": "300",
+    "price": "11.88",
+    "amount": "3564.00",
+    "total": "3564.00"
+  }
+}

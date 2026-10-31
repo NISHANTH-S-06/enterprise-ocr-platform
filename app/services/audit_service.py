@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from ipaddress import ip_address as parse_ip_address
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Mapping, Optional
 
 from fastapi import Request
@@ -75,8 +75,10 @@ async def write_audit_log(
         ip_address=ctx.get("ip_address"),
         user_agent=ctx.get("user_agent"),
         request_id=ctx.get("request_id"),
-        occurred_at=datetime.utcnow(),
+        occurred_at=datetime.now(timezone.utc),
     )
-    db.add(row)
-    await db.flush()
+    if hasattr(db, "add"):
+        db.add(row)
+    if hasattr(db, "flush"):
+        await db.flush()
     return row

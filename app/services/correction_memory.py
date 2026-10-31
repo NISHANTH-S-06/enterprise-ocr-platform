@@ -104,6 +104,7 @@ def build_correction_memory_records(
     if not company_id:
         return []
     from app.models.company import CorrectionMemory
+    from app.services.source_trace import is_field_dynamic, is_field_reusable
 
     company_uuid = uuid.UUID(str(company_id))
     template_uuid = uuid.UUID(str(template_id)) if template_id else None
@@ -113,6 +114,13 @@ def build_correction_memory_records(
         normalized_name = str(field_name or "").strip()
         if not normalized_name or not _is_allowed_field(normalized_name):
             continue
+        # Enforce safety check: dynamic fields must not be saved to memory
+        if is_field_dynamic(normalized_name):
+            continue
+        # Enforce safety check: only reusable fields can be saved to memory
+        if not is_field_reusable(normalized_name):
+            continue
+
         correct_value = normalize_correction_value(raw_value)
         if not correct_value:
             continue

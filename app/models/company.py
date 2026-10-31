@@ -10,14 +10,14 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
-    BigInteger, Boolean, CheckConstraint, Float, ForeignKey,
-    Index, Integer, JSON, String, Text, UniqueConstraint,
+    BigInteger, Boolean, CheckConstraint, DateTime, Float, ForeignKey,
+    Index, Integer, JSON, String, Text, UniqueConstraint, func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
-from app.models.mixins import TimestampMixin
+from app.models.mixins import TimestampMixin, _now
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +126,10 @@ class TrainingDataset(Base, TimestampMixin):
         Index("ix_training_datasets_module", "module"),
         Index("ix_training_datasets_document_type", "document_type"),
         Index("ix_training_datasets_active", "is_active"),
+        Index("ix_training_datasets_company_name", "company_name"),
+        Index("ix_training_datasets_vendor_name", "vendor_name"),
+        Index("ix_training_datasets_customer_name", "customer_name"),
+        Index("ix_training_datasets_template_sig", "template_signature"),
         UniqueConstraint(
             "org_id", "dataset_name", "module", "document_type",
             name="uq_training_datasets_scope_name",
@@ -156,7 +160,9 @@ class TrainingDataset(Base, TimestampMixin):
     confidence:          Mapped[Optional[float]]= mapped_column(Float, nullable=True)
     sample_count:        Mapped[int]            = mapped_column(Integer, nullable=False, default=1)
     usage_count:         Mapped[int]            = mapped_column(Integer, nullable=False, default=0)
-    last_used_at:        Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    last_used_at:        Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at:          Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now, server_default=func.now())
+    updated_at:          Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=_now, server_default=func.now(), onupdate=_now)
 
     def __repr__(self) -> str:
         return f"<TrainingDataset name={self.dataset_name!r} module={self.module!r} version={self.version}>"
@@ -172,6 +178,9 @@ class ERPMasterMapping(Base, TimestampMixin):
         Index("ix_erp_master_mappings_org_id", "org_id"),
         Index("ix_erp_master_mappings_lookup", "master_type", "normalized_text", "module"),
         Index("ix_erp_master_mappings_active", "is_active"),
+        Index("ix_erp_master_gst", "gst_number"),
+        Index("ix_erp_master_part_number", "part_number"),
+        Index("ix_erp_master_hsn", "hsn_code"),
         UniqueConstraint("org_id", "master_type", "normalized_text", "module", "company_name", name="uq_erp_master_mapping_scope"),
         CheckConstraint(
             "master_type IN ('customer','supplier','product','tax_group','customer_site','supplier_site',"

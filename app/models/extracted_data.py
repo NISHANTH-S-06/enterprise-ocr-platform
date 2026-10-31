@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
-from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -65,7 +65,7 @@ class ExtractedData(Base, TimestampMixin):
     # State
     status:            Mapped[str]             = mapped_column(String(20), nullable=False, default=ExtractionStatus.PENDING.value)
     reviewer_notes:    Mapped[Optional[str]]   = mapped_column(Text, nullable=True)
-    reviewed_at:       Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    reviewed_at:       Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     reviewed_by_id:    Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     extractor_version: Mapped[str]             = mapped_column(String(20), nullable=False, default="2.0.0")
 

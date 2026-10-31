@@ -1,0 +1,44 @@
+{
+  "filename": "POPRINT.pdf",
+  "document_type": "PURCHASE_ORDER",
+  "company_name": "CDS SOLES PVT LTD",
+  "fields": {
+    "po_number": "U2/2026-27/MRP-D_021",
+    "po_date": "21-05-2026",
+    "gst_number": "33AAACG8998G1Z8",
+    "phone": "9944476864",
+    "vendor_name": "CDS SOLES PVT LTD",
+    "supplier_name": "CDS SOLES PVT LTD",
+    "grand_total": "203,546.00",
+    "delivery_name": "GOOD LEATHER SHOES PRIVATE LIMITED",
+    "delivery_address": "49, GOPARASANALLUR, PULIYAMPEDU, NOOMBAL PO, CHENNAI, TAMILNADU, INDIA - 600077 GSTIN/UIN : 33AAACG8998G1Z8 Remarks or Special Instructions"
+  },
+  "missing_fields": [
+    "subtotal",
+    "pan_number",
+    "discount",
+    "notes",
+    "unit_price",
+    "tax_amount",
+    "invoice_number",
+    "shipping_address",
+    "email",
+    "lr_number",
+    "vehicle_number",
+    "billing_address",
+    "bill_number",
+    "due_date",
+    "eway_bill_number"
+  ],
+  "item_rows_count": 55,
+  "first_item_row": {
+    "sno": "1",
+    "code": "OUT722",
+    "description": "OUTSOLE P 19 UNIT TPR EF BLACK SIZE 10.5",
+    "uom": "PAIRS",
+    "delivery_date": "21-05-2026",
+    "quantity": "5",
+    "price": "112",
+    "value": "560.00"
+  }
+}

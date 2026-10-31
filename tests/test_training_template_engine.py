@@ -327,6 +327,54 @@ class TestMatchTrainingDataset:
         if result is not None:
             assert result["score"] < THRESHOLD_IGNORE + 0.10  # tolerance
 
+    def test_returns_none_between_ignore_and_suggest_threshold(self):
+        """Suggest-threshold misses must not auto-supply a dataset for value application."""
+        ds = _make_dataset(
+            document_type="sales invoice",
+            company_name="Different Company",
+        )
+        db = _MockDB([ds])
+        result = asyncio.run(match_training_dataset(
+            db, _SAMPLE_OCR,
+            document_type="sales invoice",
+            company_info={"company_name": "Unrelated Corp"},
+        ))
+        assert result is None
+
+    def test_sales_request_rejects_purchase_family_dataset(self):
+        """Sales documents must not match Purchase templates even if a mock DB returns one."""
+        ds_purchase = _make_dataset(
+            dataset_name="Purchase Template",
+            module="purchase_order",
+            document_type="sales invoice",
+            company_name="Acme Exports Ltd",
+        )
+        db = _MockDB([ds_purchase])
+        result = asyncio.run(match_training_dataset(
+            db, _SAMPLE_OCR,
+            document_type="sales invoice",
+            company_info={"company_name": "Acme Exports Ltd"},
+            module="sales_order",
+        ))
+        assert result is None
+
+    def test_purchase_request_rejects_sales_family_dataset(self):
+        """Purchase documents must not match Sales templates even if a mock DB returns one."""
+        ds_sales = _make_dataset(
+            dataset_name="Sales Template",
+            module="sales_order",
+            document_type="purchase order",
+            company_name="Acme Exports Ltd",
+        )
+        db = _MockDB([ds_sales])
+        result = asyncio.run(match_training_dataset(
+            db, "PURCHASE ORDER\nPO No: PO-100\nSupplier: Acme Exports Ltd",
+            document_type="purchase order",
+            company_info={"company_name": "Acme Exports Ltd"},
+            module="purchase_order",
+        ))
+        assert result is None
+
     def test_returns_none_when_no_candidates(self):
         """Empty DB → None."""
         db = _MockDB([])
@@ -426,14 +474,14 @@ class TestApplyTrainingToMappedFields:
         ds = _make_dataset()
         mr = self._base_mapped_result()
         result = apply_training_to_mapped_fields(mr, ds)
-        # invoice_number was empty → should now be filled with sample_value
-        assert result["mapped_fields"]["invoice_number"]["value"] != ""
+        # bank_name was empty → should now be filled with sample_value
+        assert result["mapped_fields"]["bank_name"]["value"] == "HDFC Bank"
 
     def test_does_not_overwrite_correction_memory(self):
         """Fields written by correction_memory (priority 85) must be preserved."""
         protected_value = "MEMORY-PROTECTED-123"
         mr = self._base_mapped_result(
-            invoice_number={
+            bank_name={
                 "value": protected_value,
                 "confidence": 0.85,
                 "method": "memory_auto_apply",
@@ -442,14 +490,14 @@ class TestApplyTrainingToMappedFields:
         )
         ds = _make_dataset()
         result = apply_training_to_mapped_fields(mr, ds)
-        assert result["mapped_fields"]["invoice_number"]["value"] == protected_value
-        assert "invoice_number" not in result["training_applied_fields"]
+        assert result["mapped_fields"]["bank_name"]["value"] == protected_value
+        assert "bank_name" not in result["training_applied_fields"]
 
     def test_does_not_overwrite_manual_correction(self):
         """Fields corrected manually must never be overwritten."""
         protected_value = "MANUAL-OVERRIDE-999"
         mr = self._base_mapped_result(
-            invoice_number={
+            bank_name={
                 "value": protected_value,
                 "confidence": 1.0,
                 "method": "manual_correction",
@@ -458,11 +506,11 @@ class TestApplyTrainingToMappedFields:
         )
         ds = _make_dataset()
         result = apply_training_to_mapped_fields(mr, ds)
-        assert result["mapped_fields"]["invoice_number"]["value"] == protected_value
-        assert "invoice_number" not in result["training_applied_fields"]
+        assert result["mapped_fields"]["bank_name"]["value"] == protected_value
+        assert "bank_name" not in result["training_applied_fields"]
 
     def test_overwrites_low_confidence_regex_field(self):
-        """Low-confidence regex values (< 0.70) should be overwritten."""
+        """Under new rules, training data must never overwrite valid non-empty OCR values."""
         mr = self._base_mapped_result(
             bank_name={
                 "value": "UnknownBank",
@@ -473,13 +521,11 @@ class TestApplyTrainingToMappedFields:
         )
         ds = _make_dataset()
         result = apply_training_to_mapped_fields(mr, ds)
-        assert result["mapped_fields"]["bank_name"]["value"] == "HDFC Bank"
-        assert "bank_name" in result["training_applied_fields"]
+        assert result["mapped_fields"]["bank_name"]["value"] == "UnknownBank"
+        assert "bank_name" not in result["training_applied_fields"]
 
     def test_keeps_high_confidence_existing_field(self):
-        """High-confidence regex fill (>= 0.70, priority 70) with non-empty value
-        may be kept if it already has a good value (priority tie-break).
-        Training priority is 80, regex is 70 — training should win on empty/weak."""
+        """Valid OCR values must have first priority and are never overwritten by training."""
         mr = self._base_mapped_result(
             bank_name={
                 "value": "SBI Bank",
@@ -490,11 +536,21 @@ class TestApplyTrainingToMappedFields:
         )
         ds = _make_dataset()
         result = apply_training_to_mapped_fields(mr, ds)
-        # Training overwrites because training priority (80) > regex priority (70)
-        # BUT existing_priority=70 < 80 and confidence>=0.70 — check rule:
-        # should_overwrite = existing_confidence < 0.70 OR existing_priority < 80
-        # existing_priority=70 < 80 → should_overwrite=True → training wins
-        assert result["mapped_fields"]["bank_name"]["source"] == "training"
+        assert result["mapped_fields"]["bank_name"]["value"] == "SBI Bank"
+        assert result["mapped_fields"]["bank_name"]["source"] == "regex"
+
+    def test_skips_dynamic_fields(self):
+        """Dynamic fields must never be filled or overwritten by training dataset."""
+        mr = self._base_mapped_result(
+            invoice_number={"value": "", "confidence": 0.0, "method": "regex", "source": "regex"}
+        )
+        ds = _make_dataset(mappings_json=[
+            {"target_erp_name": "invoice_number", "sample_value": "INV-12345"},
+            {"target_erp_name": "company_name", "sample_value": "Acme Exports Ltd"}
+        ])
+        result = apply_training_to_mapped_fields(mr, ds)
+        assert "invoice_number" not in result["training_applied_fields"]
+        assert result["mapped_fields"]["invoice_number"]["value"] == ""
 
     def test_conflicts_metadata_present(self):
         """training_conflicts must be a list (may be empty or populated)."""

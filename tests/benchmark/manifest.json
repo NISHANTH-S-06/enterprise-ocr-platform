@@ -1,0 +1,21 @@
+{
+  "dataset_dir": "D:\\OCR_MASTER\\datasets",
+  "documents": [
+    {
+      "file": "salesinvoice.pdf",
+      "ground_truth": "ground_truth/salesinvoice_gt.json"
+    },
+    {
+      "file": "Glsprint.pdf",
+      "ground_truth": "ground_truth/Glsprint_gt.json"
+    },
+    {
+      "file": "POPRINT.pdf",
+      "ground_truth": "ground_truth/POPRINT_gt.json"
+    },
+    {
+      "file": "GRN.pdf",
+      "ground_truth": "ground_truth/GRN_gt.json"
+    }
+  ]
+}

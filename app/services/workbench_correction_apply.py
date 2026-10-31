@@ -16,7 +16,7 @@ import uuid
 from typing import Any, Optional
 
 from app.services.final_field_normalizer import INVALID_PLACEHOLDERS
-from app.api.v1.routers.forms import (
+from app.api.v1.routers.forms_workbench_helpers import (
     WORKBENCH_TARGET_DOM_IDS,
     WORKBENCH_ALIASES,
     WORKBENCH_ROW_ALIASES,
@@ -170,6 +170,10 @@ def _skip_reason(
     sv = normalize_correction_value(corr.get("source_value_sample") or "")
     if not sv and not nsk:
         return "empty_value"
+    if sv:
+        ocr_val = normalize_correction_value(ocr_lookup.get(nsk) or "")
+        if sv != ocr_val:
+            return "source_value_mismatch"
 
     dt = str(corr.get("document_type") or "")
     if dt and document_type and dt != document_type:

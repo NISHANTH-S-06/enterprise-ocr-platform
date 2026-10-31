@@ -127,8 +127,16 @@ async def _load_engine() -> OCREngine:
         logger.warning(f"pytesseract unavailable: {exc}")
 
     # ── 3. Mock fallback ──────────────────────────────────────────────────────
-    if settings.APP_ENV == "production":
-        raise RuntimeError("No real OCR engine found. Mock OCR is disabled in production.")
+    import sys
+    import os
+    is_test_mode = (
+        settings.APP_ENV == "testing"
+        or "pytest" in sys.modules
+        or os.environ.get("PYTEST_CURRENT_TEST") is not None
+        or os.environ.get("TESTING") == "1"
+    )
+    if not is_test_mode:
+        raise RuntimeError("No real OCR engine found. Mock OCR is disabled in production/development.")
     logger.warning("OCR engine: MOCK (no real engine available) — install paddlepaddle+paddleocr")
     return OCREngine("mock", _MockOCR(), "No real OCR engine found")
 

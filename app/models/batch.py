@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -56,8 +56,8 @@ class OCRBatch(Base, TimestampMixin):
     output_zip_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
-    started_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     created_by: Mapped["User"] = relationship(
         "User", back_populates="ocr_batches", foreign_keys=[created_by_id], lazy="raise"

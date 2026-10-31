@@ -29,3 +29,4 @@ class HealthResponse(BaseModel):
     environment: str
     version: str = "1.0.0"
     checks: Optional[dict] = None
+    degraded_reason: Optional[str] = None

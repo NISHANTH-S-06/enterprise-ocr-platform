@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
-from sqlalchemy import CheckConstraint, ForeignKey, Index, String, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -46,7 +46,7 @@ class AuditLog(Base):
     ip_address:    Mapped[Optional[str]]   = mapped_column(INET, nullable=True)
     user_agent:    Mapped[Optional[str]]   = mapped_column(Text, nullable=True)
     request_id:    Mapped[Optional[str]]   = mapped_column(String(64), nullable=True)
-    occurred_at:   Mapped[datetime]        = mapped_column(nullable=False)
+    occurred_at:   Mapped[datetime]        = mapped_column(DateTime(timezone=True), nullable=False)
 
     user: Mapped[Optional["User"]] = relationship("User", back_populates="audit_logs", lazy="raise")
 
@@ -78,6 +78,6 @@ class SystemLog(Base):
     extra:       Mapped[dict]          = mapped_column(JSONB, nullable=False, default=dict)
     trace_id:    Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     span_id:     Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
-    occurred_at: Mapped[datetime]      = mapped_column(nullable=False)
+    occurred_at: Mapped[datetime]      = mapped_column(DateTime(timezone=True), nullable=False)
 
     def __repr__(self) -> str: return f"<SystemLog level={self.level!r} service={self.service!r}>"

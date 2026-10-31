@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
@@ -41,6 +41,10 @@ SENSITIVE_METADATA_KEYS = (
     "traceback",
     "stack_trace",
 )
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def _org_scoped_filters(model: type[Any], current_user: dict[str, Any]) -> list[Any]:
@@ -503,7 +507,7 @@ def _add_user_audit(
             resource_id=str(user.id),
             user_id=uuid.UUID(actor["user_id"]),
             org_id=org_id,
-            occurred_at=datetime.utcnow(),
+            occurred_at=_utc_now(),
             metadata_={
                 "user_id": str(user.id),
                 "org_id": str(org_id) if org_id else None,
@@ -585,7 +589,7 @@ async def create_organisation(
         resource_id=str(new_org.id),
         user_id=uuid.UUID(current_user["user_id"]),
         org_id=new_org.id,
-        occurred_at=datetime.utcnow(),
+        occurred_at=_utc_now(),
         metadata_={
             "org_id": str(new_org.id),
             "slug": new_org.slug,
@@ -664,7 +668,7 @@ async def patch_organisation(
         changed.append("settings")
         
     if changed:
-        org.updated_at = datetime.utcnow()
+        org.updated_at = _utc_now()
         audit = AuditLog(
             action="organisation.updated",
             event_type=LogEventType.USER_MGMT.value,
@@ -673,7 +677,7 @@ async def patch_organisation(
             resource_id=str(org.id),
             user_id=uuid.UUID(current_user["user_id"]),
             org_id=org.id,
-            occurred_at=datetime.utcnow(),
+            occurred_at=_utc_now(),
             metadata_={
                 "org_id": str(org.id),
                 "slug": org.slug,
@@ -740,7 +744,7 @@ async def assign_user_to_organisation(
             changed.append("role")
 
     if changed:
-        user.updated_at = datetime.utcnow()
+        user.updated_at = _utc_now()
         _add_user_audit(
             db,
             action="user.organisation_assigned",
@@ -766,7 +770,7 @@ async def patch_user_role(
 
     if user.role != new_role:
         user.role = new_role
-        user.updated_at = datetime.utcnow()
+        user.updated_at = _utc_now()
         _add_user_audit(
             db,
             action="user.role_updated",
@@ -794,7 +798,7 @@ async def patch_user_organisation(
 
     if user.org_id != payload.org_id:
         user.org_id = payload.org_id
-        user.updated_at = datetime.utcnow()
+        user.updated_at = _utc_now()
         _add_user_audit(
             db,
             action="user.organisation_updated",

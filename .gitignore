@@ -39,7 +39,7 @@ _inspect_*.py
 _ocr_selftest.py
 _test_paddle*.py
 
-.chrome-final-e2e-profile/
+.chrome-*-profile/
 chrome-export-downloads/
 ocr_enterprise.db
 phase2b_result.json
@@ -82,3 +82,6 @@ scripts/compile_out.txt
 scripts/targeted_out*.txt
 scripts/full*_out.txt
 
+# Benchmark reports
+benchmark_report_*
+benchmark_results_*

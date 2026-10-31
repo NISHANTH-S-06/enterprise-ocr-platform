@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
@@ -79,7 +79,7 @@ class FormFillEngine:
             export_format=export_format.value,
             status=FillJobStatus.PROCESSING.value,
             fill_overrides=overrides,
-            started_at=datetime.utcnow(),
+            started_at=datetime.now(timezone.utc),
         )
         db.add(job)
         await db.flush()
@@ -160,7 +160,7 @@ class FormFillEngine:
             job.output_size  = output_path.stat().st_size if output_path.exists() else None
             job.fill_result  = fill_result_data
             job.processing_ms = elapsed
-            job.completed_at = datetime.utcnow()
+            job.completed_at = datetime.now(timezone.utc)
             await db.flush()
 
             logger.info(f"FormFill done: job={job.id} format={export_format} filled={filled} ms={elapsed}")
@@ -180,7 +180,7 @@ class FormFillEngine:
         except Exception as exc:
             job.status        = FillJobStatus.FAILED.value
             job.error_message = str(exc)
-            job.completed_at  = datetime.utcnow()
+            job.completed_at  = datetime.now(timezone.utc)
             await db.flush()
             logger.exception(f"FormFill failed: job={job.id} error={exc}")
             raise
