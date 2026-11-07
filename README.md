@@ -1,48 +1,55 @@
-# OCR Platform — Enterprise Form Fill Engine
+# Enterprise OCR Platform — Document Extraction & Form Auto-Fill
 
-Full async OCR pipeline: upload → extract → validate → autofill → export.
+[![ci](https://github.com/NISHANTH-S-06/enterprise-ocr-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/NISHANTH-S-06/enterprise-ocr-platform/actions/workflows/ci.yml)
 
-## Stack
-FastAPI · SQLAlchemy (async) · PostgreSQL · Alembic · PaddleOCR · ReportLab · OpenPyXL · JWT
+An async FastAPI service that turns scanned invoices, purchase orders and similar business documents into **validated, structured data** and fills company-specific forms from it. Every extracted field carries a confidence label and a source trace, so a reviewer can see *where* a value came from and correct it.
 
-## Quick Start (Windows VS Code)
+> Built during my AI Developer & Designer internship. Only synthetic or anonymised demo data is used in this repository; private datasets are not included.
 
-```powershell
-# 1. Copy env
-copy .env.example .env
-# Edit .env — set SECRET_KEY and DATABASE_URL
+## What it does
+`upload → OCR → extract fields → normalise → validate → review/correct → auto-fill form → export (PDF / Excel / JSON)`
 
-# 2. Install dependencies
+- **OCR pipeline** (PaddleOCR, PDF pages via PyMuPDF) with per-field confidence labels
+- **Company detection and form mapping**: detects the issuing company and maps fields to that company's form template
+- **Validation and normalisation**: dates, amounts, invoice numbers, synonyms; flags missing or suspicious fields
+- **Correction memory**: reviewer corrections are stored and re-applied to later documents
+- **Duplicate detection**, **export pre-checks** and **audit logs**
+- **Field evidence / source tracing** and a **benchmark framework** (see `README_TRACE.md`, `README_BENCHMARK.md`)
+- JWT auth, multi-tenant organisations with usage limits
+
+## Architecture
+```mermaid
+flowchart LR
+  U[Browser / API client] --> A[FastAPI /api/v1]
+  A --> Q[Job queue]
+  Q --> O[OCR service]
+  O --> E[Extraction + normalisation]
+  E --> V[Validation + confidence]
+  V --> D[(PostgreSQL)]
+  V --> F[Form-fill engine]
+  F --> X[PDF / Excel / JSON export]
+```
+
+## Tech stack
+FastAPI · SQLAlchemy (async, asyncpg) · PostgreSQL · Alembic · PaddleOCR · PyMuPDF · ReportLab · OpenPyXL · JWT · Docker · pytest
+
+## Quick start
+```bash
+cp .env.example .env          # set SECRET_KEY and DATABASE_URL (PostgreSQL)
 pip install -r requirements.txt
-
-# 3. Run migrations
 alembic upgrade head
-
-# 4. Start server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --port 8000
 ```
+Open http://127.0.0.1:8000/docs. With Docker: `docker-compose up -d`.
 
-Open: http://127.0.0.1:8000/docs
-
-## Docker
-
-```powershell
-docker-compose up -d
+## Tests
+```bash
+pytest -q        # 616 passed, 4 skipped (the 4 need private sample documents: set OCR_DATASET_DIR)
 ```
+CI runs the suite on every push (PaddleOCR is not installed in CI; tests use fixtures).
 
-Production deployment:
-
-- See `docs/PRODUCTION_DEPLOYMENT_RUNBOOK.md`
-- See `docs/PRODUCTION_CHECKLIST.md`
-- Start from `.env.production.example`
-
-Release candidate package:
-
-- See `docs/RELEASE_READINESS_RC1.md`
-- See `docs/CHANGELOG_RC1.md`
-- See `docs/RELEASE_NOTES_RC1.md`
-- See `docs/GO_LIVE_ACCEPTANCE_RC1.md`
-- See `docs/CONTROLLED_PRODUCTION_PILOT.md`
+## Production and release docs
+`docs/PRODUCTION_DEPLOYMENT_RUNBOOK.md` · `docs/PRODUCTION_CHECKLIST.md` · `docs/RELEASE_NOTES_RC1.md` · `docs/API_ENDPOINT_SUMMARY.md`
 
 ## API Flow
 
@@ -56,7 +63,7 @@ Release candidate package:
 pytest tests/ -v
 ```
 
-## Final Local Run - Upload OCR Auto-Fill
+## Windows local run (PaddleOCR + static frontend)
 
 Backend:
 
