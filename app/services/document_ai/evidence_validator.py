@@ -1,5 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
-from loguru import logger
+from typing import Any, Dict, List, Tuple
 
 def validate_evidence(
     mapped_fields: Dict[str, Any],

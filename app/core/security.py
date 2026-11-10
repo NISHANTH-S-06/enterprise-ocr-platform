@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import uuid
-from typing import Any, Dict, Iterable, Optional
-from fastapi import Depends, HTTPException, status
+from typing import Any, Dict
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext

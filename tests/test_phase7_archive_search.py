@@ -4,14 +4,14 @@ import csv
 import io
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
-from fastapi import FastAPI, HTTPException, UploadFile, status
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
 from app.api.v1.routers.upload import router
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.api.v1.routers.upload_helpers import OCR_DEMO_JOBS
-from app.models.enums import UserRole, BatchStatus, JobStatus, ExtractionStatus
+from app.models.enums import BatchStatus, JobStatus, ExtractionStatus
 from app.models.batch import OCRBatch
 from app.models.file import UploadedFile
 from app.models.job import OCRJob

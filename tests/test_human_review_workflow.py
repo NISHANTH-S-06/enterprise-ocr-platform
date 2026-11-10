@@ -6,8 +6,6 @@ from fastapi import HTTPException
 from app.services.source_trace import (
     build_source_traces,
     calculate_review_summary,
-    is_field_dynamic,
-    is_field_reusable,
 )
 from app.api.v1.routers.upload import (
     accept_job_field,
@@ -20,7 +18,6 @@ from app.api.v1.routers.upload import (
 )
 from app.api.v1.routers.upload_helpers import OCR_DEMO_JOBS
 from app.models.company import CorrectionMemory
-from app.models.extracted_data import ExtractedData
 
 
 # ── Mocks ──────────────────────────────────────────────────────────────────

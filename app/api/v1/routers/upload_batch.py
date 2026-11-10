@@ -22,7 +22,6 @@ from app.models.batch import OCRBatch
 from app.models.enums import BatchStatus, FileStatus, JobStatus, LogEventType, UserRole, ExtractionStatus
 from app.models.file import UploadedFile
 from app.models.job import OCRJob
-from app.services.audit_service import write_audit_log
 from app.services.tenant_limits import (
     check_batch_limits_for_user,
 )

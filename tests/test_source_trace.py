@@ -1,4 +1,3 @@
-import pytest
 from app.services.source_trace import build_source_traces, is_field_dynamic, is_field_reusable
 
 

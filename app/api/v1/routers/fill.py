@@ -8,7 +8,6 @@ from app.core.config import get_settings, safe_join_output_path
 from app.core.database import get_db
 from app.core.security import require_roles
 from app.models.enums import ExportFormat, UserRole
-from app.models.fill_job import FormFillJob
 from app.schemas.fill import FillRequest, FillResult
 from app.services.ownership_service import get_owned_fill_job
 from app.services.form_fill_engine import form_fill_engine

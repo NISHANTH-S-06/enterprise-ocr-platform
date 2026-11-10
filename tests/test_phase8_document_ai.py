@@ -1,5 +1,3 @@
-import pytest
-from fastapi import HTTPException
 from app.core.config import get_settings
 from app.services.document_ai.result_schema import build_document_ai_result
 from app.services.document_ai.evidence_validator import validate_evidence

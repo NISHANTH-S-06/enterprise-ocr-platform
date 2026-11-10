@@ -29,7 +29,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-import pytest
 
 from app.services.training_template_engine import (
     THRESHOLD_APPLY,

@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     from app.models.extracted_data import ExtractedData
     from app.models.file import UploadedFile
     from app.models.user import User
-    from app.models.template import ExtractionTemplate
 
 
 class OCRJob(Base, TimestampMixin):

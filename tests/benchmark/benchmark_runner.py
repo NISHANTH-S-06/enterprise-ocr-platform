@@ -10,13 +10,12 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import os
 import re
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 # Insert workspace root to sys.path
 WORKSPACE_ROOT = Path(__file__).parent.parent.parent.resolve()

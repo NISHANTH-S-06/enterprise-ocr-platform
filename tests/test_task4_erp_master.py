@@ -5,7 +5,6 @@ No live DB, no PaddleOCR required.
 from __future__ import annotations
 import csv
 import io
-import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -411,7 +410,7 @@ class TestTask41LiveMasterResolver:
         assert "erp_mappings" in sig.parameters
 
     def test_export_blocker_reduces_after_customer_id_resolved(self):
-        from app.api.v1.routers.forms import build_workbench_auto_fill, WorkbenchRequest, validate_workbench_payload
+        from app.api.v1.routers.forms import WorkbenchRequest, validate_workbench_payload
         # With customer_id already filled — export gate for customer passes
         req_validate = WorkbenchRequest(
             module="sales_order",

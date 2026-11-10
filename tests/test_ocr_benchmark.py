@@ -3,7 +3,6 @@ test_ocr_benchmark.py — Unit tests for the OCR Accuracy Benchmark runner.
 """
 from __future__ import annotations
 
-import pytest
 from tests.benchmark.benchmark_runner import (
     normalize_str,
     is_date_or_amount_field,

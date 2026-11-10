@@ -4,7 +4,7 @@ mapping_config + overrides to produce a flat {field: value} dict
 ready for export engines.
 """
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 from loguru import logger
 
 

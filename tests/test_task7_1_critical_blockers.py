@@ -20,11 +20,10 @@ Tests:
 from __future__ import annotations
 
 import json
-import os
 import sys
 import asyncio
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -34,7 +33,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 # ── Import core modules under test ────────────────────────────────────────────
-from app.core.config import get_settings, safe_join_output_path
+from app.core.config import safe_join_output_path
 from app.services.export_precheck_engine import build_export_precheck
 
 

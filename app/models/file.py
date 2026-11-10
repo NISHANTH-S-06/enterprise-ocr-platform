@@ -1,7 +1,7 @@
 from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, List, Optional
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import BigInteger, CheckConstraint, ForeignKey, Index, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from app.models.batch import OCRBatch
     from app.models.job import OCRJob
     from app.models.user import User
-    from app.models.template import ExtractionTemplate
 
 
 class UploadedFile(Base, TimestampMixin, SoftDeleteMixin):

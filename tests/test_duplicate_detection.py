@@ -5,8 +5,7 @@ from app.services.duplicate_detection import (
     normalize_company,
     normalize_date,
     normalize_amount,
-    detect_duplicates,
-    extract_keys_from_dict
+    detect_duplicates
 )
 from app.services.source_trace import calculate_review_summary
 from app.api.v1.routers.upload_helpers import OCR_DEMO_JOBS

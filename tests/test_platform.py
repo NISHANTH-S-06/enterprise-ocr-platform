@@ -649,7 +649,6 @@ class TestBatchStatusPlumbing:
     def test_atomic_zip_preserves_existing_on_generation_failure(self, monkeypatch, tmp_path):
         import asyncio
         from types import SimpleNamespace
-        from fastapi import HTTPException
         from app.api.v1.routers import upload
 
         batch_id = uuid.uuid4()
@@ -1886,7 +1885,6 @@ class TestAutoFillAliases:
 
     def test_empty_does_not_overwrite_good_value(self):
         """Alias must not replace a high-confidence value with empty string."""
-        from app.services.company_form_mapper import auto_fill
         # Simulate mapped having grand_total but NOT total_amount
         mapped = {
             "grand_total": {"value": "17612.25", "confidence": 0.9},
@@ -2002,7 +2000,6 @@ class TestAutoFillReliability:
 
     def test_blank_alias_does_not_overwrite_good_value(self):
         """Alias must not replace a high-confidence extracted value with empty string."""
-        from app.services.company_form_mapper import extract_fields
         # Manually test alias logic: if grand_total has value but total_amount also has value
         # the alias must not overwrite the higher-confidence total_amount
         mapped = {
@@ -2736,8 +2733,6 @@ class TestWorkbenchProductionEndpoints:
 
     def test_generated_signature_ignores_volatile_values(self):
         """Phase 7C: invoice number / date / amount differences don't change the signature."""
-        import asyncio
-        from app.api.v1.routers.companies import TrainingDatasetRequest, save_training_dataset
         from app.services.training_template_engine import build_template_signature
 
         raw_a = "INVOICE INV-001 date 01/01/2025 vendor ACME Corp total 10000 gstin 27AAAAA0000A1Z5"
@@ -3988,7 +3983,6 @@ class TestRegressionCoverage:
         """Test list endpoint returns expected shape with empty results."""
         import asyncio
         from app.api.v1.routers.forms import list_workbench_corrections
-        from sqlalchemy import select
 
         class FakeResult:
             def scalars(self):

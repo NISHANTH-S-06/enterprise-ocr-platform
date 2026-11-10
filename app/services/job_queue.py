@@ -10,7 +10,6 @@ from typing import Any, Optional
 from fastapi import Request
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 
 from app.models.enums import FileStatus, JobStatus, LogEventType, LogLevel
 from app.models.file import UploadedFile

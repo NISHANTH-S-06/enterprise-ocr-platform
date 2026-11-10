@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 from sqlalchemy import (
-    BigInteger, Boolean, CheckConstraint, DateTime, Float, ForeignKey,
+    Boolean, CheckConstraint, DateTime, Float, ForeignKey,
     Index, Integer, JSON, String, Text, UniqueConstraint, func,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID

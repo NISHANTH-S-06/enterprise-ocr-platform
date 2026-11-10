@@ -1,7 +1,5 @@
-import os
 import subprocess
 from pathlib import Path
-import pytest
 
 def test_no_mojibake_in_index_html():
     """Verify that frontend/index.html contains no corrupted mojibake text characters."""

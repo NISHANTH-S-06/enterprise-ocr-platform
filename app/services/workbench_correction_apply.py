@@ -12,7 +12,6 @@ Apply order:
 """
 from __future__ import annotations
 
-import uuid
 from typing import Any, Optional
 
 from app.services.final_field_normalizer import INVALID_PLACEHOLDERS

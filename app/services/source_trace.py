@@ -1,6 +1,6 @@
 from __future__ import annotations
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 DYNAMIC_FIELDS = {
     "invoice_number", "invoice_no", "bill_number", "bill_no", "tax_invoice_no", "document_no", "voucher_no", "challan_no",

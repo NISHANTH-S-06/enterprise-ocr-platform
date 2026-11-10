@@ -35,10 +35,8 @@ from app.services.memory_apply_engine import (
 from app.api.v1.routers.upload_helpers import (
     OCR_DEMO_JOBS,
     OCR_RESULT_CACHE,
-    OCR_FAILURE_TEXT,
     _build_demo_extraction,
     _extract_text_from_result,
-    _flatten_fields,
     _ai_fallback_target_fields,
     _ai_fallback_audit_metadata,
     _should_attempt_ai_fallback,
